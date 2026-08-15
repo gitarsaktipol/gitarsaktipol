@@ -1183,10 +1183,11 @@ function StatusBadge({ status }) {
   return <Badge tone={map[status] || "muted"}>{status}</Badge>;
 }
 
-function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, curriculumData, coupons, addCoupon }) {
+function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, curriculumData, coupons, addCoupon }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -1273,7 +1274,9 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                             <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                               <Pencil size={14} color={C.muted} />
                             </button>
-                            <Trash2 size={14} color={C.muted} style={{ cursor: "pointer" }} />
+                            <button onClick={() => setDeleteTarget(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                              <Trash2 size={14} color={C.muted} />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1426,6 +1429,21 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
           onClose={() => setShowCouponForm(false)}
           onSubmit={(data) => { addCoupon(data); setShowCouponForm(false); }}
         />
+      )}
+
+      {deleteTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Produk?</h3>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+              Produk <b style={{ color: C.text }}>{deleteTarget.name}</b> beserta seluruh video materinya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <GhostBtn full onClick={() => setDeleteTarget(null)}>Batal</GhostBtn>
+              <PrimaryBtn full onClick={() => { deleteProduct(deleteTarget.id); setDeleteTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
@@ -2260,6 +2278,14 @@ export default function App() {
       p.id === id ? { ...p, status: (p.status || "published") === "published" ? "draft" : "published" } : p
     )));
   };
+  const deleteProduct = (id) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setCurriculumData((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
   const addCoupon = (data) => {
     setCoupons((prev) => [...prev, { ...data, used: 0 }]);
   };
@@ -2316,7 +2342,7 @@ export default function App() {
       {view === "lp" && <LandingSecretShredding go={go} addToCart={addToCart} products={products} />}
       {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
       {view === "learn" && <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} />}
     </div>
   );
 }
