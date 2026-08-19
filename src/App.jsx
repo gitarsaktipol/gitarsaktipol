@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
-  ChevronDown, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
+  ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram
@@ -165,38 +165,74 @@ const INITIAL_CURRICULUM = {
   ],
 };
 
-const ADMIN_ORDERS = [
-  { id: "GS-20260813-118", customer: "Sinta Marlina", product: "Bundle Gitaris Lengkap", amount: 599000, method: "QRIS", payment: "Paid", status: "Selesai", date: "13 Agu 2026" },
-  { id: "GS-20260813-117", customer: "Fajar Nugroho", product: "Secret of Shredding", amount: 199000, method: "Transfer Bank", payment: "Pending", status: "Menunggu", date: "13 Agu 2026" },
-  { id: "GS-20260812-116", customer: "Wulan Sari", product: "Fondasi Gitar untuk Pemula", amount: 149000, method: "E-wallet", payment: "Paid", status: "Selesai", date: "12 Agu 2026" },
-  { id: "GS-20260812-115", customer: "Bima Aditya", product: "Ebook 100 Lick Legendaris", amount: 79000, method: "QRIS", payment: "Failed", status: "Gagal", date: "12 Agu 2026" },
-  { id: "GS-20260811-114", customer: "Andra Saputra", product: "Secret of Shredding", amount: 199000, method: "QRIS", payment: "Paid", status: "Selesai", date: "10 Agu 2026" },
-];
+const ADMIN_ORDERS = [];
 
-const ADMIN_CUSTOMERS = [
-  { name: "Andra Saputra", email: "andra.saputra@email.com", orders: 3, spending: 656000, joined: "12 Mar 2026" },
-  { name: "Sinta Marlina", email: "sinta.marlina@email.com", orders: 1, spending: 599000, joined: "13 Agu 2026" },
-  { name: "Fajar Nugroho", email: "fajar.n@email.com", orders: 1, spending: 199000, joined: "02 Jun 2026" },
-  { name: "Wulan Sari", email: "wulan.sari@email.com", orders: 2, spending: 278000, joined: "20 Apr 2026" },
-];
+const ADMIN_CUSTOMERS = [];
+
+const DEFAULT_SITE_CONTENT = {
+  home: {
+    heroBadge: "Sudah dipercaya 8.200+ pelajar gitar di Indonesia",
+    heroTitleLine: "KUASAI GITAR. KUASAI MELODI.",
+    heroTitleHighlight: "JADI GITARIS",
+    heroTitleEnd: "YANG KAMU IMPIKAN.",
+    heroSubtitle: "Kursus video terstruktur dari fondasi dasar sampai teknik shredding lanjutan. Belajar sesuai ritme kamu, akses materi selamanya.",
+    heroCta1: "Lihat Semua Produk",
+    heroCta2: "Lihat Contoh Materi",
+    stat1Num: "8.200+", stat1Label: "Siswa aktif",
+    stat2Num: "96%", stat2Label: "Rating positif",
+    stat3Num: "6", stat3Label: "Kategori kursus",
+    featuredEyebrow: "Pilihan Terpopuler", featuredTitle: "Produk Unggulan",
+    featuredSub: "Kursus dan materi yang paling banyak dipilih siswa Gitar Sakti bulan ini.",
+    categoryEyebrow: "Jelajahi", categoryTitle: "Kategori Belajar",
+    categorySub: "Dari nol sampai teknik lanjutan, semua level tersedia.",
+    whyEyebrow: "Kenapa Gitar Sakti", whyTitle: "Belajar dengan Jalur yang Jelas",
+    whySub: "Struktur kurikulum mengikuti posisi fret 3, 5, 7, 9, dan 12 — titik penanda yang dikenal setiap gitaris.",
+    whyItems: [
+      { title: "Fret 3 — Fondasi kuat", desc: "Materi disusun bertahap, tidak melompat sebelum dasar benar-benar melekat." },
+      { title: "Fret 5 — Latihan terarah", desc: "Setiap course punya target latihan mingguan yang jelas dan bisa diukur." },
+      { title: "Fret 7 — Praktik nyata", desc: "Belajar lewat lagu dan backing track, bukan cuma teori di atas kertas." },
+      { title: "Fret 9 — Akses selamanya", desc: "Satu kali beli, materi dapat diputar ulang kapan pun kamu butuh." },
+      { title: "Fret 12 — Dari pemula ke mahir", desc: "Jalur lengkap dari chord pertama sampai teknik shredding lanjutan." },
+    ],
+    testimonialEyebrow: "Kata Mereka", testimonialTitle: "Cerita dari Siswa Gitar Sakti",
+    faqEyebrow: "Sering Ditanyakan", faqTitle: "FAQ",
+    ctaTitle: "SIAP MULAI PERJALANAN GITARMU?",
+    ctaSub: "Pilih course pertama kamu hari ini dan mulai latihan terstruktur.",
+    ctaButton: "Jelajahi Produk",
+  },
+  shop: {
+    eyebrow: "Katalog",
+    title: "SEMUA PRODUK",
+  },
+  header: {
+    brandName: "GITAR SAKTI",
+    navBeranda: "Beranda",
+    navProduk: "Produk",
+    navTentang: "Tentang",
+  },
+  footer: {
+    description: "Platform edukasi gitar digital untuk pemula hingga mahir. Belajar terstruktur, akses selamanya.",
+    instagramUrl: "https://instagram.com/",
+    youtubeUrl: "https://youtube.com/",
+    copyrightText: "© 2026 Gitar Sakti. Seluruh hak cipta dilindungi.",
+  },
+  about: {
+    eyebrow: "Tentang Kami",
+    title: "Gitar Sakti",
+    sub: "Platform edukasi gitar digital yang dibangun untuk membantu siapa pun belajar gitar secara mandiri, terstruktur, dan bisa diukur progresnya.",
+    body: "Kami percaya belajar gitar tidak harus mahal atau membingungkan. Setiap course di Gitar Sakti disusun oleh instruktur berpengalaman, dengan jalur belajar yang jelas dari fondasi dasar hingga teknik lanjutan seperti shredding dan improvisasi.",
+    ctaLabel: "Mulai Belajar",
+  },
+};
 
 const INITIAL_COUPONS = [
   { code: "MERDEKA25", type: "percent", value: 25, minPurchase: 150000, limit: 200, used: 84, expiry: "31 Agu 2026" },
   { code: "PEMULA20K", type: "fixed", value: 20000, minPurchase: 100000, limit: 500, used: 312, expiry: "30 Sep 2026" },
 ];
 
-const REVENUE_7D = [
-  { day: "7 Agu", revenue: 1840000 }, { day: "8 Agu", revenue: 2210000 },
-  { day: "9 Agu", revenue: 1650000 }, { day: "10 Agu", revenue: 2980000 },
-  { day: "11 Agu", revenue: 2340000 }, { day: "12 Agu", revenue: 3120000 },
-  { day: "13 Agu", revenue: 3860000 },
-];
+const REVENUE_7D = [];
 
-const FUNNEL = [
-  { stage: "Kunjungan", value: 18400 }, { stage: "Lihat Produk", value: 9820 },
-  { stage: "Add to Cart", value: 3260 }, { stage: "Checkout", value: 1480 },
-  { stage: "Pembayaran", value: 1120 }, { stage: "Pembelian", value: 968 },
-];
+const FUNNEL = [];
 
 /* ---------------- small pieces ---------------- */
 
@@ -263,8 +299,51 @@ function GhostBtn({ children, onClick, full, small, icon: Icon }) {
   );
 }
 
-function Card({ children, style }) {
-  return <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, ...style }}>{children}</div>;
+function Card({ children, style, onClick }) {
+  return <div onClick={onClick} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, ...style }}>{children}</div>;
+}
+
+/* ---------------- inline editable text (admin mode) ---------------- */
+function EditableText({ value, onSave, admin, tag = "span", style, area, block }) {
+  const Tag = tag;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+
+  if (!admin) return <Tag style={style}>{value}</Tag>;
+
+  if (editing) {
+    const InputTag = area ? "textarea" : "input";
+    return (
+      <span style={{ display: area || block ? "block" : "inline-flex", alignItems: "flex-start", gap: 6, width: area || block ? "100%" : "auto", margin: "2px 0" }}>
+        <InputTag
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={area ? 3 : undefined}
+          style={{
+            ...style, background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6,
+            padding: "4px 8px", color: C.text, fontFamily: style?.fontFamily || "'Manrope',sans-serif",
+            boxSizing: "border-box", width: area || block ? "100%" : Math.max(6, draft.length + 2) + "ch",
+            resize: area ? "vertical" : undefined,
+          }}
+        />
+        <span style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: area || block ? 6 : 0 }}>
+          <button onClick={() => { onSave(draft); setEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
+          <button onClick={() => { setDraft(value); setEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="gs-editable" style={{ position: "relative", display: area || block ? "block" : "inline-block" }}>
+      <Tag style={style}>{value}</Tag>
+      <button onClick={() => setEditing(true)} className="gs-edit-pencil" title="Edit teks ini" style={{ position: "absolute", bottom: -8, right: -8, width: 22, height: 22, borderRadius: 6, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.45)", zIndex: 5 }}>
+        <Pencil size={11} color="#161019" />
+      </button>
+    </span>
+  );
 }
 
 /* ---------------- product card ---------------- */
@@ -325,31 +404,68 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, onAccess, videoProgress,
 }
 
 /* ---------------- header / footer ---------------- */
-function Header({ view, go, goOrAuth, goToAuth, cartCount, role, setRole, mobileOpen, setMobileOpen }) {
-  const navItem = (label, target) => (
-    <button onClick={() => go(target)} style={{ background: "none", border: "none", color: view === target ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{label}</button>
+function Header({ view, go, goOrAuth, goToAuth, cartCount, role, setRole, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage }) {
+  const h = content || DEFAULT_SITE_CONTENT.header;
+  const admin = role === "admin" && editMode;
+  const navItem = (label, target, saveKey) => (
+    admin ? (
+      <span style={{ display: "inline-block" }}>
+        <EditableText value={label} admin onSave={(v) => onSaveHeader({ [saveKey]: v })} tag="span" style={{ color: view === target ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14 }} />
+      </span>
+    ) : (
+      <button onClick={() => go(target)} style={{ background: "none", border: "none", color: view === target ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{label}</button>
+    )
   );
   return (
     <div style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(11,10,15,0.92)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${C.borderSoft}` }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-        <div onClick={() => go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+        <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
           <div style={{ width: 34, height: 34, borderRadius: 8, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Music size={18} color="#161019" strokeWidth={2} />
           </div>
-          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
+          {admin ? (
+            <EditableText value={h.brandName} admin onSave={(v) => onSaveHeader({ brandName: v })} tag="span" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }} />
+          ) : (
+            <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }}>{h.brandName}</span>
+          )}
         </div>
 
-        <div style={{ display: "flex", gap: 24 }} className="gs-desktop-nav">
-          {navItem("Beranda", "home")}
-          {navItem("Produk", "shop")}
-          {navItem("Tentang", "about")}
+        <div style={{ display: "flex", gap: 24, alignItems: "center" }} className="gs-desktop-nav">
+          {navItem(h.navBeranda, "home", "navBeranda")}
+          {navItem(h.navProduk, "shop", "navProduk")}
+          {customPages && customPages.map((p) => (
+            <button key={p.id} onClick={() => openCustomPage(p.slug)} style={{ background: "none", border: "none", color: view === "custompage" && customPageSlug === p.slug ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{p.title}</button>
+          ))}
+          {role !== "admin" && navItem(h.navTentang, "about", "navTentang")}
+          {role === "admin" && (
+            <button onClick={goToAddPage} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "5px 9px", color: C.gold, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+              <Plus size={12} />Tambah Halaman
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => goOrAuth("cart")} style={{ position: "relative", background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}>
-            <ShoppingCart size={17} color={C.text} />
-            {cartCount > 0 && <span style={{ position: "absolute", top: -6, right: -6, background: C.ember, color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace" }}>{cartCount}</span>}
-          </button>
+          {role === "admin" && (view === "home" || view === "about") && (
+            <button
+              onClick={() => setEditMode((v) => !v)}
+              title="Mode Edit"
+              style={{
+                display: "flex", alignItems: "center", gap: 6, background: editMode ? C.gold : "none",
+                border: `1px solid ${editMode ? C.gold : C.border}`, borderRadius: 8, padding: "7px 10px",
+                cursor: "pointer", color: editMode ? "#161019" : C.text, fontFamily: "'Manrope',sans-serif",
+                fontSize: 12.5, fontWeight: 700,
+              }}
+            >
+              <Pencil size={13} />
+              <span className="gs-desktop-nav">{editMode ? "Mode Edit: ON" : "Mode Edit"}</span>
+            </button>
+          )}
+          {role !== "admin" && (
+            <button onClick={() => goOrAuth("cart")} style={{ position: "relative", background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}>
+              <ShoppingCart size={17} color={C.text} />
+              {cartCount > 0 && <span style={{ position: "absolute", top: -6, right: -6, background: C.ember, color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace" }}>{cartCount}</span>}
+            </button>
+          )}
           {role ? (
             <button onClick={() => go(role === "admin" ? "admin" : "customer")} style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}>
               <User size={15} color={C.goldLight} />
@@ -361,33 +477,48 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, setRole, mobile
               <PrimaryBtn small onClick={goToAuth}>Daftar</PrimaryBtn>
             </div>
           )}
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="gs-mobile-toggle" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}>
+          <button onClick={() => setMobileOpen(!mobileOpen)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }} title="Menu halaman">
             {mobileOpen ? <X size={17} color={C.text} /> : <Menu size={17} color={C.text} />}
           </button>
         </div>
       </div>
       {mobileOpen && (
         <div style={{ borderTop: `1px solid ${C.borderSoft}`, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {navItem("Beranda", "home")}
-          {navItem("Produk", "shop")}
-          {navItem("Tentang", "about")}
-          {!role && <><GhostBtn full small onClick={goToAuth}>Masuk</GhostBtn><PrimaryBtn full small onClick={goToAuth}>Daftar</PrimaryBtn></>}
+          <div className="gs-mobile-toggle" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {navItem(h.navBeranda, "home", "navBeranda")}
+            {navItem(h.navProduk, "shop", "navProduk")}
+            {customPages && customPages.map((p) => (
+              <button key={p.id} onClick={() => { openCustomPage(p.slug); setMobileOpen(false); }} style={{ width: "100%", background: "none", border: "none", textAlign: "center", color: view === "custompage" && customPageSlug === p.slug ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{p.title}</button>
+            ))}
+            {role !== "admin" && navItem(h.navTentang, "about", "navTentang")}
+            {role === "admin" && (
+              <button onClick={() => { goToAddPage(); setMobileOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.gold, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer", boxSizing: "border-box" }}>
+                <Plus size={13} />Tambah Halaman
+              </button>
+            )}
+          </div>
+          {!role && <div className="gs-mobile-toggle" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${C.borderSoft}` }}><GhostBtn full small onClick={goToAuth}>Masuk</GhostBtn><PrimaryBtn full small onClick={goToAuth}>Daftar</PrimaryBtn></div>}
         </div>
       )}
     </div>
   );
 }
 
-function Footer({ go }) {
+function Footer({ go, content, admin, onSave }) {
+  const f = content || DEFAULT_SITE_CONTENT.footer;
   return (
     <div style={{ borderTop: `1px solid ${C.borderSoft}`, marginTop: 60, padding: "40px 20px 24px" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }} className="gs-footer-grid">
         <div>
           <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }}>Platform edukasi gitar digital untuk pemula hingga mahir. Belajar terstruktur, akses selamanya.</p>
+          {admin ? (
+            <EditableText value={f.description} admin onSave={(v) => onSave({ description: v })} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }} />
+          ) : (
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }}>{f.description}</p>
+          )}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Instagram size={15} color={C.goldLight} /></div>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Youtube size={15} color={C.goldLight} /></div>
+            <a href={f.instagramUrl || "#"} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Instagram size={15} color={C.goldLight} /></a>
+            <a href={f.youtubeUrl || "#"} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Youtube size={15} color={C.goldLight} /></a>
           </div>
         </div>
         {[
@@ -406,7 +537,11 @@ function Footer({ go }) {
         ))}
       </div>
       <div style={{ maxWidth: 1180, margin: "28px auto 0", paddingTop: 18, borderTop: `1px solid ${C.borderSoft}`, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <span>© 2026 Gitar Sakti. Seluruh hak cipta dilindungi.</span>
+        {admin ? (
+          <EditableText value={f.copyrightText} admin onSave={(v) => onSave({ copyrightText: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }} />
+        ) : (
+          <span>{f.copyrightText}</span>
+        )}
         <span onClick={() => go("lp")} style={{ cursor: "pointer", textDecoration: "underline" }}>Pratinjau landing page iklan (demo) →</span>
       </div>
     </div>
@@ -428,7 +563,11 @@ function Section({ eyebrow, title, sub, children, id }) {
 }
 
 /* ---------------- HOME ---------------- */
-function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData }) {
+function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent }) {
+  const home = content.home;
+  const admin = role === "admin" && editMode;
+  const onSaveHome = (patch) => updateSiteContent("home", patch);
+  const T = (key, area) => (admin ? <EditableText value={home[key]} admin onSave={(v) => onSaveHome({ [key]: v })} tag="span" area={area} /> : home[key]);
   const featured = products.filter((p) => (p.status || "published") === "published").slice(0, 3);
   return (
     <div>
@@ -437,24 +576,24 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
               <Sparkles size={14} color={C.gold} />
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.muted }}>Sudah dipercaya 8.200+ pelajar gitar di Indonesia</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.muted }}>{T("heroBadge")}</span>
             </div>
             <h1 className="gs-hero-title" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 56, lineHeight: 1.02, letterSpacing: 0.5, color: C.text, margin: 0 }}>
-              KUASAI GITAR. KUASAI MELODI. <span style={{ color: C.goldLight }}>JADI GITARIS</span> YANG KAMU IMPIKAN.
+              {T("heroTitleLine")} <span style={{ color: C.goldLight }}>{T("heroTitleHighlight")}</span> {T("heroTitleEnd")}
             </h1>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15.5, color: C.muted, marginTop: 20, maxWidth: 480, lineHeight: 1.65 }}>
-              Kursus video terstruktur dari fondasi dasar sampai teknik shredding lanjutan. Belajar sesuai ritme kamu, akses materi selamanya.
+              {T("heroSubtitle", true)}
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
-              <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Lihat Semua Produk</PrimaryBtn>
-              <GhostBtn onClick={() => openProduct("secret-of-shredding")} icon={PlayCircle}>Lihat Contoh Materi</GhostBtn>
+              <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>{T("heroCta1")}</PrimaryBtn>
+              <GhostBtn onClick={() => openProduct("secret-of-shredding")} icon={PlayCircle}>{T("heroCta2")}</GhostBtn>
             </div>
             <div style={{ marginTop: 36, maxWidth: 420 }}><StringDivider /></div>
             <div style={{ display: "flex", gap: 28, marginTop: 18, flexWrap: "wrap" }}>
-              {[["8.200+", "Siswa aktif"], ["96%", "Rating positif"], ["6", "Kategori kursus"]].map(([n, l]) => (
-                <div key={l}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.goldLight }}>{n}</div>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
+              {[["stat1Num", "stat1Label"], ["stat2Num", "stat2Label"], ["stat3Num", "stat3Label"]].map(([nk, lk]) => (
+                <div key={lk}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.goldLight }}>{T(nk)}</div>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{T(lk)}</div>
                 </div>
               ))}
             </div>
@@ -472,14 +611,14 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
         </div>
       </div>
 
-      <Section eyebrow="Pilihan Terpopuler" title="Produk Unggulan" sub="Kursus dan materi yang paling banyak dipilih siswa Gitar Sakti bulan ini.">
+      <Section eyebrow={T("featuredEyebrow")} title={T("featuredTitle")} sub={T("featuredSub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
           {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
         </div>
       </Section>
 
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
-        <Section eyebrow="Jelajahi" title="Kategori Belajar" sub="Dari nol sampai teknik lanjutan, semua level tersedia.">
+        <Section eyebrow={T("categoryEyebrow")} title={T("categoryTitle")} sub={T("categorySub", true)}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
             {CATEGORIES.map((c) => (
               <div key={c} onClick={() => go("shop")} style={{ cursor: "pointer", padding: "18px 16px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -491,28 +630,33 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
         </Section>
       </div>
 
-      <Section eyebrow="Kenapa Gitar Sakti" title="Belajar dengan Jalur yang Jelas" sub="Struktur kurikulum mengikuti posisi fret 3, 5, 7, 9, dan 12 — titik penanda yang dikenal setiap gitaris.">
+      <Section eyebrow={T("whyEyebrow")} title={T("whyTitle")} sub={T("whySub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 22 }} className="gs-grid-2">
-          {[
-            ["Fret 3 — Fondasi kuat", "Materi disusun bertahap, tidak melompat sebelum dasar benar-benar melekat."],
-            ["Fret 5 — Latihan terarah", "Setiap course punya target latihan mingguan yang jelas dan bisa diukur."],
-            ["Fret 7 — Praktik nyata", "Belajar lewat lagu dan backing track, bukan cuma teori di atas kertas."],
-            ["Fret 9 — Akses selamanya", "Satu kali beli, materi dapat diputar ulang kapan pun kamu butuh."],
-            ["Fret 12 — Dari pemula ke mahir", "Jalur lengkap dari chord pertama sampai teknik shredding lanjutan."],
-          ].map(([h, d]) => (
-            <div key={h} style={{ display: "flex", gap: 12 }}>
-              <FretDot />
-              <div>
-                <h4 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>{h}</h4>
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.6 }}>{d}</p>
+          {home.whyItems.map((item, idx) => {
+            const saveItem = (field, v) => onSaveHome({ whyItems: home.whyItems.map((it, i) => (i === idx ? { ...it, [field]: v } : it)) });
+            return (
+              <div key={idx} style={{ display: "flex", gap: 12 }}>
+                <FretDot />
+                <div>
+                  {admin ? (
+                    <EditableText value={item.title} admin onSave={(v) => saveItem("title", v)} tag="h4" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }} />
+                  ) : (
+                    <h4 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>{item.title}</h4>
+                  )}
+                  {admin ? (
+                    <EditableText value={item.desc} admin onSave={(v) => saveItem("desc", v)} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.6 }} />
+                  ) : (
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.6 }}>{item.desc}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Section>
 
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
-        <Section eyebrow="Kata Mereka" title="Cerita dari Siswa Gitar Sakti">
+        <Section eyebrow={T("testimonialEyebrow")} title={T("testimonialTitle")}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }} className="gs-grid-3">
             {TESTIMONIALS.map((t) => (
               <Card key={t.name} style={{ padding: 20 }}>
@@ -528,7 +672,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
         </Section>
       </div>
 
-      <Section eyebrow="Sering Ditanyakan" title="FAQ">
+      <Section eyebrow={T("faqEyebrow")} title={T("faqTitle")}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {FAQ_HOME.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)}
         </div>
@@ -536,13 +680,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
 
       <div style={{ borderTop: `1px solid ${C.borderSoft}` }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "56px 20px", textAlign: "center" }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: 0 }}>SIAP MULAI PERJALANAN GITARMU?</h2>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 10 }}>Pilih course pertama kamu hari ini dan mulai latihan terstruktur.</p>
-          <div style={{ marginTop: 20 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Jelajahi Produk</PrimaryBtn></div>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: 0 }}>{T("ctaTitle")}</h2>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 10 }}>{T("ctaSub", true)}</p>
+          <div style={{ marginTop: 20 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>{T("ctaButton")}</PrimaryBtn></div>
         </div>
       </div>
 
-      <Footer go={go} />
+      <Footer go={go} content={content.footer} admin={admin} onSave={(patch) => updateSiteContent("footer", patch)} />
     </div>
   );
 }
@@ -561,7 +705,7 @@ function FaqItem({ q, a }) {
 }
 
 /* ---------------- SHOP ---------------- */
-function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData }) {
+function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, content }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Semua");
   const [sort, setSort] = useState("Terbaru");
@@ -580,8 +724,8 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "36px 20px 60px" }}>
       <div style={{ marginBottom: 24 }}>
-        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Katalog</span>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, color: C.text, margin: "6px 0 0" }}>SEMUA PRODUK</h1>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>{content.shop.eyebrow}</span>
+        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, color: C.text, margin: "6px 0 0" }}>{content.shop.title}</h1>
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
@@ -858,6 +1002,9 @@ function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, c
       payment: "PAID",
       status: "Selesai",
       method: methodLabel[method],
+      customerName: form.name.trim(),
+      customerEmail: form.email.trim(),
+      customerPhone: form.phone.trim(),
     });
     clearCart();
     go("success");
@@ -1000,8 +1147,8 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
   const totalSpend = orders.reduce((s, o) => s + o.total, 0);
 
   const items = [
-    { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk Saya", icon: Package },
+    { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "orders", label: "Pesanan", icon: ClipboardList },
     { key: "profile", label: "Profil", icon: User },
   ];
@@ -1178,16 +1325,247 @@ function ScrollHint() {
   );
 }
 
+function OrderStatusPicker({ order, onChange }) {
+  const options = [
+    { payment: "PAID", status: "Selesai", label: "Selesai" },
+    { payment: "Pending", status: "Menunggu", label: "Menunggu" },
+    { payment: "Failed", status: "Gagal", label: "Gagal" },
+  ];
+  const toneColor = { PAID: C.gold, Pending: C.muted, Failed: C.emberLight };
+  const handleChange = (e) => {
+    const opt = options.find((o) => o.payment === e.target.value);
+    if (opt) onChange(order.id, opt.payment, opt.status);
+  };
+  return (
+    <select
+      value={order.payment}
+      onChange={handleChange}
+      style={{
+        background: C.surface2,
+        color: toneColor[order.payment] || C.text,
+        border: `1px solid ${C.border}`,
+        borderRadius: 999,
+        padding: "5px 10px",
+        fontFamily: "'Manrope',sans-serif",
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: "pointer",
+        appearance: "auto",
+      }}
+    >
+      {options.map((opt) => (
+        <option key={opt.payment} value={opt.payment} style={{ background: C.surface, color: C.text }}>{opt.label}</option>
+      ))}
+    </select>
+  );
+}
+
 function StatusBadge({ status }) {
   const map = { Selesai: "gold", Menunggu: "muted", Gagal: "ember", Paid: "gold", Pending: "muted", Failed: "ember" };
   return <Badge tone={map[status] || "muted"}>{status}</Badge>;
 }
 
-function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, curriculumData, coupons, addCoupon }) {
+/* ---------------- TAMPILAN: EDIT BERANDA ---------------- */
+function FieldInput({ label, value, onChange, area }) {
+  const Tag = area ? "textarea" : "input";
+  return (
+    <div>
+      <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{label}</label>
+      <Tag
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={area ? 3 : undefined}
+        style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 11px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box", resize: area ? "vertical" : undefined }}
+      />
+    </div>
+  );
+}
+
+function TampilanBerandaForm({ content, onSave, onBack }) {
+  const [form, setForm] = useState(content);
+  const [saved, setSaved] = useState(false);
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const setWhyItem = (idx, field, value) => {
+    setForm((f) => ({ ...f, whyItems: f.whyItems.map((it, i) => (i === idx ? { ...it, [field]: value } : it)) }));
+  };
+  const handleSave = () => { onSave(form); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Tampilan</button>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Hero</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Badge / teks kecil di atas judul" value={form.heroBadge} onChange={(v) => set("heroBadge", v)} />
+          <FieldInput label="Judul (baris pertama)" value={form.heroTitleLine} onChange={(v) => set("heroTitleLine", v)} />
+          <FieldInput label="Judul (bagian berwarna emas)" value={form.heroTitleHighlight} onChange={(v) => set("heroTitleHighlight", v)} />
+          <FieldInput label="Judul (penutup)" value={form.heroTitleEnd} onChange={(v) => set("heroTitleEnd", v)} />
+          <FieldInput label="Subjudul" value={form.heroSubtitle} onChange={(v) => set("heroSubtitle", v)} area />
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}><FieldInput label="Teks tombol utama" value={form.heroCta1} onChange={(v) => set("heroCta1", v)} /></div>
+            <div style={{ flex: 1 }}><FieldInput label="Teks tombol kedua" value={form.heroCta2} onChange={(v) => set("heroCta2", v)} /></div>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Statistik Hero</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+          {[["stat1Num", "stat1Label"], ["stat2Num", "stat2Label"], ["stat3Num", "stat3Label"]].map(([numKey, labelKey], i) => (
+            <div key={numKey} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <FieldInput label={`Angka ${i + 1}`} value={form[numKey]} onChange={(v) => set(numKey, v)} />
+              <FieldInput label={`Label ${i + 1}`} value={form[labelKey]} onChange={(v) => set(labelKey, v)} />
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Section "Produk Unggulan"</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Label kecil (eyebrow)" value={form.featuredEyebrow} onChange={(v) => set("featuredEyebrow", v)} />
+          <FieldInput label="Judul" value={form.featuredTitle} onChange={(v) => set("featuredTitle", v)} />
+          <FieldInput label="Subjudul" value={form.featuredSub} onChange={(v) => set("featuredSub", v)} area />
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Section "Kategori Belajar"</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Label kecil (eyebrow)" value={form.categoryEyebrow} onChange={(v) => set("categoryEyebrow", v)} />
+          <FieldInput label="Judul" value={form.categoryTitle} onChange={(v) => set("categoryTitle", v)} />
+          <FieldInput label="Subjudul" value={form.categorySub} onChange={(v) => set("categorySub", v)} area />
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Section "Kenapa Gitar Sakti"</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          <FieldInput label="Label kecil (eyebrow)" value={form.whyEyebrow} onChange={(v) => set("whyEyebrow", v)} />
+          <FieldInput label="Judul" value={form.whyTitle} onChange={(v) => set("whyTitle", v)} />
+          <FieldInput label="Subjudul" value={form.whySub} onChange={(v) => set("whySub", v)} area />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {form.whyItems.map((item, idx) => (
+            <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
+              <FieldInput label={`Poin ${idx + 1} — Judul`} value={item.title} onChange={(v) => setWhyItem(idx, "title", v)} />
+              <FieldInput label={`Poin ${idx + 1} — Deskripsi`} value={item.desc} onChange={(v) => setWhyItem(idx, "desc", v)} area />
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Section Testimoni & FAQ</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Testimoni — Label kecil" value={form.testimonialEyebrow} onChange={(v) => set("testimonialEyebrow", v)} />
+          <FieldInput label="Testimoni — Judul" value={form.testimonialTitle} onChange={(v) => set("testimonialTitle", v)} />
+          <FieldInput label="FAQ — Label kecil" value={form.faqEyebrow} onChange={(v) => set("faqEyebrow", v)} />
+          <FieldInput label="FAQ — Judul" value={form.faqTitle} onChange={(v) => set("faqTitle", v)} />
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>CTA Penutup</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Judul" value={form.ctaTitle} onChange={(v) => set("ctaTitle", v)} />
+          <FieldInput label="Subjudul" value={form.ctaSub} onChange={(v) => set("ctaSub", v)} area />
+          <FieldInput label="Teks tombol" value={form.ctaButton} onChange={(v) => set("ctaButton", v)} />
+        </div>
+      </Card>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <PrimaryBtn onClick={handleSave} icon={Check}>Simpan Perubahan</PrimaryBtn>
+        {saved && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.gold, fontWeight: 700 }}>Tersimpan ✓</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- TAMPILAN: EDIT HEADER ---------------- */
+function TampilanProdukForm({ content, onSave, onBack, products, moveProduct }) {
+  const [form, setForm] = useState(content);
+  const [saved, setSaved] = useState(false);
+  const handleSave = () => { onSave(form); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Tampilan</button>
+
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Teks Halaman Katalog</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldInput label="Label kecil (eyebrow)" value={form.eyebrow} onChange={(v) => setForm((f) => ({ ...f, eyebrow: v }))} />
+          <FieldInput label="Judul Halaman" value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
+          <PrimaryBtn small onClick={handleSave} icon={Check}>Simpan Perubahan</PrimaryBtn>
+          {saved && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.gold, fontWeight: 700 }}>Tersimpan ✓</span>}
+        </div>
+      </Card>
+
+      <Card style={{ padding: 20 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Urutan Tampil Produk</h3>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 14 }}>Urutan ini menentukan susunan default di katalog & 3 produk pertama yang tampil sebagai "Produk Unggulan" di Beranda.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {products.map((p, idx) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark, width: 20 }}>{idx + 1}</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text, flex: 1 }}>{p.name}</span>
+              <button onClick={() => moveProduct(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={15} color={C.muted} /></button>
+              <button onClick={() => moveProduct(p.id, "down")} disabled={idx === products.length - 1} style={{ background: "none", border: "none", cursor: idx === products.length - 1 ? "default" : "pointer", opacity: idx === products.length - 1 ? 0.3 : 1 }}><ChevronDown size={15} color={C.muted} /></button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- TAMPILAN: TAMBAH HALAMAN (list) ---------------- */
+function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
+  return (
+    <div>
+      <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Tampilan</button>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <PrimaryBtn small icon={Plus} onClick={onAdd}>Tambah Halaman Baru</PrimaryBtn>
+      </div>
+
+      {customPages.length === 0 ? (
+        <Card style={{ padding: 32, textAlign: "center" }}>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada halaman kustom. Halaman yang kamu buat akan muncul di menu ☰ di navbar.</p>
+        </Card>
+      ) : (
+        <Card style={{ padding: 4 }}>
+          {customPages.map((p, i) => (
+            <div key={p.id} style={{ padding: "12px 14px", borderBottom: i < customPages.length - 1 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{p.title}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>/{p.slug} · {p.blocks.length} blok konten</div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => onEdit(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Pencil size={14} color={C.muted} /></button>
+                <button onClick={() => onDelete(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}><Trash2 size={14} color={C.muted} /></button>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showPageForm, setShowPageForm] = useState(false);
+  const [editingPage, setEditingPage] = useState(null);
+  const [deletePageTarget, setDeletePageTarget] = useState(null);
+  const [settingsSub, setSettingsSub] = useState("menu");
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -1198,51 +1576,82 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
     { key: "settings", label: "Pengaturan", icon: Settings },
   ];
 
-  const totalRevenue = REVENUE_7D.reduce((s, d) => s + d.revenue, 0);
+  const paidOrders = orders.filter((o) => o.payment === "PAID");
+  const totalRevenue = paidOrders.reduce((s, o) => s + o.total, 0);
+  const uniqueCustomers = Array.from(new Set(orders.map((o) => o.customerEmail).filter(Boolean)));
+  const revenueByDate = {};
+  paidOrders.forEach((o) => {
+    revenueByDate[o.date] = (revenueByDate[o.date] || 0) + o.total;
+  });
+  const revenueChartData = Object.entries(revenueByDate).map(([day, revenue]) => ({ day, revenue }));
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
-      <DashSidebar items={items} active={sub} onSelect={setSub} footer={
+      <DashSidebar items={items} active={sub} onSelect={(k) => { setSub(k); setTampilanSub("menu"); setSettingsSub("menu"); }} footer={
         <button onClick={() => { setRole(null); go("home"); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
       } />
       <div style={{ flex: 1, minWidth: 0 }}>
         <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "0 0 20px" }}>
-          {{ overview: "RINGKASAN ADMIN", products: "MANAJEMEN PRODUK", orders: "MANAJEMEN PESANAN", customers: "MANAJEMEN PELANGGAN", coupons: "KUPON & PROMO", analytics: "ANALITIK", settings: "PENGATURAN" }[sub]}
+          {sub === "tampilan"
+            ? { menu: "TAMPILAN", beranda: "EDIT BERANDA", produk: "EDIT SEMUA PRODUK", halaman: "KELOLA HALAMAN" }[tampilanSub] || "TAMPILAN"
+            : { overview: "RINGKASAN ADMIN", products: "MANAJEMEN PRODUK", orders: "MANAJEMEN PESANAN", customers: "MANAJEMEN PELANGGAN", coupons: "KUPON & PROMO", analytics: "ANALITIK", settings: "PENGATURAN" }[sub]}
         </h1>
 
         {sub === "overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
-              <StatCard label="Total Revenue (7 hari)" value={rp(totalRevenue)} icon={DollarSign} />
-              <StatCard label="Total Orders" value="1.482" icon={ClipboardList} />
-              <StatCard label="Total Customers" value="968" icon={Users} />
-              <StatCard label="Conversion Rate" value="5,3%" icon={TrendingUp} />
+              <StatCard label="Total Revenue" value={rp(totalRevenue)} icon={DollarSign} />
+              <StatCard label="Total Orders" value={String(orders.length)} icon={ClipboardList} />
+              <StatCard label="Total Customers" value={String(uniqueCustomers.length)} icon={Users} />
+              <StatCard label="Conversion Rate" value="-" icon={TrendingUp} />
             </div>
             <Card style={{ padding: 18, marginTop: 20 }}>
-              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Revenue 7 Hari Terakhir</h3>
-              <div style={{ height: 220, marginTop: 8 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={REVENUE_7D}>
-                    <CartesianGrid stroke={C.border} strokeDasharray="3 3" />
-                    <XAxis dataKey="day" stroke={C.muted} fontSize={11} />
-                    <YAxis stroke={C.muted} fontSize={11} tickFormatter={(v) => (v / 1000000).toFixed(1) + "jt"} />
-                    <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} formatter={(v) => rp(v)} />
-                    <Line type="monotone" dataKey="revenue" stroke={C.gold} strokeWidth={2.5} dot={{ r: 3, fill: C.gold }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Revenue per Hari</h3>
+              {revenueChartData.length === 0 ? (
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, marginTop: 12, marginBottom: 4 }}>Belum ada transaksi tercatat.</p>
+              ) : (
+                <div style={{ height: 220, marginTop: 8 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={revenueChartData}>
+                      <CartesianGrid stroke={C.border} strokeDasharray="3 3" />
+                      <XAxis dataKey="day" stroke={C.muted} fontSize={11} />
+                      <YAxis stroke={C.muted} fontSize={11} tickFormatter={(v) => (v / 1000).toFixed(0) + "rb"} />
+                      <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} formatter={(v) => rp(v)} />
+                      <Line type="monotone" dataKey="revenue" stroke={C.gold} strokeWidth={2.5} dot={{ r: 3, fill: C.gold }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 24, marginBottom: 12 }}>Produk Terlaris</h3>
-            <Card style={{ padding: 4 }}>
-              {[...products].sort((a, b) => b.sold - a.sold).slice(0, 4).map((p, i) => (
-                <div key={p.id} style={{ padding: "12px 14px", borderBottom: i < 3 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{p.name}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.muted }}>{p.sold} terjual</span>
-                </div>
-              ))}
-            </Card>
+            {(() => {
+              const salesCount = {};
+              orders.filter((o) => o.payment === "PAID").forEach((o) => {
+                o.items.forEach((itemName) => {
+                  salesCount[itemName] = (salesCount[itemName] || 0) + 1;
+                });
+              });
+              const ranked = Object.entries(salesCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
+              if (ranked.length === 0) {
+                return (
+                  <Card style={{ padding: 24, textAlign: "center" }}>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada penjualan tercatat.</p>
+                  </Card>
+                );
+              }
+              return (
+                <Card style={{ padding: 4 }}>
+                  {ranked.map(([name, count], i) => (
+                    <div key={name} style={{ padding: "12px 14px", borderBottom: i < ranked.length - 1 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{name}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.muted }}>{count} terjual</span>
+                    </div>
+                  ))}
+                </Card>
+              );
+            })()}
           </div>
         )}
 
@@ -1253,13 +1662,19 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
             <Card style={{ overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
                 <thead><tr style={{ background: C.surface2 }}>
-                  {["Produk", "Kategori", "Harga", "Video", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
+                  {["Urutan", "Produk", "Kategori", "Harga", "Video", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
                 </tr></thead>
                 <tbody>
-                  {products.map((p) => {
+                  {products.map((p, idx) => {
                     const status = p.status || "published";
                     return (
                       <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                        <td style={{ padding: "10px 14px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <button onClick={() => moveProduct(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 0, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.muted} /></button>
+                            <button onClick={() => moveProduct(p.id, "down")} disabled={idx === products.length - 1} style={{ background: "none", border: "none", cursor: idx === products.length - 1 ? "default" : "pointer", padding: 0, opacity: idx === products.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.muted} /></button>
+                          </div>
+                        </td>
                         <td style={{ padding: "10px 14px", color: C.text }}>{p.name}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{p.category}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(p.price)}</td>
@@ -1290,54 +1705,84 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
 
         {sub === "orders" && (
           <div>
-            <ScrollHint />
-            <Card style={{ overflow: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
-              <thead><tr style={{ background: C.surface2 }}>
-                {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {ADMIN_ORDERS.map((o) => (
-                  <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={{ padding: "10px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.text }}>{o.id}</td>
-                    <td style={{ padding: "10px 14px", color: C.text }}>{o.customer}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted }}>{o.product}</td>
-                    <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(o.amount)}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted }}>{o.method}</td>
-                    <td style={{ padding: "10px 14px" }}><StatusBadge status={o.payment} /></td>
-                    <td style={{ padding: "10px 14px", color: C.muted }}>{o.status}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </Card>
+            {orders.length === 0 ? (
+              <Card style={{ padding: 32, textAlign: "center" }}>
+                <ClipboardList size={28} color={C.mutedDark} style={{ margin: "0 auto 10px" }} />
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0 }}>Belum ada pesanan masuk.</p>
+              </Card>
+            ) : (
+              <>
+                <ScrollHint />
+                <Card style={{ overflow: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
+                  <thead><tr style={{ background: C.surface2 }}>
+                    {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {orders.map((o) => (
+                      <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                        <td style={{ padding: "10px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.text }}>{o.id}</td>
+                        <td style={{ padding: "10px 14px", color: C.text }}>{o.customerName || "-"}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{o.items.join(", ")}</td>
+                        <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(o.total)}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{o.method}</td>
+                        <td style={{ padding: "10px 14px" }}><OrderStatusPicker order={o} onChange={updateOrderStatus} /></td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{o.status}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </Card>
+              </>
+            )}
           </div>
         )}
 
-        {sub === "customers" && (
+        {sub === "customers" && (() => {
+          const customerMap = {};
+          orders.forEach((o) => {
+            if (!o.customerEmail) return;
+            if (!customerMap[o.customerEmail]) {
+              customerMap[o.customerEmail] = { name: o.customerName, email: o.customerEmail, orders: 0, spending: 0, joined: o.date };
+            }
+            customerMap[o.customerEmail].orders += 1;
+            if (o.payment === "PAID") customerMap[o.customerEmail].spending += o.total;
+          });
+          const customerList = Object.values(customerMap);
+          return (
           <div>
-            <ScrollHint />
-            <Card style={{ overflow: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
-              <thead><tr style={{ background: C.surface2 }}>
-                {["Nama", "Email", "Total Order", "Total Belanja", "Bergabung"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {ADMIN_CUSTOMERS.map((c) => (
-                  <tr key={c.email} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={{ padding: "10px 14px", color: C.text }}>{c.name}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted }}>{c.email}</td>
-                    <td style={{ padding: "10px 14px", color: C.text }}>{c.orders}</td>
-                    <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(c.spending)}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted }}>{c.joined}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+            {customerList.length === 0 ? (
+              <Card style={{ padding: 32, textAlign: "center" }}>
+                <Users size={28} color={C.mutedDark} style={{ margin: "0 auto 10px" }} />
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0 }}>Belum ada pelanggan terdaftar.</p>
+              </Card>
+            ) : (
+              <>
+                <ScrollHint />
+                <Card style={{ overflow: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
+                  <thead><tr style={{ background: C.surface2 }}>
+                    {["Nama", "Email", "Total Order", "Total Belanja", "Bergabung"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {customerList.map((c) => (
+                      <tr key={c.email} style={{ borderTop: `1px solid ${C.border}` }}>
+                        <td style={{ padding: "10px 14px", color: C.text }}>{c.name}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{c.email}</td>
+                        <td style={{ padding: "10px 14px", color: C.text }}>{c.orders}</td>
+                        <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(c.spending)}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{c.joined}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+              </>
+            )}
           </div>
-        )}
+          );
+        })()}
 
         {sub === "coupons" && (
           <div>
@@ -1365,47 +1810,140 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
           </div>
         )}
 
+        {sub === "tampilan" && tampilanSub === "menu" && (
+          <div>
+            <button onClick={() => setSub("settings")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <Card style={{ padding: 18, marginBottom: 16, display: "flex", alignItems: "center", gap: 14, background: `linear-gradient(160deg, ${C.surface2}, ${C.surface})` }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9, background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Pencil size={17} color="#161019" /></div>
+              <div>
+                <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14.5, color: C.text, margin: 0 }}>Edit langsung di halaman (baru!)</h3>
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: "4px 0 0" }}>Nyalakan tombol <b>"Mode Edit"</b> di pojok kanan atas saat berada di halaman Beranda atau Tentang — teks akan muncul ikon pensil kecil, klik untuk edit langsung di tempat.</p>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {sub === "tampilan" && tampilanSub === "menu" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 16 }} className="gs-grid-2">
+            <Card style={{ padding: 20, cursor: "pointer" }} onClick={() => setTampilanSub("produk")}>
+              <ShoppingBag size={20} color={C.gold} />
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 12, marginBottom: 6 }}>Edit "Semua Produk"</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }}>Ubah judul halaman katalog dan urutan tampil produk.</p>
+            </Card>
+            <Card style={{ padding: 20, cursor: "pointer" }} onClick={() => setTampilanSub("halaman")}>
+              <Plus size={20} color={C.gold} />
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 12, marginBottom: 6 }}>Tambah Halaman</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }}>Buat halaman baru berisi teks, gambar, dan produk — muncul di menu ☰.</p>
+            </Card>
+          </div>
+        )}
+
+        {sub === "tampilan" && tampilanSub === "beranda" && (
+          <TampilanBerandaForm content={siteContent.home} onSave={(data) => updateSiteContent("home", data)} onBack={() => setTampilanSub("menu")} />
+        )}
+
+        {sub === "tampilan" && tampilanSub === "produk" && (
+          <TampilanProdukForm content={siteContent.shop} onSave={(data) => updateSiteContent("shop", data)} onBack={() => setTampilanSub("menu")} products={products} moveProduct={moveProduct} />
+        )}
+
+        {sub === "tampilan" && tampilanSub === "halaman" && (
+          <TampilanHalamanList
+            customPages={customPages}
+            onBack={() => setTampilanSub("menu")}
+            onAdd={() => { setEditingPage(null); setShowPageForm(true); }}
+            onEdit={(p) => { setEditingPage(p); setShowPageForm(true); }}
+            onDelete={(p) => setDeletePageTarget(p)}
+          />
+        )}
+
         {sub === "analytics" && (
           <div>
             <Card style={{ padding: 18 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Funnel Konversi</h3>
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6 }}>Visitor → Product View → Add to Cart → Checkout → Payment → Purchase</p>
-              <div style={{ height: 240, marginTop: 8 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={FUNNEL} layout="vertical" margin={{ left: 20 }}>
-                    <CartesianGrid stroke={C.border} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" stroke={C.muted} fontSize={11} />
-                    <YAxis type="category" dataKey="stage" stroke={C.muted} fontSize={11} width={100} />
-                    <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} />
-                    <Bar dataKey="value" fill={C.gold} radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 4 }}>Visitor → Product View → Add to Cart → Checkout → Payment → Purchase</p>
+              {FUNNEL.length === 0 ? (
+                <div style={{ padding: "24px 4px 4px", textAlign: "center" }}>
+                  <BarChart3 size={26} color={C.mutedDark} style={{ margin: "0 auto 10px" }} />
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Data funnel belum tersedia.</p>
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 6 }}>Sambungkan Meta Pixel / Google Analytics di <b style={{ color: C.muted }}>Pengaturan → Marketing</b> untuk mulai melacak kunjungan, add to cart, dan checkout secara otomatis.</p>
+                </div>
+              ) : (
+                <div style={{ height: 240, marginTop: 8 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={FUNNEL} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid stroke={C.border} strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" stroke={C.muted} fontSize={11} />
+                      <YAxis type="category" dataKey="stage" stroke={C.muted} fontSize={11} width={100} />
+                      <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} />
+                      <Bar dataKey="value" fill={C.gold} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginTop: 18 }} className="gs-grid-3">
-              <StatCard label="Add to Cart Rate" value="33,2%" icon={ShoppingCart} />
-              <StatCard label="Checkout Rate" value="45,4%" icon={ClipboardList} />
-              <StatCard label="Purchase Rate" value="65,4%" icon={TrendingUp} />
+              <StatCard label="Add to Cart Rate" value="-" icon={ShoppingCart} />
+              <StatCard label="Checkout Rate" value="-" icon={ClipboardList} />
+              <StatCard label="Purchase Rate" value="-" icon={TrendingUp} />
             </div>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 10 }}>Rate di atas memerlukan pelacakan trafik pengunjung (bukan sekadar data transaksi) — akan otomatis terisi setelah tracking pixel/GA aktif.</p>
           </div>
         )}
 
-        {sub === "settings" && (
+        {sub === "settings" && settingsSub === "menu" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {[
-              { h: "Umum", fields: ["Nama Website: Gitar Sakti", "Mata Uang: IDR (Rp)", "Email Kontak: hello@gitarsakti.id"] },
-              { h: "Payment Gateway", fields: ["Provider: (belum dipilih)", "API Key: ●●●●●● (disimpan sebagai ENV var, tidak ditampilkan)", "Merchant ID: ●●●●●●"] },
-              { h: "Marketing (Meta Ads)", fields: ["Meta Pixel ID: ●●●●●●", "Conversions API Token: ●●●●●● (ENV var)", "Test Event Code: (opsional)"] },
-              { h: "Email / SMTP", fields: ["SMTP Host: (belum dikonfigurasi)", "Sender Name: Gitar Sakti"] },
-            ].map((s) => (
-              <Card key={s.h} style={{ padding: 18 }}>
-                <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>{s.h}</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-                  {s.fields.map((f) => <div key={f} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, padding: "8px 12px", background: C.surface2, borderRadius: 6, border: `1px solid ${C.border}` }}>{f}</div>)}
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => { setSub("tampilan"); setTampilanSub("menu"); }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Eye size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Tampilan</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Edit teks Beranda, urutan produk, dan kelola halaman kustom.</p>
+                  </div>
                 </div>
-              </Card>
-            ))}
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("marketing")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <TrendingUp size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Marketing</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Payment gateway, Meta Ads, dan pengaturan email/SMTP.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
+            <Card style={{ padding: 18 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Umum</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                {["Nama Website: Gitar Sakti", "Mata Uang: IDR (Rp)", "Email Kontak: hello@gitarsakti.id"].map((f) => <div key={f} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, padding: "8px 12px", background: C.surface2, borderRadius: 6, border: `1px solid ${C.border}` }}>{f}</div>)}
+              </div>
+            </Card>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Credential sensitif tidak pernah ditulis di source code — semua diambil dari environment variables saat aplikasi berjalan.</p>
+          </div>
+        )}
+
+        {sub === "settings" && settingsSub === "marketing" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {[
+                { h: "Payment Gateway", fields: ["Provider: (belum dipilih)", "API Key: ●●●●●● (disimpan sebagai ENV var, tidak ditampilkan)", "Merchant ID: ●●●●●●"] },
+                { h: "Marketing (Meta Ads)", fields: ["Meta Pixel ID: ●●●●●●", "Conversions API Token: ●●●●●● (ENV var)", "Test Event Code: (opsional)"] },
+                { h: "Email / SMTP", fields: ["SMTP Host: (belum dikonfigurasi)", "Sender Name: Gitar Sakti"] },
+              ].map((s) => (
+                <Card key={s.h} style={{ padding: 18 }}>
+                  <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>{s.h}</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                    {s.fields.map((f) => <div key={f} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, padding: "8px 12px", background: C.surface2, borderRadius: 6, border: `1px solid ${C.border}` }}>{f}</div>)}
+                  </div>
+                </Card>
+              ))}
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Credential sensitif tidak pernah ditulis di source code — semua diambil dari environment variables saat aplikasi berjalan.</p>
+            </div>
           </div>
         )}
       </div>
@@ -1441,6 +1979,35 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <GhostBtn full onClick={() => setDeleteTarget(null)}>Batal</GhostBtn>
               <PrimaryBtn full onClick={() => { deleteProduct(deleteTarget.id); setDeleteTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {showPageForm && (
+        <PageFormModal
+          products={products}
+          initialPage={editingPage}
+          onClose={() => { setShowPageForm(false); setEditingPage(null); }}
+          onSubmit={(title, blocks) => {
+            if (editingPage) updateCustomPage(editingPage.id, title, blocks);
+            else addCustomPage(title, blocks);
+            setShowPageForm(false);
+            setEditingPage(null);
+          }}
+        />
+      )}
+
+      {deletePageTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Halaman?</h3>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+              Halaman <b style={{ color: C.text }}>{deletePageTarget.title}</b> akan dihapus dan hilang dari menu. Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <GhostBtn full onClick={() => setDeletePageTarget(null)}>Batal</GhostBtn>
+              <PrimaryBtn full onClick={() => { deleteCustomPage(deletePageTarget.id); setDeletePageTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
             </div>
           </Card>
         </div>
@@ -1659,6 +2226,98 @@ function CouponFormModal({ onClose, onSubmit }) {
           <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
             <GhostBtn full onClick={onClose}>Batal</GhostBtn>
             <PrimaryBtn full onClick={handleSubmit} icon={Check}>Simpan Kupon</PrimaryBtn>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- FORM TAMBAH/EDIT HALAMAN KUSTOM ---------------- */
+function PageFormModal({ onClose, onSubmit, products, initialPage }) {
+  const isEdit = !!initialPage;
+  const [title, setTitle] = useState(initialPage?.title || "");
+  const [blocks, setBlocks] = useState(initialPage?.blocks?.length ? initialPage.blocks : []);
+  const [error, setError] = useState("");
+
+  const addBlock = (type) => {
+    if (type === "text") setBlocks((b) => [...b, { type: "text", content: "" }]);
+    if (type === "image") setBlocks((b) => [...b, { type: "image", url: "" }]);
+    if (type === "products") setBlocks((b) => [...b, { type: "products", productIds: [] }]);
+  };
+  const updateBlock = (idx, patch) => setBlocks((b) => b.map((blk, i) => (i === idx ? { ...blk, ...patch } : blk)));
+  const removeBlock = (idx) => setBlocks((b) => b.filter((_, i) => i !== idx));
+  const toggleProductInBlock = (idx, productId) => {
+    setBlocks((b) => b.map((blk, i) => {
+      if (i !== idx) return blk;
+      const has = blk.productIds.includes(productId);
+      return { ...blk, productIds: has ? blk.productIds.filter((id) => id !== productId) : [...blk.productIds, productId] };
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!title.trim()) { setError("Judul halaman wajib diisi."); return; }
+    if (blocks.length === 0) { setError("Tambahkan minimal satu blok konten (teks/gambar/produk)."); return; }
+    setError("");
+    onSubmit(title.trim(), blocks);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+      <Card style={{ width: "100%", maxWidth: 640, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT HALAMAN" : "TAMBAH HALAMAN BARU"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Judul Halaman</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Promo Kemerdekaan" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Halaman ini akan muncul di menu navbar utama, di antara "Produk" dan "Tentang", bisa dibuka semua pengunjung.</p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {blocks.map((block, idx) => (
+            <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.gold, textTransform: "uppercase" }}>
+                  {block.type === "text" ? "Blok Teks" : block.type === "image" ? "Blok Gambar" : "Blok Produk"}
+                </span>
+                <button onClick={() => removeBlock(idx)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>
+              </div>
+
+              {block.type === "text" && (
+                <textarea value={block.content} onChange={(e) => updateBlock(idx, { content: e.target.value })} rows={4} placeholder="Tulis teks halaman di sini..." style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box", resize: "vertical" }} />
+              )}
+
+              {block.type === "image" && (
+                <input value={block.url} onChange={(e) => updateBlock(idx, { url: e.target.value })} placeholder="https://... link gambar" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+              )}
+
+              {block.type === "products" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+                  {products.map((p) => (
+                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                      <input type="checkbox" checked={block.productIds.includes(p.id)} onChange={() => toggleProductInBlock(idx, p.id)} />
+                      <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.text }}>{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <GhostBtn small onClick={() => addBlock("text")} icon={Plus}>Tambah Teks</GhostBtn>
+            <GhostBtn small onClick={() => addBlock("image")} icon={Plus}>Tambah Gambar</GhostBtn>
+            <GhostBtn small onClick={() => addBlock("products")} icon={Plus}>Tambah Produk</GhostBtn>
+          </div>
+
+          {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+            <GhostBtn full onClick={onClose}>Batal</GhostBtn>
+            <PrimaryBtn full onClick={handleSubmit} icon={Check}>{isEdit ? "Simpan Perubahan" : "Buat Halaman"}</PrimaryBtn>
           </div>
         </div>
       </Card>
@@ -2158,17 +2817,63 @@ function LandingSecretShredding({ go, addToCart, products }) {
 }
 
 
+/* ---------------- HALAMAN KUSTOM (dibuat via Admin) ---------------- */
+function CustomPageView({ slug, customPages, products, go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, curriculumData }) {
+  const page = customPages.find((p) => p.slug === slug);
+  if (!page) {
+    return (
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+        <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted }}>Halaman tidak ditemukan.</p>
+        <div style={{ marginTop: 16 }}><GhostBtn onClick={() => go("home")}>Kembali ke Beranda</GhostBtn></div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 60px" }}>
+      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: "0 0 24px" }}>{page.title.toUpperCase()}</h1>
+      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        {page.blocks.map((block, i) => {
+          if (block.type === "text") {
+            return <p key={i} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.75, whiteSpace: "pre-line", maxWidth: 760 }}>{block.content}</p>;
+          }
+          if (block.type === "image" && block.url) {
+            return <img key={i} src={block.url} alt="" style={{ width: "100%", maxWidth: 760, borderRadius: 14, border: `1px solid ${C.border}` }} />;
+          }
+          if (block.type === "products") {
+            const items = block.productIds.map((id) => products.find((p) => p.id === id)).filter(Boolean);
+            if (items.length === 0) return null;
+            return (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
+                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- ABOUT (ringkas) ---------------- */
-function AboutPage({ go }) {
+function AboutPage({ go, content, footerContent, role, editMode, updateSiteContent }) {
+  const a = content || DEFAULT_SITE_CONTENT.about;
+  const admin = role === "admin" && editMode;
+  const onSaveAbout = (patch) => updateSiteContent("about", patch);
+  const T = (key, area) => (admin ? <EditableText value={a[key]} admin onSave={(v) => onSaveAbout({ [key]: v })} tag="span" area={area} /> : a[key]);
   return (
     <div>
-      <Section eyebrow="Tentang Kami" title="Gitar Sakti" sub="Platform edukasi gitar digital yang dibangun untuk membantu siapa pun belajar gitar secara mandiri, terstruktur, dan bisa diukur progresnya.">
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, maxWidth: 640 }}>
-          Kami percaya belajar gitar tidak harus mahal atau membingungkan. Setiap course di Gitar Sakti disusun oleh instruktur berpengalaman, dengan jalur belajar yang jelas dari fondasi dasar hingga teknik lanjutan seperti shredding dan improvisasi.
-        </p>
-        <div style={{ marginTop: 24 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Mulai Belajar</PrimaryBtn></div>
+      <Section eyebrow={T("eyebrow")} title={T("title")} sub={T("sub", true)}>
+        {admin ? (
+          <EditableText value={a.body} admin onSave={(v) => onSaveAbout({ body: v })} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, maxWidth: 640 }} />
+        ) : (
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, maxWidth: 640 }}>
+            {a.body}
+          </p>
+        )}
+        <div style={{ marginTop: 24 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>{T("ctaLabel")}</PrimaryBtn></div>
       </Section>
-      <Footer go={go} />
+      <Footer go={go} content={footerContent} admin={admin} onSave={(patch) => updateSiteContent("footer", patch)} />
     </div>
   );
 }
@@ -2186,11 +2891,16 @@ export default function App() {
   const [preAuthView, setPreAuthView] = useState(null);
   const [customerSub, setCustomerSub] = useState("overview");
   const [adminSub, setAdminSub] = useState("overview");
+  const [tampilanSub, setTampilanSub] = useState("menu");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [videoProgress, setVideoProgress] = useState({});
   const [videoCurrent, setVideoCurrent] = useState({});
   const [orders, setOrders] = useState(DEMO_ORDERS);
   const [coupons, setCoupons] = useState(INITIAL_COUPONS);
+  const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
+  const [customPages, setCustomPages] = useState([]);
+  const [customPageSlug, setCustomPageSlug] = useState(null);
 
   const go = (target, slug) => {
     if (slug) setProductSlug(slug);
@@ -2239,6 +2949,9 @@ export default function App() {
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
   const clearCart = () => { setCart([]); setCoupon(null); };
   const addOrder = (order) => setOrders((prev) => [order, ...prev]);
+  const updateOrderStatus = (id, payment, status) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment, status } : o)));
+  };
   const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const addProduct = (data, videos) => {
@@ -2286,6 +2999,35 @@ export default function App() {
       return next;
     });
   };
+  const moveProduct = (id, direction) => {
+    setProducts((prev) => {
+      const idx = prev.findIndex((p) => p.id === id);
+      const newIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
+      return copy;
+    });
+  };
+  const updateSiteContent = (section, data) => {
+    setSiteContent((prev) => ({ ...prev, [section]: { ...prev[section], ...data } }));
+  };
+  const openCustomPage = (slug) => { setCustomPageSlug(slug); go("custompage"); };
+  const goToAddPage = () => { setAdminSub("tampilan"); setTampilanSub("halaman"); go("admin"); };
+  const addCustomPage = (title, blocks) => {
+    const newId = customPages.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+    let baseSlug = slugify(title) || `halaman-${newId}`;
+    let slug = baseSlug;
+    let n = 2;
+    while (customPages.some((p) => p.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
+    setCustomPages((prev) => [...prev, { id: newId, slug, title, blocks }]);
+  };
+  const updateCustomPage = (id, title, blocks) => {
+    setCustomPages((prev) => prev.map((p) => (p.id === id ? { ...p, title, blocks } : p)));
+  };
+  const deleteCustomPage = (id) => {
+    setCustomPages((prev) => prev.filter((p) => p.id !== id));
+  };
   const addCoupon = (data) => {
     setCoupons((prev) => [...prev, { ...data, used: 0 }]);
   };
@@ -2309,6 +3051,8 @@ export default function App() {
         table td, table th { white-space: nowrap; }
         table { min-width: 560px; }
         .gs-scroll-hint { display: none; }
+        .gs-edit-pencil { opacity: 0.55; transition: opacity .15s; }
+        .gs-editable:hover .gs-edit-pencil { opacity: 1; }
         @media (max-width: 860px) {
           .gs-desktop-nav { display: none !important; }
           .gs-hero-grid { grid-template-columns: 1fr !important; }
@@ -2329,20 +3073,21 @@ export default function App() {
         @media (min-width: 861px) { .gs-mobile-toggle { display: none !important; } }
       `}</style>
 
-      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} setRole={setRole} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}
+      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} setRole={setRole} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
 
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
-      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
+      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
       {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
       {view === "checkout" && <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} />}
       {view === "success" && <SuccessPage go={go} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onAdminLogin={onAdminLogin} onBack={onBack} />}
-      {view === "about" && <AboutPage go={go} />}
+      {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingSecretShredding go={go} addToCart={addToCart} products={products} />}
+      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
       {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
       {view === "learn" && <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} />}
     </div>
   );
 }
