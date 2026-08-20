@@ -62,14 +62,22 @@ const CATEGORIES = [
 const INITIAL_PRODUCTS = [
   {
     id: 1, slug: "secret-of-shredding", name: "Secret of Shredding",
-    category: "Speed & Shredding", level: "Mahir", price: 199000, oldPrice: 1500000,
-    rating: 4.9, reviews: 412, sold: 1240, badge: "Best Seller",
+    category: "Speed & Shredding", level: "Mahir", price: 297000, oldPrice: 597000,
+    rating: 0, reviews: 0, sold: 0, badge: null,
     duration: "8 jam video", format: "Video Course + Tab PDF",
     hue: "#B8432A",
     desc: "Program latihan terstruktur untuk menguasai alternate picking, economy picking, dan speed building tanpa merusak teknik dasarmu.",
     benefits: ["Kecepatan picking naik terukur tiap minggu", "Teknik tangan kanan & kiri sinkron", "Latihan metronome bertahap 60-200 BPM", "Bebas tension & cedera saat bermain cepat"],
     learn: ["Alternate picking fundamental", "Economy picking & sweep dasar", "String skipping presisi", "3 lagu shred untuk latihan aplikatif"],
     bonus: "Ebook 40 Warm-up Wajib Sebelum Latihan (gratis, tanpa batas waktu)",
+    // Tier harga real untuk landing page: berubah otomatis berdasar slot & waktu, bukan angka statis.
+    pricingTiers: {
+      founderPrice: 247000,   // harga spesial 100 pembeli pertama
+      founderSlots: 100,
+      earlyBirdPrice: 297000, // harga early bird setelah 100 slot founder habis
+      regularPrice: 597000,   // harga asli setelah countdown early bird berakhir
+      earlyBirdHours: 72,     // lama window early bird sejak kunjungan pertama user ke landing page
+    },
   },
   {
     id: 2, slug: "fondasi-gitar-pemula", name: "Fondasi Gitar untuk Pemula",
@@ -142,6 +150,10 @@ const FAQ_HOME = [
 ];
 
 const DEMO_CUSTOMER = { name: "Andra Saputra", email: "andra.saputra@email.com", phone: "0812-3456-7890" };
+
+// Testimoni asli dari pembeli, dikelompokkan per productId. Kosong di awal — diisi lewat form
+// "Tulis Ulasan" yang hanya muncul untuk pembeli yang benar-benar sudah memiliki produk tsb.
+const INITIAL_TESTIMONIALS = {};
 
 const DEMO_ORDERS = [];
 
@@ -257,6 +269,81 @@ function StarRow({ rating, size = 13 }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <Star key={n} size={size} fill={n <= Math.round(rating) ? C.gold : "none"} color={C.gold} strokeWidth={1.5} />
       ))}
+    </div>
+  );
+}
+
+function StarInput({ value, onChange, size = 20 }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" onClick={() => onChange(n)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+          <Star size={size} fill={n <= value ? C.gold : "none"} color={C.gold} strokeWidth={1.5} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Daftar ulasan asli + form pengiriman ulasan. Form hanya tampil untuk pembeli yang sudah
+// memiliki produk (owned === true) — mencegah ulasan palsu dari yang belum pernah beli.
+function TestimonialSection({ productId, owned, reviews, onSubmit, emptyLabel }) {
+  const [rating, setRating] = useState(5);
+  const [quote, setQuote] = useState("");
+  const [name, setName] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!quote.trim()) return;
+    onSubmit(productId, { rating, quote: quote.trim(), name: name.trim() || "Pembeli Terverifikasi" });
+    setSubmitted(true);
+    setQuote("");
+    setName("");
+    setRating(5);
+  };
+
+  return (
+    <div>
+      {reviews.length === 0 ? (
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.mutedDark, fontStyle: "italic" }}>{emptyLabel || "Belum ada ulasan. Jadilah yang pertama!"}</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {reviews.map((t) => (
+            <Card key={t.id} style={{ padding: 16 }}>
+              <StarRow rating={t.rating} />
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, marginTop: 8, marginBottom: 8, lineHeight: 1.6, fontStyle: "italic" }}>"{t.quote}"</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, color: C.text }}>{t.name}</span>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark }}>{t.date}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {owned && !submitted && (
+        <Card style={{ padding: 16, marginTop: 14 }}>
+          <h4 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text, margin: "0 0 10px" }}>Tulis Ulasan Kamu</h4>
+          <StarInput value={rating} onChange={setRating} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nama (tampil di ulasan)"
+            style={{ width: "100%", marginTop: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box" }}
+          />
+          <textarea
+            value={quote}
+            onChange={(e) => setQuote(e.target.value)}
+            placeholder="Ceritakan pengalaman belajarmu..."
+            rows={3}
+            style={{ width: "100%", marginTop: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box", resize: "vertical" }}
+          />
+          <div style={{ marginTop: 10 }}><PrimaryBtn small onClick={handleSubmit}>Kirim Ulasan</PrimaryBtn></div>
+        </Card>
+      )}
+      {owned && submitted && (
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.gold, marginTop: 12 }}>Terima kasih! Ulasan kamu sudah tersimpan.</p>
+      )}
     </div>
   );
 }
@@ -753,11 +840,16 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
 }
 
 /* ---------------- PRODUCT DETAIL ---------------- */
-function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData }) {
+function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial }) {
   const p = products.find((x) => x.slug === slug) || products[0];
   const related = products.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
   const owned = ownedIds.includes(p.id);
+  const productReviews = testimonials[p.id] || [];
+  // Rating & jumlah ulasan dihitung dari ulasan asli. Kalau belum ada ulasan sama sekali,
+  // pakai angka statis dari data produk (masih dipakai untuk produk lama yang sudah punya histori).
+  const liveRating = productReviews.length > 0 ? productReviews.reduce((s, t) => s + t.rating, 0) / productReviews.length : p.rating;
+  const liveReviewCount = productReviews.length > 0 ? productReviews.length : p.reviews;
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 20px 60px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 20 }}>
@@ -790,7 +882,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
             }
             if (p.previewVideo) {
               return (
-                <a href={p.previewVideo} target="_blank" rel="noopener noreferrer" style={{ display: "block", textDecoration: "none", height: 300, borderRadius: 14, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                <a href={p.previewVideo} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", height: 300, borderRadius: 14, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, alignItems: "center", justifyContent: "center", position: "relative" }}>
                   <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
                   <div style={{ position: "absolute", bottom: 14, left: 14 }}><Badge tone="muted">Tonton Preview ↗</Badge></div>
                 </a>
@@ -808,8 +900,8 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
             {p.badge && <Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge>}
             <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "10px 0 8px" }}>{p.name.toUpperCase()}</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <StarRow rating={p.rating} />
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{p.rating} · {p.reviews} ulasan · {p.sold} terjual</span>
+              <StarRow rating={liveRating} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{liveReviewCount > 0 ? `${liveRating.toFixed(1)} · ${liveReviewCount} ulasan · ` : ""}{p.sold} terjual</span>
             </div>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.7, marginTop: 16, maxWidth: 620 }}>{p.desc}</p>
           </div>
@@ -833,6 +925,17 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
                 <div key={b} style={{ display: "flex", gap: 10 }}><FretDot /><span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted }}>{b}</span></div>
               ))}
             </div>
+          </div>
+
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>Ulasan Pembeli</h3>
+            <TestimonialSection
+              productId={p.id}
+              owned={owned}
+              reviews={productReviews}
+              onSubmit={addTestimonial}
+              emptyLabel="Belum ada ulasan untuk produk ini. Jadilah pembeli pertama yang berbagi pengalaman!"
+            />
           </div>
 
           {related.length > 0 && (
@@ -998,6 +1101,7 @@ function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, c
       id: makeOrderId(orders.length + 1),
       date: formatDateID(new Date()),
       items: cartProducts.map((p) => p.name),
+      itemIds: cartProducts.map((p) => p.id),
       total,
       payment: "PAID",
       status: "Selesai",
@@ -2422,7 +2526,7 @@ function LearnPage({ slug, go, progress, setProgress, current, setCurrent, produ
             }
             if (video.url) {
               return (
-                <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", textDecoration: "none", height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
                   <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
                   <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Buka video di tab baru ↗</span>
                 </a>
@@ -2473,12 +2577,6 @@ const LP_LEARN = [
   { title: "Panduan 10 Exercise", desc: "Latihan-latihan yang jarang dibahas di kelas manapun, dirancang khusus untuk memaksimalkan progress.", icon: "list" },
 ];
 
-const LP_TESTIMONIALS = [
-  { name: "Rizky A.", role: "Mahasiswa, Bandung", quote: "Dulu udah 2 tahun main gitar tapi speed mentok di 100 BPM. Setelah ikut Secret of Shredding dan latihan sesuai materinya, sekarang bisa tembus 160 BPM dengan bersih. Cara ngajarnya emang beda, langsung ke poinnya." },
-  { name: "Dimas P.", role: "Pelajar SMA, Jakarta", quote: "Gue udah nonton puluhan video YouTube tentang shredding, tapi tetep aja bingung musti mulai dari mana. Course ini ngerapikan semua. Bonus 10 lick-nya juga keren banget, langsung bisa dipraktekin." },
-  { name: "Bagas S.", role: "Mahasiswa, Surabaya", quote: "Scale pentatonic yang dijelasin di bonus itu game changer banget. Dulu cuma tau bentuk A pentatonik doang, sekarang bisa eksplorasi semua posisi. Worth it banget untuk harganya!" },
-];
-
 const LP_COMPARISON = [
   { label: "Struktur Materi", us: true, other: false },
   { label: "Exercise Spesifik", us: true, other: false },
@@ -2488,11 +2586,11 @@ const LP_COMPARISON = [
 ];
 
 const LP_BONUSES = [
-  { title: "Secret of Shredding (Main Course)", desc: "Video pembelajaran lengkap", value: 1500000, main: true, tag: "COURSE", cover: "SECRET OF SHRED", hue: "#B8432A" },
-  { title: "Membaca Not Balok & Tablatur Simple", desc: "BONUS — Panduan praktis", value: 599000, tag: "PANDUAN", cover: "BACA TAB & NOT", hue: "#3E7D64" },
-  { title: "Panduan 10 Exercise Langka", desc: "BONUS — Latihan eksklusif", value: 100000, tag: "LATIHAN", cover: "10 EXERCISE", hue: "#7C6BB0" },
-  { title: "Scale Pentatonic Eksklusif", desc: "BONUS — Scale lengkap", value: 499000, tag: "SCALE", cover: "PENTATONIC", hue: "#C9A24B" },
-  { title: "10 Lick untuk Praktek", desc: "BONUS — Lick siap pakai", value: 2500000, tag: "LICK", cover: "10 LICK", hue: "#B8432A" },
+  { title: "Secret of Shredding (Main Course)", desc: "Video pembelajaran lengkap", value: 597000, main: true, tag: "COURSE", cover: "SECRET OF SHRED", hue: "#B8432A" },
+  { title: "Membaca Not Balok & Tablatur Simple", desc: "BONUS — Panduan praktis", value: 149000, tag: "PANDUAN", cover: "BACA TAB & NOT", hue: "#3E7D64" },
+  { title: "Panduan 10 Exercise Langka", desc: "BONUS — Latihan eksklusif", value: 99000, tag: "LATIHAN", cover: "10 EXERCISE", hue: "#7C6BB0" },
+  { title: "Scale Pentatonic Eksklusif", desc: "BONUS — Scale lengkap", value: 129000, tag: "SCALE", cover: "PENTATONIC", hue: "#C9A24B" },
+  { title: "10 Lick untuk Praktek", desc: "BONUS — Lick siap pakai", value: 149000, tag: "LICK", cover: "10 LICK", hue: "#B8432A" },
 ];
 
 const LP_FAQ = [
@@ -2503,37 +2601,76 @@ const LP_FAQ = [
 ];
 
 /* ---------------- LANDING PAGE IKLAN (Secret of Shredding) ---------------- */
-function LandingSecretShredding({ go, addToCart, products }) {
+const LP_FIRST_VISIT_KEY = "gs_lp_secret_of_shredding_first_visit";
+
+function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds }) {
   const p = products.find((x) => x.slug === "secret-of-shredding");
-  const disc = Math.round((1 - p.price / p.oldPrice) * 100);
+  const tiers = p.pricingTiers;
   const bonusTotal = LP_BONUSES.reduce((s, b) => s + b.value, 0);
+  const owned = ownedIds?.includes(p.id);
+  const productReviews = testimonials?.[p.id] || [];
 
   useEffect(() => {
     // Titik integrasi Meta Pixel + Conversions API (server-side, pakai event_id yang sama untuk deduplikasi)
     console.log("[MetaPixel] ViewContent", { content_id: p.id, content_name: p.name, value: p.price, currency: "IDR" });
   }, []);
 
-  const buyNow = () => { if (addToCart(p.id)) go("checkout"); };
   const scrollToPricing = () => {
     document.getElementById("lp-pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // Countdown evergreen 2 jam — disimpan di memori (state), bukan localStorage
-  const [timeLeft, setTimeLeft] = useState(2 * 60 * 60);
+  // Countdown JUJUR: dihitung dari kunjungan PERTAMA user ke halaman ini, disimpan di localStorage
+  // supaya tidak reset kalau halaman dibuka/refresh ulang. Begitu waktunya habis, tetap habis selamanya
+  // untuk browser/user tsb — bukan evergreen yang reset sendiri.
+  const [deadline, setDeadline] = useState(null);
   useEffect(() => {
-    const id = setInterval(() => setTimeLeft((t) => (t > 0 ? t - 1 : 0)), 1000);
+    let firstVisit;
+    try {
+      const saved = localStorage.getItem(LP_FIRST_VISIT_KEY);
+      if (saved) {
+        firstVisit = parseInt(saved, 10);
+      } else {
+        firstVisit = Date.now();
+        localStorage.setItem(LP_FIRST_VISIT_KEY, String(firstVisit));
+      }
+    } catch (e) {
+      firstVisit = Date.now(); // fallback kalau localStorage diblokir browser
+    }
+    setDeadline(firstVisit + tiers.earlyBirdHours * 60 * 60 * 1000);
+  }, [tiers.earlyBirdHours]);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const expired = deadline !== null && now >= deadline;
+  const timeLeft = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
   const hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
   const mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
   const ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
 
-  // Slot tersisa (indikator, bukan klaim absolut)
-  const [slots, setSlots] = useState(23);
-  useEffect(() => {
-    const id = setInterval(() => setSlots((s) => (s > 5 ? s - 1 : s)), 45000);
-    return () => clearInterval(id);
-  }, []);
+  // Slot 100 pembeli pertama dihitung dari p.sold ASLI (bertambah tiap transaksi sukses di addOrder),
+  // bukan angka yang berkurang sendiri seiring waktu.
+  const founderSlotsLeft = Math.max(0, tiers.founderSlots - (p.sold || 0));
+  const isFounder = founderSlotsLeft > 0;
+
+  let currentPrice, tierNote;
+  if (expired) {
+    currentPrice = tiers.regularPrice;
+    tierNote = "Harga sudah kembali ke harga reguler";
+  } else if (isFounder) {
+    currentPrice = tiers.founderPrice;
+    tierNote = `Harga Spesial Pendiri — sisa ${founderSlotsLeft} dari ${tiers.founderSlots} slot`;
+  } else {
+    currentPrice = tiers.earlyBirdPrice;
+    tierNote = "Harga Early Bird";
+  }
+  const anchorPrice = tiers.regularPrice;
+  const disc = Math.round((1 - currentPrice / anchorPrice) * 100);
+
+  const buyNow = () => { if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout"); };
 
   return (
     <div style={{ background: C.bg, minHeight: "100%" }}>
@@ -2656,30 +2793,19 @@ function LandingSecretShredding({ go, addToCart, products }) {
         </div>
       </div>
 
-      {/* TESTIMONI */}
+      {/* TESTIMONI — ulasan asli dari pembeli yang sudah memiliki produk ini */}
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", marginBottom: 26 }}>
           Kata Mereka yang Sudah <span style={{ color: C.goldLight }}>Merasakan Manfaatnya</span>
         </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {LP_TESTIMONIALS.map((t) => (
-            <Card key={t.name} style={{ padding: 18 }}>
-              <StarRow rating={5} />
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, marginTop: 10, marginBottom: 12, lineHeight: 1.6, fontStyle: "italic" }}>"{t.quote}"</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: C.goldLight }}>{t.name[0]}</span>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: C.text }}>{t.name}</div>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>{t.role}</div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <TestimonialSection
+          productId={p.id}
+          owned={owned}
+          reviews={productReviews}
+          onSubmit={addTestimonial}
+          emptyLabel="Belum ada ulasan untuk Secret of Shredding. Jadilah pembeli pertama yang berbagi pengalaman!"
+        />
       </div>
-
       {/* PERBANDINGAN */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
@@ -2742,7 +2868,7 @@ function LandingSecretShredding({ go, addToCart, products }) {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Harga Normal:</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 22, color: C.goldLight }}>Rp1.500.000</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 22, color: C.goldLight }}>{rp(anchorPrice)}</span>
           </div>
         </div>
       </div>
@@ -2752,19 +2878,27 @@ function LandingSecretShredding({ go, addToCart, products }) {
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
-              Sisa Slot: {slots}
+              {tierNote}
             </span>
           </div>
 
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "26px 24px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Promo Berakhir Dalam</p>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.emberLight, marginBottom: 16 }}>{hh} : {mm} : {ss}</div>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}>Harga Spesial Terbatas</span>
-              <div style={{ marginTop: 8 }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>Rp1.500.000</span>
-              </div>
-              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 42, color: C.goldLight, margin: "6px 0" }}>Rp199.000</div>
+              {!expired ? (
+                <>
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Harga Ini Berakhir Dalam</p>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.emberLight, marginBottom: 16 }}>{hh} : {mm} : {ss}</div>
+                </>
+              ) : (
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 16 }}>Periode harga spesial untuk kamu sudah berakhir</p>
+              )}
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}>{expired ? "Harga Reguler" : "Harga Spesial Terbatas"}</span>
+              {disc > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>{rp(anchorPrice)}</span>
+                </div>
+              )}
+              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 42, color: C.goldLight, margin: "6px 0" }}>{rp(currentPrice)}</div>
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
@@ -2901,6 +3035,24 @@ export default function App() {
   const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
   const [customPages, setCustomPages] = useState([]);
   const [customPageSlug, setCustomPageSlug] = useState(null);
+  const [testimonials, setTestimonials] = useState(() => {
+    try {
+      const raw = localStorage.getItem("gs_testimonials");
+      return raw ? JSON.parse(raw) : INITIAL_TESTIMONIALS;
+    } catch (e) {
+      return INITIAL_TESTIMONIALS;
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("gs_testimonials", JSON.stringify(testimonials)); } catch (e) {}
+  }, [testimonials]);
+  const addTestimonial = (productId, { rating, quote, name }) => {
+    setTestimonials((prev) => {
+      const list = prev[productId] || [];
+      const entry = { id: `${productId}-${Date.now()}`, rating, quote, name, date: formatDateID(new Date()) };
+      return { ...prev, [productId]: [entry, ...list] };
+    });
+  };
 
   const go = (target, slug) => {
     if (slug) setProductSlug(slug);
@@ -2948,7 +3100,19 @@ export default function App() {
   const accessProduct = (p) => (curriculumData[p.id] ? go("learn", p.slug) : go("product", p.slug));
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
   const clearCart = () => { setCart([]); setCoupon(null); };
-  const addOrder = (order) => setOrders((prev) => [order, ...prev]);
+  const addOrder = (order) => {
+    setOrders((prev) => [order, ...prev]);
+    // "Terjual" bertambah dari transaksi asli, bukan angka statis — dasar untuk slot 100 pembeli pertama.
+    if (order.itemIds && order.itemIds.length) {
+      setProducts((prev) => prev.map((p) => (order.itemIds.includes(p.id) ? { ...p, sold: (p.sold || 0) + 1 } : p)));
+    }
+  };
+  // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
+  // masuk keranjang, supaya harga di checkout sama persis dengan yang ditampilkan di landing page.
+  const applyPricingAndBuy = (productId, price, oldPrice) => {
+    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, price, oldPrice } : p)));
+    return addToCart(productId);
+  };
   const updateOrderStatus = (id, payment, status) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment, status } : o)));
   };
@@ -3077,13 +3241,13 @@ export default function App() {
 
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
       {view === "checkout" && <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} />}
       {view === "success" && <SuccessPage go={go} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingSecretShredding go={go} addToCart={addToCart} products={products} />}
+      {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
       {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
       {view === "learn" && <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />}
