@@ -4,7 +4,8 @@ import {
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
-  CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram
+  CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
+  Image as ImageIcon
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -148,6 +149,14 @@ const FAQ_HOME = [
   { q: "Metode pembayaran apa saja yang tersedia?", a: "Transfer bank, QRIS, dan e-wallet, diproses melalui payment gateway sehingga akses produk terbuka otomatis setelah pembayaran berhasil." },
   { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti melalui WhatsApp yang tertera di halaman kontak." },
 ];
+
+// Nilai awal (default) rekening tujuan pembayaran. Bisa diganti admin lewat
+// Pengaturan → Rekening — perubahan tersimpan di localStorage lewat state `bankInfo` di App().
+const DEFAULT_BANK_INFO = {
+  bankName: "Bank BCA",
+  accountNumber: "1234567890",
+  accountHolder: "Nama Pemilik GitarSakti",
+};
 
 const DEMO_CUSTOMER = { name: "Andra Saputra", email: "andra.saputra@email.com", phone: "0812-3456-7890" };
 
@@ -434,7 +443,7 @@ function EditableText({ value, onSave, admin, tag = "span", style, area, block }
 }
 
 /* ---------------- product card ---------------- */
-function ProductCard({ p, onOpen, onAdd, inCart, owned, onAccess, videoProgress, curriculumData }) {
+function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData }) {
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
   const curriculum = curriculumData?.[p.id];
   const completedCount = (videoProgress?.[p.id] || []).length;
@@ -445,8 +454,10 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, onAccess, videoProgress,
         <Music size={36} color={p.hue} strokeWidth={1.3} />
         {owned ? (
           <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="gold">Dimiliki</Badge></div>
+        ) : pending ? (
+          <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="ember">Menunggu Pembayaran</Badge></div>
         ) : p.badge && <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge></div>}
-        {!owned && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: C.goldLight, fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>-{disc}%</div>}
+        {!owned && !pending && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: C.goldLight, fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>-{disc}%</div>}
       </div>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
         <span style={{ fontSize: 11, color: C.muted, fontFamily: "'Manrope',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{p.category}</span>
@@ -469,6 +480,10 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, onAccess, videoProgress,
           ) : (
             <div style={{ marginTop: "auto" }} />
           )
+        ) : pending ? (
+          <div style={{ marginTop: "auto" }}>
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Pesanan sedang diverifikasi</span>
+          </div>
         ) : (
           <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: C.goldLight }}>{rp(p.price)}</span>
@@ -478,6 +493,8 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, onAccess, videoProgress,
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           {owned ? (
             <PrimaryBtn small full onClick={() => onAccess(p)} icon={PlayCircle}>Akses Produk</PrimaryBtn>
+          ) : pending ? (
+            <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Clock}>Menunggu Pembayaran</GhostBtn>
           ) : (
             <>
               <GhostBtn small full onClick={() => onOpen(p.slug)}>Detail</GhostBtn>
@@ -650,7 +667,7 @@ function Section({ eyebrow, title, sub, children, id }) {
 }
 
 /* ---------------- HOME ---------------- */
-function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent }) {
+function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent }) {
   const home = content.home;
   const admin = role === "admin" && editMode;
   const onSaveHome = (patch) => updateSiteContent("home", patch);
@@ -700,7 +717,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
 
       <Section eyebrow={T("featuredEyebrow")} title={T("featuredTitle")} sub={T("featuredSub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-          {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+          {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
         </div>
       </Section>
 
@@ -792,7 +809,7 @@ function FaqItem({ q, a }) {
 }
 
 /* ---------------- SHOP ---------------- */
-function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, content }) {
+function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Semua");
   const [sort, setSort] = useState("Terbaru");
@@ -832,7 +849,7 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 16 }}>{filtered.length} produk ditemukan</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-        {filtered.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+        {filtered.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
       </div>
       {filtered.length === 0 && <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted, textAlign: "center", padding: 40 }}>Tidak ada produk yang cocok dengan pencarianmu.</p>}
     </div>
@@ -840,11 +857,12 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, accessProduct, v
 }
 
 /* ---------------- PRODUCT DETAIL ---------------- */
-function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial }) {
+function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial }) {
   const p = products.find((x) => x.slug === slug) || products[0];
   const related = products.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
   const owned = ownedIds.includes(p.id);
+  const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials[p.id] || [];
   // Rating & jumlah ulasan dihitung dari ulasan asli. Kalau belum ada ulasan sama sekali,
   // pakai angka statis dari data produk (masih dipakai untuk produk lama yang sudah punya histori).
@@ -942,7 +960,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
             <div style={{ marginTop: 40 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>Produk terkait</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="gs-grid-3">
-                {related.map((r) => <ProductCard key={r.id} p={r} onOpen={(s) => go("product", s)} onAdd={addToCart} inCart={cart.includes(r.id)} owned={ownedIds.includes(r.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+                {related.map((r) => <ProductCard key={r.id} p={r} onOpen={(s) => go("product", s)} onAdd={addToCart} inCart={cart.includes(r.id)} owned={ownedIds.includes(r.id)} pending={pendingIds?.includes(r.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
               </div>
             </div>
           )}
@@ -967,6 +985,13 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
                   </div>
                 ) : null;
               })()
+            ) : pending ? (
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.goldLight }}>{rp(p.price)}</span>
+                </div>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Menunggu verifikasi pembayaran</span>
+              </div>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -983,7 +1008,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Format</span><span style={{ color: C.text, textAlign: "right" }}>{p.format}</span></div>
             </div>
 
-            {!owned && (
+            {!owned && !pending && (
               <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
                 <Sparkles size={15} color={C.gold} style={{ flexShrink: 0, marginTop: 1 }} />
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}><b style={{ color: C.text }}>Bonus:</b> {p.bonus}</span>
@@ -997,6 +1022,14 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, accessProduct, video
                   <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Kamu sudah memiliki produk ini</span>
                 </div>
                 <PrimaryBtn full onClick={() => accessProduct(p)} icon={PlayCircle}>Akses Produk</PrimaryBtn>
+              </div>
+            ) : pending ? (
+              <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.ember}` }}>
+                  <Clock size={15} color={C.emberLight} />
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                </div>
+                <GhostBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</GhostBtn>
               </div>
             ) : (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1084,34 +1117,53 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, calcDiscount }) {
+function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, orders, addOrder, calcDiscount, goToPaymentConfirm }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
   const [form, setForm] = useState({ name: DEMO_CUSTOMER.name, email: DEMO_CUSTOMER.email, phone: DEMO_CUSTOMER.phone });
-  const [method, setMethod] = useState("qris");
+  const [method, setMethod] = useState("bank");
   const [error, setError] = useState("");
   const methodLabel = { qris: "QRIS", bank: "Transfer Bank", ewallet: "E-Wallet" };
+  const [couponInput, setCouponInput] = useState(coupon || "");
+  const [couponMsg, setCouponMsg] = useState("");
+
+  const applyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) { setCoupon(null); setCouponMsg(""); return; }
+    const found = coupons.find((c) => c.code.toUpperCase() === code);
+    if (!found) { setCoupon(null); setCouponMsg("Kode kupon tidak valid."); return; }
+    if (found.minPurchase && subtotal < found.minPurchase) {
+      setCoupon(null); setCouponMsg(`Minimum belanja untuk kupon ini ${rp(found.minPurchase)}.`); return;
+    }
+    setCoupon(found.code);
+    setCouponMsg(found.type === "percent" ? `Kupon ${found.code} diterapkan — diskon ${found.value}%.` : `Kupon ${found.code} diterapkan — diskon ${rp(found.value)}.`);
+  };
 
   const placeOrder = () => {
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) { setError("Lengkapi nama, email, dan nomor WhatsApp terlebih dahulu."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
     setError("");
+    const newOrderId = makeOrderId(orders.length + 1);
     addOrder({
-      id: makeOrderId(orders.length + 1),
+      id: newOrderId,
       date: formatDateID(new Date()),
       items: cartProducts.map((p) => p.name),
       itemIds: cartProducts.map((p) => p.id),
       total,
-      payment: "PAID",
-      status: "Selesai",
+      couponCode: coupon || null,
+      discount,
+      // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
+      // oleh admin setelah customer mengunggah bukti transfer.
+      payment: "Pending",
+      status: "Menunggu",
       method: methodLabel[method],
       customerName: form.name.trim(),
       customerEmail: form.email.trim(),
       customerPhone: form.phone.trim(),
     });
     clearCart();
-    go("success");
+    goToPaymentConfirm(newOrderId);
   };
 
   return (
@@ -1131,7 +1183,7 @@ function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, c
 
           <Card style={{ padding: 18 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Metode Pembayaran</h3>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -4 }}>Diproses melalui payment gateway, order otomatis terverifikasi lewat webhook.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -4 }}>Saat ini pembayaran diverifikasi manual oleh admin via transfer bank. Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi untuk melihat rekening tujuan dan mengunggah bukti transfer.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
               {[["qris", "QRIS", QrCode], ["bank", "Transfer Bank", CreditCard], ["ewallet", "E-Wallet", Wallet]].map(([id, label, Icon]) => (
                 <div key={id} onClick={() => setMethod(id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1px solid ${method === id ? C.gold : C.border}`, background: method === id ? C.surface2 : "transparent", cursor: "pointer" }}>
@@ -1154,14 +1206,19 @@ function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, c
                 </div>
               ))}
             </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Kode kupon" style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box" }} />
+              <GhostBtn small onClick={applyCoupon}>Pakai</GhostBtn>
+            </div>
+            {couponMsg && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: coupon ? C.gold : C.ember, marginTop: 6 }}>{couponMsg}</p>}
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon</span><span style={{ color: C.text }}>-{rp(discount)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon{coupon ? ` (${coupon})` : ""}</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight }}>{rp(total)}</span></div>
             </div>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
-            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder}>Bayar Sekarang</PrimaryBtn></div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Dengan melanjutkan, produk akan otomatis masuk ke akunmu setelah pembayaran berhasil diverifikasi server.</p>
+            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder}>Buat Pesanan</PrimaryBtn></div>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi pembayaran. Produk masuk ke akunmu setelah admin memverifikasi bukti transfer.</p>
           </Card>
         </div>
       </div>
@@ -1169,18 +1226,185 @@ function CheckoutPage({ go, cartProducts, coupon, clearCart, orders, addOrder, c
   );
 }
 
-function SuccessPage({ go }) {
+function CopyableField({ label, value }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) { /* clipboard tidak tersedia — abaikan */ }
+  };
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
-      <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
-        <Check size={26} color={C.gold} />
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.border}` }}>
+      <div>
+        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>{label}</div>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 15, fontWeight: 700, color: C.text, marginTop: 2 }}>{value}</div>
       </div>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, marginTop: 20 }}>PESANAN BERHASIL DIBUAT</h1>
-      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>Webhook pembayaran sedang diverifikasi server. Produk akan otomatis muncul di dashboard begitu status berubah menjadi PAID.</p>
-      <div style={{ marginTop: 26, display: "flex", gap: 12, justifyContent: "center" }}>
-        <GhostBtn onClick={() => go("shop")}>Lanjut Belanja</GhostBtn>
-        <PrimaryBtn onClick={() => go("customer")} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
+      <button onClick={handleCopy} style={{ display: "flex", alignItems: "center", gap: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: copied ? C.gold : C.muted }}>
+        <Copy size={12} />{copied ? "Tersalin" : "Salin"}
+      </button>
+    </div>
+  );
+}
+
+// Form admin untuk mengganti rekening tujuan pembayaran. Perubahan langsung dipakai oleh
+// halaman konfirmasi pembayaran customer (PaymentConfirmationPage) begitu disimpan.
+function BankInfoForm({ bankInfo, onSave }) {
+  const [bankName, setBankName] = useState(bankInfo.bankName);
+  const [accountNumber, setAccountNumber] = useState(bankInfo.accountNumber);
+  const [accountHolder, setAccountHolder] = useState(bankInfo.accountHolder);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
+      setError("Semua kolom wajib diisi.");
+      setSaved(false);
+      return;
+    }
+    setError("");
+    onSave({ bankName: bankName.trim(), accountNumber: accountNumber.trim(), accountHolder: accountHolder.trim() });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 480 }}>
+      <Card style={{ padding: 18 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Form Rekening</h3>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 14 }}>Rekening ini ditampilkan ke customer di halaman konfirmasi pembayaran setelah checkout.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Nama Bank</label>
+            <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Contoh: Bank BCA" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Nomor Rekening</label>
+            <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Contoh: 1234567890" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Atas Nama</label>
+            <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Contoh: Nama Pemilik Rekening" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+        </div>
+
+        {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
+        {saved && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.gold, marginTop: 10 }}>Rekening berhasil disimpan.</p>}
+        <div style={{ marginTop: 14 }}><PrimaryBtn onClick={handleSave} icon={Check}>Simpan Rekening</PrimaryBtn></div>
+      </Card>
+
+      <Card style={{ padding: 18 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: C.text, marginTop: 0, marginBottom: 10 }}>Pratinjau di Halaman Customer</h3>
+        <CopyableField label="Bank" value={bankName || "-"} />
+        <CopyableField label="Nomor Rekening" value={accountNumber || "-"} />
+        <CopyableField label="Atas Nama" value={accountHolder || "-"} />
+      </Card>
+    </div>
+  );
+}
+
+// Halaman konfirmasi pembayaran — tujuan setelah checkout. Menampilkan info rekening tujuan
+// dan form upload bukti transfer. Bukti yang diunggah tersimpan di order dan bisa dilihat
+// admin di menu Pesanan untuk verifikasi manual (karena Midtrans belum terhubung).
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo }) {
+  const [note, setNote] = useState("");
+  const [preview, setPreview] = useState(order?.proofImage || null);
+  const [error, setError] = useState("");
+  const [justSubmitted, setJustSubmitted] = useState(false);
+
+  if (!order) {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Pesanan tidak ditemukan.</p>
+        <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("shop")}>Kembali ke Produk</PrimaryBtn></div>
       </div>
+    );
+  }
+
+  const alreadySubmitted = !!order.proofImage;
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("File harus berupa gambar (JPG/PNG)."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Ukuran file maksimal 5MB."); return; }
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = () => {
+    if (!preview) { setError("Unggah bukti transfer terlebih dahulu."); return; }
+    setError("");
+    attachPaymentProof(order.id, { proofImage: preview, proofNote: note.trim() });
+    setJustSubmitted(true);
+  };
+
+  if (alreadySubmitted || justSubmitted) {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+        <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+          <Check size={26} color={C.gold} />
+        </div>
+        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, marginTop: 20 }}>BUKTI PEMBAYARAN TERKIRIM</h1>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>
+          Pesanan <b style={{ color: C.text }}>{order.id}</b> sedang menunggu verifikasi admin. Produk akan otomatis muncul di dashboard begitu pembayaran dikonfirmasi.
+        </p>
+        {preview && <img src={preview} alt="Bukti transfer" style={{ maxWidth: 220, borderRadius: 10, border: `1px solid ${C.border}`, marginTop: 18 }} />}
+        <div style={{ marginTop: 26, display: "flex", gap: 12, justifyContent: "center" }}>
+          <GhostBtn onClick={() => go("shop")}>Lanjut Belanja</GhostBtn>
+          <PrimaryBtn onClick={() => go("customer")} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "36px 20px 60px" }}>
+      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "0 0 6px" }}>KONFIRMASI PEMBAYARAN</h1>
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginBottom: 22 }}>Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah dibuat. Silakan transfer ke rekening berikut, lalu unggah bukti pembayarannya.</p>
+
+      <Card style={{ padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <Landmark size={16} color={C.gold} />
+          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Transfer ke Rekening Ini</h3>
+        </div>
+        <CopyableField label="Bank" value={bankInfo.bankName} />
+        <CopyableField label="Nomor Rekening" value={bankInfo.accountNumber} />
+        <CopyableField label="Atas Nama" value={bankInfo.accountHolder} />
+        <CopyableField label="Jumlah Transfer" value={rp(order.total)} />
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 10 }}>Transfer sesuai nominal di atas ya, supaya admin lebih mudah mencocokkan dengan pesanan <b>{order.id}</b>.</p>
+      </Card>
+
+      <Card style={{ padding: 20, marginTop: 16 }}>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: "0 0 12px" }}>Unggah Bukti Transfer</h3>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: `1px dashed ${C.border}`, borderRadius: 10, padding: preview ? 12 : 28, cursor: "pointer", background: C.surface2 }}>
+          {preview ? (
+            <img src={preview} alt="Preview bukti transfer" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8 }} />
+          ) : (
+            <>
+              <Upload size={22} color={C.muted} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Klik untuk pilih foto/screenshot bukti transfer (JPG/PNG, maks 5MB)</span>
+            </>
+          )}
+          <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+        </label>
+        {preview && (
+          <button onClick={() => setPreview(null)} style={{ marginTop: 8, background: "none", border: "none", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12, cursor: "pointer", padding: 0 }}>Ganti foto</button>
+        )}
+
+        <div style={{ marginTop: 14 }}>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Catatan (opsional — misal nama pengirim jika berbeda)</label>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box", resize: "vertical" }} />
+        </div>
+
+        {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
+        <div style={{ marginTop: 14 }}><PrimaryBtn full onClick={handleSubmit} icon={Check}>Kirim Konfirmasi Pembayaran</PrimaryBtn></div>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Belum sempat transfer? Kamu bisa kembali ke halaman ini lewat menu Pesanan di dashboard.</p>
+      </Card>
     </div>
   );
 }
@@ -1240,7 +1464,7 @@ function StatCard({ label, value, icon: Icon }) {
   );
 }
 
-function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgress, products, curriculumData }) {
+function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgress, products, curriculumData, goToPaymentConfirm }) {
   const ownedIds = Array.from(new Set(
     orders.filter((o) => o.payment === "PAID")
       .flatMap((o) => o.items)
@@ -1355,7 +1579,7 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
           <Card style={{ overflow: "auto" }}>
             <table style={{ width: "100%", minWidth: 640, borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
               <thead><tr style={{ background: C.surface2 }}>
-                {["Order ID", "Tanggal", "Produk", "Total", "Pembayaran", "Status"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
+                {["Order ID", "Tanggal", "Produk", "Total", "Pembayaran", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {orders.map((o) => (
@@ -1366,6 +1590,11 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
                     <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{rp(o.total)}</td>
                     <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}><Badge>{o.payment}</Badge></td>
                     <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.status}</td>
+                    <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                      {o.payment === "Pending" && !o.proofImage && (
+                        <GhostBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Upload Bukti</GhostBtn>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1661,7 +1890,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus }) {
+function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
@@ -1670,6 +1899,7 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
   const [editingPage, setEditingPage] = useState(null);
   const [deletePageTarget, setDeletePageTarget] = useState(null);
   const [settingsSub, setSettingsSub] = useState("menu");
+  const [showProofOrder, setShowProofOrder] = useState(null);
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -1820,7 +2050,7 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                 <Card style={{ overflow: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
                   <thead><tr style={{ background: C.surface2 }}>
-                    {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
+                    {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Bukti Bayar", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {orders.map((o) => (
@@ -1830,6 +2060,15 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.items.join(", ")}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(o.total)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.method}</td>
+                        <td style={{ padding: "10px 14px" }}>
+                          {o.proofImage ? (
+                            <button onClick={() => setShowProofOrder(o)} style={{ display: "flex", alignItems: "center", gap: 5, background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.goldLight, whiteSpace: "nowrap" }}>
+                              <ImageIcon size={12} />Lihat Bukti
+                            </button>
+                          ) : (
+                            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, whiteSpace: "nowrap" }}>Belum diunggah</span>
+                          )}
+                        </td>
                         <td style={{ padding: "10px 14px" }}><OrderStatusPicker order={o} onChange={updateOrderStatus} /></td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.status}</td>
                         <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
@@ -2008,6 +2247,18 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                 <ChevronRight size={16} color={C.muted} />
               </div>
             </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("rekening")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Landmark size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Rekening</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Rekening tujuan transfer yang tampil di halaman konfirmasi pembayaran customer.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
             <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("marketing")}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2048,6 +2299,13 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
               ))}
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Credential sensitif tidak pernah ditulis di source code — semua diambil dari environment variables saat aplikasi berjalan.</p>
             </div>
+          </div>
+        )}
+
+        {sub === "settings" && settingsSub === "rekening" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <BankInfoForm bankInfo={bankInfo} onSave={updateBankInfo} />
           </div>
         )}
       </div>
@@ -2112,6 +2370,30 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <GhostBtn full onClick={() => setDeletePageTarget(null)}>Batal</GhostBtn>
               <PrimaryBtn full onClick={() => { deleteCustomPage(deletePageTarget.id); setDeletePageTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
+            </div>
+          </Card>
+        </div>
+      )}
+      {showProofOrder && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+          <Card style={{ width: "100%", maxWidth: 460, padding: 22 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, margin: 0 }}>Bukti Pembayaran — {showProofOrder.id}</h3>
+              <button onClick={() => setShowProofOrder(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+            </div>
+            <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 10 }}>
+              <div>{showProofOrder.customerName} · {rp(showProofOrder.total)}</div>
+              <div>Diunggah: {showProofOrder.proofSubmittedAt || "-"}</div>
+            </div>
+            {showProofOrder.proofImage && <img src={showProofOrder.proofImage} alt="Bukti transfer" style={{ width: "100%", borderRadius: 10, border: `1px solid ${C.border}` }} />}
+            {showProofOrder.proofNote && (
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.text, marginTop: 10, background: C.surface2, padding: 10, borderRadius: 8 }}>
+                <b style={{ color: C.muted }}>Catatan:</b> {showProofOrder.proofNote}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <GhostBtn full onClick={() => { updateOrderStatus(showProofOrder.id, "Failed", "Gagal"); setShowProofOrder(null); }}>Tolak</GhostBtn>
+              <PrimaryBtn full onClick={() => { updateOrderStatus(showProofOrder.id, "PAID", "Selesai"); setShowProofOrder(null); }} icon={Check}>Verifikasi & Selesaikan</PrimaryBtn>
             </div>
           </Card>
         </div>
@@ -2603,11 +2885,12 @@ const LP_FAQ = [
 /* ---------------- LANDING PAGE IKLAN (Secret of Shredding) ---------------- */
 const LP_FIRST_VISIT_KEY = "gs_lp_secret_of_shredding_first_visit";
 
-function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds }) {
+function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds }) {
   const p = products.find((x) => x.slug === "secret-of-shredding");
   const tiers = p.pricingTiers;
   const bonusTotal = LP_BONUSES.reduce((s, b) => s + b.value, 0);
   const owned = ownedIds?.includes(p.id);
+  const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials?.[p.id] || [];
 
   useEffect(() => {
@@ -2902,7 +3185,19 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
-              <PrimaryBtn full onClick={buyNow} icon={ArrowRight}>Beli Sekarang</PrimaryBtn>
+              {pending ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.ember}` }}>
+                  <Clock size={15} color={C.emberLight} />
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                </div>
+              ) : owned ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
+                  <Check size={15} color={C.gold} />
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Kamu sudah memiliki produk ini</span>
+                </div>
+              ) : (
+                <PrimaryBtn full onClick={buyNow} icon={ArrowRight}>Beli Sekarang</PrimaryBtn>
+              )}
               <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 14 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}><ShieldCheck size={13} color={C.gold} /> Pembayaran Aman</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}><Clock size={13} color={C.gold} /> Akses Instan</span>
@@ -2952,7 +3247,7 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
 
 
 /* ---------------- HALAMAN KUSTOM (dibuat via Admin) ---------------- */
-function CustomPageView({ slug, customPages, products, go, openProduct, addToCart, cart, ownedIds, accessProduct, videoProgress, curriculumData }) {
+function CustomPageView({ slug, customPages, products, go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, curriculumData }) {
   const page = customPages.find((p) => p.slug === slug);
   if (!page) {
     return (
@@ -2978,7 +3273,7 @@ function CustomPageView({ slug, customPages, products, go, openProduct, addToCar
             if (items.length === 0) return null;
             return (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
               </div>
             );
           }
@@ -3031,6 +3326,7 @@ export default function App() {
   const [videoProgress, setVideoProgress] = useState({});
   const [videoCurrent, setVideoCurrent] = useState({});
   const [orders, setOrders] = useState(DEMO_ORDERS);
+  const [pendingOrderId, setPendingOrderId] = useState(null);
   const [coupons, setCoupons] = useState(INITIAL_COUPONS);
   const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
   const [customPages, setCustomPages] = useState([]);
@@ -3054,6 +3350,20 @@ export default function App() {
     });
   };
 
+  // Rekening tujuan pembayaran — bisa diubah admin di Pengaturan → Rekening, tersimpan permanen.
+  const [bankInfo, setBankInfo] = useState(() => {
+    try {
+      const raw = localStorage.getItem("gs_bank_info");
+      return raw ? JSON.parse(raw) : DEFAULT_BANK_INFO;
+    } catch (e) {
+      return DEFAULT_BANK_INFO;
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("gs_bank_info", JSON.stringify(bankInfo)); } catch (e) {}
+  }, [bankInfo]);
+  const updateBankInfo = (data) => setBankInfo(data);
+
   const go = (target, slug) => {
     if (slug) setProductSlug(slug);
     setView(target);
@@ -3067,6 +3377,14 @@ export default function App() {
       .map((itemName) => products.find((p) => p.name === itemName)?.id)
       .filter(Boolean)
   )) : [];
+  // Produk yang sedang menunggu verifikasi pembayaran (belum PAID, belum juga Gagal) —
+  // dipakai untuk mencegah customer checkout ganda untuk produk yang sama.
+  const pendingIds = role === "customer" ? Array.from(new Set(
+    orders.filter((o) => o.payment === "Pending")
+      .flatMap((o) => o.items)
+      .map((itemName) => products.find((p) => p.name === itemName)?.id)
+      .filter((id) => id && !ownedIds.includes(id))
+  )) : [];
   const goToAuth = () => {
     setPreAuthView({ view, slug: productSlug });
     go("auth");
@@ -3079,7 +3397,7 @@ export default function App() {
       go("auth");
       return false;
     }
-    if (ownedIds.includes(id)) return false;
+    if (ownedIds.includes(id) || pendingIds.includes(id)) return false;
     setCart((c) => (c.includes(id) ? c : [...c, id]));
     return true;
   };
@@ -3106,6 +3424,10 @@ export default function App() {
     if (order.itemIds && order.itemIds.length) {
       setProducts((prev) => prev.map((p) => (order.itemIds.includes(p.id) ? { ...p, sold: (p.sold || 0) + 1 } : p)));
     }
+    // Pemakaian kupon bertambah dari transaksi asli, dipakai untuk tampilan "X/limit" di admin.
+    if (order.couponCode) {
+      setCoupons((prev) => prev.map((c) => (c.code === order.couponCode ? { ...c, used: (c.used || 0) + 1 } : c)));
+    }
   };
   // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
   // masuk keranjang, supaya harga di checkout sama persis dengan yang ditampilkan di landing page.
@@ -3115,6 +3437,15 @@ export default function App() {
   };
   const updateOrderStatus = (id, payment, status) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment, status } : o)));
+  };
+  // Menyimpan bukti transfer yang diunggah customer ke order terkait, supaya admin bisa
+  // melihat & memverifikasinya secara manual di menu Pesanan.
+  const attachPaymentProof = (id, { proofImage, proofNote }) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, proofImage, proofNote, proofSubmittedAt: formatDateID(new Date()) } : o)));
+  };
+  const goToPaymentConfirm = (orderId) => {
+    setPendingOrderId(orderId);
+    go("paymentconfirm");
   };
   const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -3239,19 +3570,19 @@ export default function App() {
 
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} setRole={setRole} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
 
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
+      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
-      {view === "checkout" && <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} />}
-      {view === "success" && <SuccessPage go={go} />}
+      {view === "checkout" && <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} />}
-      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
-      {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} />}
+      {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
+      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
+      {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} />}
       {view === "learn" && <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} />}
     </div>
   );
 }
