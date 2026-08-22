@@ -1658,7 +1658,7 @@ function ScrollHint() {
   );
 }
 
-function OrderStatusPicker({ order, onChange }) {
+function OrderStatusPicker({ order, onChange, onRequestConfirmPaid }) {
   const options = [
     { payment: "PAID", status: "Selesai", label: "Selesai" },
     { payment: "Pending", status: "Menunggu", label: "Menunggu" },
@@ -1667,7 +1667,14 @@ function OrderStatusPicker({ order, onChange }) {
   const toneColor = { PAID: C.gold, Pending: C.muted, Failed: C.emberLight };
   const handleChange = (e) => {
     const opt = options.find((o) => o.payment === e.target.value);
-    if (opt) onChange(order.id, opt.payment, opt.status);
+    if (!opt) return;
+    // Menandai "Selesai" (PAID) berarti membuka akses produk ke customer — minta konfirmasi
+    // eksplisit dulu supaya tidak ke-tap tanpa sengaja saat sedang mengecek bukti transfer.
+    if (opt.payment === "PAID" && order.payment !== "PAID") {
+      onRequestConfirmPaid(order);
+      return;
+    }
+    onChange(order.id, opt.payment, opt.status);
   };
   return (
     <select
@@ -1900,6 +1907,7 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
   const [deletePageTarget, setDeletePageTarget] = useState(null);
   const [settingsSub, setSettingsSub] = useState("menu");
   const [showProofOrder, setShowProofOrder] = useState(null);
+  const [confirmPaidOrder, setConfirmPaidOrder] = useState(null);
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -2069,7 +2077,7 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                             <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, whiteSpace: "nowrap" }}>Belum diunggah</span>
                           )}
                         </td>
-                        <td style={{ padding: "10px 14px" }}><OrderStatusPicker order={o} onChange={updateOrderStatus} /></td>
+                        <td style={{ padding: "10px 14px" }}><OrderStatusPicker order={o} onChange={updateOrderStatus} onRequestConfirmPaid={setConfirmPaidOrder} /></td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.status}</td>
                         <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
                       </tr>
@@ -2394,6 +2402,30 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <GhostBtn full onClick={() => { updateOrderStatus(showProofOrder.id, "Failed", "Gagal"); setShowProofOrder(null); }}>Tolak</GhostBtn>
               <PrimaryBtn full onClick={() => { updateOrderStatus(showProofOrder.id, "PAID", "Selesai"); setShowProofOrder(null); }} icon={Check}>Verifikasi & Selesaikan</PrimaryBtn>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {confirmPaidOrder && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+          <Card style={{ width: "100%", maxWidth: 420, padding: 22, textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${C.gold}18`, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <ShieldCheck size={22} color={C.gold} />
+            </div>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, margin: "0 0 8px" }}>
+              Anda yakin <span style={{ color: C.goldLight }}>{confirmPaidOrder.customerName}</span> sudah bayar?
+            </h3>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "0 0 6px" }}>
+              Produk <b style={{ color: C.text }}>{confirmPaidOrder.items.join(", ")}</b> akan langsung bisa diakses oleh <b style={{ color: C.text }}>{confirmPaidOrder.customerName}</b> setelah ini.
+            </p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: "0 0 18px" }}>
+              Order {confirmPaidOrder.id} · {rp(confirmPaidOrder.total)}
+              {!confirmPaidOrder.proofImage && <><br />Belum ada bukti transfer yang diunggah untuk pesanan ini.</>}
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <GhostBtn full onClick={() => setConfirmPaidOrder(null)}>Batal</GhostBtn>
+              <PrimaryBtn full onClick={() => { updateOrderStatus(confirmPaidOrder.id, "PAID", "Selesai"); setConfirmPaidOrder(null); }} icon={Check}>Ya, Sudah Bayar</PrimaryBtn>
             </div>
           </Card>
         </div>
