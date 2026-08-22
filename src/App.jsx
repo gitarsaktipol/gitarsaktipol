@@ -158,7 +158,6 @@ const DEFAULT_BANK_INFO = {
   accountHolder: "Nama Pemilik GitarSakti",
 };
 
-const DEMO_CUSTOMER = { name: "Andra Saputra", email: "andra.saputra@email.com", phone: "0812-3456-7890" };
 
 // Testimoni asli dari pembeli, dikelompokkan per productId. Kosong di awal — diisi lewat form
 // "Tulis Ulasan" yang hanya muncul untuk pembeli yang benar-benar sudah memiliki produk tsb.
@@ -508,7 +507,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
 }
 
 /* ---------------- header / footer ---------------- */
-function Header({ view, go, goOrAuth, goToAuth, cartCount, role, setRole, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage }) {
+function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage }) {
   const h = content || DEFAULT_SITE_CONTENT.header;
   const admin = role === "admin" && editMode;
   const navItem = (label, target, saveKey) => (
@@ -573,7 +572,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, setRole, mobile
           {role ? (
             <button onClick={() => go(role === "admin" ? "admin" : "customer")} style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}>
               <User size={15} color={C.goldLight} />
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }} className="gs-desktop-nav">{role === "admin" ? "Admin" : DEMO_CUSTOMER.name}</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }} className="gs-desktop-nav">{role === "admin" ? "Admin" : accountName}</span>
             </button>
           ) : (
             <div style={{ display: "flex", gap: 8 }} className="gs-desktop-nav">
@@ -646,7 +645,61 @@ function Footer({ go, content, admin, onSave }) {
         ) : (
           <span>{f.copyrightText}</span>
         )}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <span onClick={() => go("privacy")} style={{ cursor: "pointer" }}>Kebijakan Privasi</span>
+          <span onClick={() => go("terms")} style={{ cursor: "pointer" }}>Syarat & Ketentuan</span>
+          <span onClick={() => go("refund")} style={{ cursor: "pointer" }}>Kebijakan Refund</span>
+        </div>
         <span onClick={() => go("lp")} style={{ cursor: "pointer", textDecoration: "underline" }}>Pratinjau landing page iklan (demo) →</span>
+      </div>
+    </div>
+  );
+}
+
+// Konten legal default. Belum bisa diedit lewat admin di prototipe ini — kalau perlu diedit,
+// pola EditableText yang sudah dipakai di HomePage/Footer bisa dipasang di sini juga nanti.
+const LEGAL_PAGES = {
+  privacy: {
+    title: "KEBIJAKAN PRIVASI",
+    body: [
+      "GitarSakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, serta bukti transfer yang diunggah saat konfirmasi pembayaran.",
+      "Data ini digunakan semata untuk memproses pesanan, memverifikasi pembayaran, dan memberikan akses ke produk yang kamu beli — tidak dijual atau dibagikan ke pihak ketiga untuk keperluan iklan.",
+      "Bukti transfer yang kamu unggah hanya dapat dilihat oleh admin GitarSakti untuk keperluan verifikasi pembayaran.",
+      "Kamu bisa menghubungi kami kapan saja untuk meminta data pribadimu dihapus dari sistem, selama tidak melanggar kewajiban pencatatan transaksi.",
+    ],
+  },
+  terms: {
+    title: "SYARAT & KETENTUAN",
+    body: [
+      "Dengan membeli produk di GitarSakti, kamu menyetujui bahwa seluruh materi (video, PDF, backing track) adalah untuk penggunaan pribadi dan tidak boleh dibagikan, dijual ulang, atau diunggah ulang ke platform lain.",
+      "Akses ke materi diberikan setelah pembayaran diverifikasi oleh admin, biasanya dalam 1x24 jam pada hari kerja setelah bukti transfer diunggah.",
+      "Harga yang tertera pada saat checkout adalah harga final yang berlaku untuk transaksi tersebut, termasuk apabila sedang berlaku harga promo/early bird.",
+      "GitarSakti berhak menangguhkan akses akun yang terindikasi melakukan pelanggaran, termasuk pembagian materi tanpa izin.",
+    ],
+  },
+  refund: {
+    title: "KEBIJAKAN REFUND",
+    body: [
+      "Karena produk berupa materi digital yang langsung bisa diakses setelah pembayaran diverifikasi, pembelian yang sudah selesai secara umum tidak dapat dikembalikan (non-refundable).",
+      "Pengecualian berlaku apabila terjadi kesalahan dari pihak GitarSakti, misalnya pembayaran sudah diverifikasi tetapi materi tidak dapat diakses karena kendala teknis dari sistem.",
+      "Untuk kendala seperti itu, silakan hubungi admin melalui kontak yang tertera di halaman Tentang Kami dengan menyertakan Order ID, dan akan kami proses secepatnya.",
+      "Pembatalan pesanan yang masih berstatus Menunggu (belum diverifikasi) bisa dilakukan dengan menghubungi admin sebelum bukti transfer diverifikasi.",
+    ],
+  },
+};
+
+function LegalPage({ slug, go }) {
+  const page = LEGAL_PAGES[slug] || LEGAL_PAGES.terms;
+  return (
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "36px 20px 60px" }}>
+      <button onClick={() => go("home")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+        <ArrowLeft size={15} /> Kembali
+      </button>
+      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "0 0 20px" }}>{page.title}</h1>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {page.body.map((p, i) => (
+          <p key={i} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, margin: 0 }}>{p}</p>
+        ))}
       </div>
     </div>
   );
@@ -1117,11 +1170,11 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, orders, addOrder, calcDiscount, goToPaymentConfirm }) {
+function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, orders, addOrder, calcDiscount, goToPaymentConfirm, account }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
-  const [form, setForm] = useState({ name: DEMO_CUSTOMER.name, email: DEMO_CUSTOMER.email, phone: DEMO_CUSTOMER.phone });
+  const [form, setForm] = useState({ name: account.name, phone: account.phone });
   const [method, setMethod] = useState("bank");
   const [error, setError] = useState("");
   const methodLabel = { qris: "QRIS", bank: "Transfer Bank", ewallet: "E-Wallet" };
@@ -1141,7 +1194,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
   };
 
   const placeOrder = () => {
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) { setError("Lengkapi nama, email, dan nomor WhatsApp terlebih dahulu."); return; }
+    if (!form.name.trim() || !form.phone.trim()) { setError("Lengkapi nama dan nomor WhatsApp terlebih dahulu."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
     setError("");
     const newOrderId = makeOrderId(orders.length + 1);
@@ -1159,7 +1212,9 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
       status: "Menunggu",
       method: methodLabel[method],
       customerName: form.name.trim(),
-      customerEmail: form.email.trim(),
+      // Email dikunci ke akun yang sedang login (bukan input bebas) supaya pesanan selalu
+      // tercatat ke akun yang benar dan tidak bisa dipalsukan ke email orang lain.
+      customerEmail: account.email,
       customerPhone: form.phone.trim(),
     });
     clearCart();
@@ -1173,12 +1228,16 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <Card style={{ padding: 18 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Informasi Pelanggan</h3>
-            {[["name", "Nama Lengkap"], ["email", "Email"], ["phone", "Nomor WhatsApp"]].map(([k, l]) => (
+            {[["name", "Nama Lengkap"], ["phone", "Nomor WhatsApp"]].map(([k, l]) => (
               <div key={k} style={{ marginTop: 12 }}>
                 <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</label>
                 <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
               </div>
             ))}
+            <div style={{ marginTop: 12 }}>
+              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Email</label>
+              <input value={account.email} disabled style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", cursor: "not-allowed" }} />
+            </div>
           </Card>
 
           <Card style={{ padding: 18 }}>
@@ -1305,6 +1364,63 @@ function BankInfoForm({ bankInfo, onSave }) {
   );
 }
 
+// Form ganti kata sandi admin. Perlu memasukkan kata sandi lama sebelum bisa mengganti ke yang baru.
+function AdminPasswordForm({ onChangePassword }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    if (next !== confirm) { setError("Konfirmasi kata sandi baru tidak cocok."); setSaved(false); return; }
+    const result = onChangePassword(current, next);
+    if (!result.ok) { setError(result.error); setSaved(false); return; }
+    setError(""); setSaved(true);
+    setCurrent(""); setNext(""); setConfirm("");
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  return (
+    <Card style={{ padding: 20, maxWidth: 420 }}>
+      <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Ganti Kata Sandi Admin</h3>
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 14 }}>Kata sandi ini dipakai untuk masuk sebagai Admin. Jaga baik-baik dan jangan dibagikan.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Kata Sandi Saat Ini</label>
+          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+        </div>
+        <div>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Kata Sandi Baru</label>
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+        </div>
+        <div>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Konfirmasi Kata Sandi Baru</label>
+          <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+        </div>
+      </div>
+      {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
+      {saved && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.gold, marginTop: 10 }}>Kata sandi berhasil diganti.</p>}
+      <div style={{ marginTop: 14 }}><PrimaryBtn onClick={handleSave} icon={Check}>Simpan Kata Sandi Baru</PrimaryBtn></div>
+    </Card>
+  );
+}
+
+// Tombol reset butuh konfirmasi dua langkah supaya tidak ke-tap tanpa sengaja — aksi ini
+// menghapus data permanen dari localStorage.
+function ResetDataButton({ onReset }) {
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming) {
+    return <GhostBtn onClick={() => setConfirming(true)} icon={Trash2}>Reset Semua Data</GhostBtn>;
+  }
+  return (
+    <div style={{ display: "flex", gap: 10 }}>
+      <GhostBtn onClick={() => setConfirming(false)}>Batal</GhostBtn>
+      <PrimaryBtn onClick={onReset} icon={Trash2}>Ya, Hapus Semua Data</PrimaryBtn>
+    </div>
+  );
+}
+
 // Halaman konfirmasi pembayaran — tujuan setelah checkout. Menampilkan info rekening tujuan
 // dan form upload bukti transfer. Bukti yang diunggah tersimpan di order dan bisa dilihat
 // admin di menu Pesanan untuk verifikasi manual (karena Midtrans belum terhubung).
@@ -1410,8 +1526,27 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo }) {
 }
 
 /* ---------------- AUTH ---------------- */
-function AuthPage({ go, onCustomerLogin, onAdminLogin, onBack }) {
+function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBack }) {
+  const [tab, setTab] = useState("customer"); // "customer" | "admin"
   const [mode, setMode] = useState("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [error, setError] = useState("");
+
+  const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
+
+  const submitCustomer = () => {
+    const result = mode === "login" ? onCustomerLogin({ email, password }) : onCustomerRegister({ name, email, phone, password });
+    if (!result.ok) setError(result.error);
+  };
+  const submitAdmin = () => {
+    const result = onAdminLogin(adminPasswordInput);
+    if (!result.ok) setError(result.error);
+  };
+
   return (
     <div style={{ maxWidth: 420, margin: "0 auto", padding: "60px 20px" }}>
       <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
@@ -1419,18 +1554,34 @@ function AuthPage({ go, onCustomerLogin, onAdminLogin, onBack }) {
       </button>
       <Card style={{ padding: 28 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          <button onClick={() => setMode("login")} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${mode === "login" ? C.gold : C.border}`, background: mode === "login" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Masuk</button>
-          <button onClick={() => setMode("register")} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${mode === "register" ? C.gold : C.border}`, background: mode === "register" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Daftar</button>
+          <button onClick={() => { setTab("customer"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "customer" ? C.gold : C.border}`, background: tab === "customer" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Customer</button>
+          <button onClick={() => { setTab("admin"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "admin" ? C.gold : C.border}`, background: tab === "admin" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Admin</button>
         </div>
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>{mode === "login" ? "MASUK KE AKUN" : "BUAT AKUN BARU"}</h2>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masuk atau daftar diperlukan sebelum menambahkan produk ke keranjang. Prototipe demo — pilih peran untuk mencoba dashboard.</p>
-        {mode === "register" && <input placeholder="Nama lengkap" style={{ width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />}
-        <input placeholder="Email" style={{ width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
-        <input placeholder="Kata sandi" type="password" style={{ width: "100%", marginBottom: 18, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <PrimaryBtn full onClick={onCustomerLogin}>{mode === "login" ? "Masuk sebagai Customer (demo)" : "Daftar & Masuk sebagai Customer"}</PrimaryBtn>
-          <GhostBtn full onClick={onAdminLogin}>Masuk sebagai Admin (demo)</GhostBtn>
-        </div>
+
+        {tab === "customer" ? (
+          <>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              <button onClick={() => { setMode("login"); setError(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${mode === "login" ? C.gold : C.border}`, background: mode === "login" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Masuk</button>
+              <button onClick={() => { setMode("register"); setError(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${mode === "register" ? C.gold : C.border}`, background: mode === "register" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Daftar</button>
+            </div>
+            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>{mode === "login" ? "MASUK KE AKUN" : "BUAT AKUN BARU"}</h2>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masuk atau daftar diperlukan sebelum menambahkan produk ke keranjang.</p>
+            {mode === "register" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" style={inputStyle} />}
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={inputStyle} />
+            {mode === "register" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Nomor WhatsApp" style={inputStyle} />}
+            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} />
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+            <PrimaryBtn full onClick={submitCustomer}>{mode === "login" ? "Masuk" : "Daftar & Masuk"}</PrimaryBtn>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan kata sandi admin. Kata sandi ini bisa diganti lewat Pengaturan → Keamanan setelah masuk.</p>
+            <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi admin" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+            <PrimaryBtn full onClick={submitAdmin}>Masuk sebagai Admin</PrimaryBtn>
+          </>
+        )}
       </Card>
     </div>
   );
@@ -1464,15 +1615,48 @@ function StatCard({ label, value, icon: Icon }) {
   );
 }
 
-function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgress, products, curriculumData, goToPaymentConfirm }) {
+function ProfileForm({ account, onSave }) {
+  const [name, setName] = useState(account.name);
+  const [phone, setPhone] = useState(account.phone);
+  const [saved, setSaved] = useState(false);
+  const handleSave = () => {
+    onSave(account.email, { name: name.trim(), phone: phone.trim() });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  return (
+    <Card style={{ padding: 20, maxWidth: 420 }}>
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Nama</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Email</label>
+        <input value={account.email} disabled style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", cursor: "not-allowed" }} />
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Email dipakai sebagai identitas akun dan tidak bisa diganti sendiri di prototipe ini.</p>
+      </div>
+      <div style={{ marginBottom: 18 }}>
+        <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>WhatsApp</label>
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+      </div>
+      <PrimaryBtn onClick={handleSave}>Simpan Perubahan</PrimaryBtn>
+      {saved && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.gold, marginTop: 10 }}>Profil berhasil disimpan.</p>}
+    </Card>
+  );
+}
+
+function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm }) {
+  // Hanya pesanan milik customer yang sedang login — sebelumnya seluruh order (milik semua
+  // customer) ikut ditampilkan di sini, yang berarti siapa pun yang login bisa melihat riwayat
+  // pembelian dan otomatis punya akses ke produk orang lain. Sekarang benar-benar terisolasi per akun.
+  const myOrders = orders.filter((o) => o.customerEmail === account.email);
   const ownedIds = Array.from(new Set(
-    orders.filter((o) => o.payment === "PAID")
-      .flatMap((o) => o.items)
-      .map((itemName) => products.find((p) => p.name === itemName)?.id)
+    myOrders.filter((o) => o.payment === "PAID")
+      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
       .filter(Boolean)
   ));
   const owned = products.filter((p) => ownedIds.includes(p.id));
-  const totalSpend = orders.reduce((s, o) => s + o.total, 0);
+  const totalSpend = myOrders.filter((o) => o.payment === "PAID").reduce((s, o) => s + o.total, 0);
 
   const items = [
     { key: "products", label: "Produk Saya", icon: Package },
@@ -1484,7 +1668,7 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
       <DashSidebar items={items} active={sub} onSelect={setSub} footer={
-        <button onClick={() => { setRole(null); go("home"); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
+        <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
       } />
@@ -1498,18 +1682,18 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }} className="gs-grid-3">
               <StatCard label="Total Pembelian" value={rp(totalSpend)} icon={DollarSign} />
               <StatCard label="Produk Dimiliki" value={owned.length} icon={Package} />
-              <StatCard label="Total Pesanan" value={orders.length} icon={ClipboardList} />
+              <StatCard label="Total Pesanan" value={myOrders.length} icon={ClipboardList} />
             </div>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 26, marginBottom: 12 }}>Pesanan Terbaru</h3>
-            {orders.length === 0 ? (
+            {myOrders.length === 0 ? (
               <Card style={{ padding: 24, textAlign: "center" }}>
                 <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada pesanan. Coba beli produk untuk melihat alurnya di sini.</p>
                 <div style={{ marginTop: 12 }}><PrimaryBtn small onClick={() => go("shop")}>Jelajahi Produk</PrimaryBtn></div>
               </Card>
             ) : (
               <Card style={{ padding: 4 }}>
-                {orders.slice(0, 3).map((o, i) => (
-                  <div key={o.id} style={{ padding: "12px 14px", borderBottom: i < Math.min(orders.length, 3) - 1 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                {myOrders.slice(0, 3).map((o, i) => (
+                  <div key={o.id} style={{ padding: "12px 14px", borderBottom: i < Math.min(myOrders.length, 3) - 1 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
                     <div>
                       <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, fontWeight: 600 }}>{o.items.join(", ")}</div>
                       <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>{o.id} · {o.date}</div>
@@ -1567,7 +1751,7 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
         )}
 
         {sub === "orders" && (
-          orders.length === 0 ? (
+          myOrders.length === 0 ? (
             <Card style={{ padding: 32, textAlign: "center" }}>
               <ClipboardList size={26} color={C.muted} style={{ margin: "0 auto" }} />
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, marginTop: 10 }}>Belum ada riwayat pesanan.</p>
@@ -1582,7 +1766,7 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
                 {["Order ID", "Tanggal", "Produk", "Total", "Pembayaran", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {orders.map((o) => (
+                {myOrders.map((o) => (
                   <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
                     <td style={{ padding: "10px 14px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, whiteSpace: "nowrap" }}>{o.id}</td>
                     <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
@@ -1604,17 +1788,7 @@ function CustomerDashboard({ go, sub, setSub, role, setRole, orders, videoProgre
           )
         )}
 
-        {sub === "profile" && (
-          <Card style={{ padding: 20, maxWidth: 420 }}>
-            {[["Nama", DEMO_CUSTOMER.name], ["Email", DEMO_CUSTOMER.email], ["WhatsApp", DEMO_CUSTOMER.phone]].map(([l, v]) => (
-              <div key={l} style={{ marginBottom: 14 }}>
-                <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</label>
-                <input defaultValue={v} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
-              </div>
-            ))}
-            <PrimaryBtn onClick={() => {}}>Simpan Perubahan</PrimaryBtn>
-          </Card>
-        )}
+        {sub === "profile" && <ProfileForm account={account} onSave={onUpdateProfile} />}
       </div>
     </div>
   );
@@ -1897,7 +2071,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
@@ -1930,7 +2104,7 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
       <DashSidebar items={items} active={sub} onSelect={(k) => { setSub(k); setTampilanSub("menu"); setSettingsSub("menu"); }} footer={
-        <button onClick={() => { setRole(null); go("home"); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
+        <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
       } />
@@ -2022,9 +2196,13 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(p.price)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{curriculumData[p.id] ? `${curriculumData[p.id].length} video` : "—"}</td>
                         <td style={{ padding: "10px 14px" }}>
-                          <button onClick={() => toggleProductStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none" }} title="Klik untuk ubah status">
-                            <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Published" : "Draft"}</Badge>
-                          </button>
+                          {status === "archived" ? (
+                            <Badge tone="muted">Diarsipkan</Badge>
+                          ) : (
+                            <button onClick={() => toggleProductStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none" }} title="Klik untuk ubah status">
+                              <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Published" : "Draft"}</Badge>
+                            </button>
+                          )}
                         </td>
                         <td style={{ padding: "10px 14px" }}>
                           <div style={{ display: "flex", gap: 8 }}>
@@ -2267,6 +2445,30 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
                 <ChevronRight size={16} color={C.muted} />
               </div>
             </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("keamanan")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <ShieldCheck size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Keamanan</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Ganti kata sandi admin.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("data")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Download size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Data</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Backup data ke file, atau reset data prototipe ini.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
             <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("marketing")}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2316,6 +2518,29 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
             <BankInfoForm bankInfo={bankInfo} onSave={updateBankInfo} />
           </div>
         )}
+
+        {sub === "settings" && settingsSub === "keamanan" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <AdminPasswordForm onChangePassword={onChangeAdminPassword} />
+          </div>
+        )}
+
+        {sub === "settings" && settingsSub === "data" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <Card style={{ padding: 20, maxWidth: 480 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Backup Data</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Unduh salinan seluruh data (produk, pesanan, kupon, testimoni, akun customer, rekening) sebagai file JSON. Berguna karena data prototipe ini hanya tersimpan di browser (belum ada database sungguhan).</p>
+              <GhostBtn onClick={onExportData} icon={Download}>Ekspor Data (JSON)</GhostBtn>
+            </Card>
+            <Card style={{ padding: 20, maxWidth: 480, marginTop: 16, borderColor: C.ember }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.emberLight, marginTop: 0 }}>Zona Berbahaya</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Menghapus semua testimoni, akun customer, rekening, dan kata sandi admin yang tersimpan di browser ini secara permanen. Tidak bisa dibatalkan — pastikan sudah ekspor data dulu kalau perlu.</p>
+              <ResetDataButton onReset={onResetData} />
+            </Card>
+          </div>
+        )}
       </div>
 
       {showProductForm && (
@@ -2339,20 +2564,27 @@ function AdminDashboard({ go, sub, setSub, setRole, products, addProduct, update
         />
       )}
 
-      {deleteTarget && (
+      {deleteTarget && (() => {
+        const hasOrders = orders.some((o) => (o.itemIds && o.itemIds.includes(deleteTarget.id)) || o.items.includes(deleteTarget.name));
+        return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
-            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Produk?</h3>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>{hasOrders ? "Arsipkan Produk?" : "Hapus Produk?"}</h3>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
-              Produk <b style={{ color: C.text }}>{deleteTarget.name}</b> beserta seluruh video materinya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.
+              {hasOrders ? (
+                <>Produk <b style={{ color: C.text }}>{deleteTarget.name}</b> sudah pernah dibeli, jadi tidak bisa dihapus permanen. Produk akan diarsipkan — hilang dari Shop & Beranda, tapi pembeli yang sudah punya tetap bisa mengakses materinya.</>
+              ) : (
+                <>Produk <b style={{ color: C.text }}>{deleteTarget.name}</b> beserta seluruh video materinya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</>
+              )}
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <GhostBtn full onClick={() => setDeleteTarget(null)}>Batal</GhostBtn>
-              <PrimaryBtn full onClick={() => { deleteProduct(deleteTarget.id); setDeleteTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
+              <PrimaryBtn full onClick={() => { deleteProduct(deleteTarget.id); setDeleteTarget(null); }} icon={Trash2}>{hasOrders ? "Arsipkan" : "Hapus"}</PrimaryBtn>
             </div>
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {showPageForm && (
         <PageFormModal
@@ -3347,7 +3579,15 @@ export default function App() {
   const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
   const [cart, setCart] = useState([]);
   const [coupon, setCoupon] = useState(null);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(() => {
+    try { return localStorage.getItem("gs_session_role") || null; } catch (e) { return null; }
+  });
+  useEffect(() => {
+    try {
+      if (role) localStorage.setItem("gs_session_role", role);
+      else localStorage.removeItem("gs_session_role");
+    } catch (e) {}
+  }, [role]);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
   const [preAuthView, setPreAuthView] = useState(null);
   const [customerSub, setCustomerSub] = useState("overview");
@@ -3396,6 +3636,66 @@ export default function App() {
   }, [bankInfo]);
   const updateBankInfo = (data) => setBankInfo(data);
 
+  // --- AKUN & SESI ---
+  // Prototipe ini menyimpan password apa adanya (plaintext) di localStorage karena belum ada
+  // backend. Ini TIDAK aman untuk produksi — begitu backend siap, autentikasi harus dipindah
+  // ke server dengan password di-hash (bcrypt/argon2), bukan disimpan di browser seperti ini.
+  const [customerAccounts, setCustomerAccounts] = useState(() => {
+    try {
+      const raw = localStorage.getItem("gs_customer_accounts");
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("gs_customer_accounts", JSON.stringify(customerAccounts)); } catch (e) {}
+  }, [customerAccounts]);
+
+  const [adminPassword, setAdminPassword] = useState(() => {
+    try { return localStorage.getItem("gs_admin_password") || "admin123"; } catch (e) { return "admin123"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("gs_admin_password", adminPassword); } catch (e) {}
+  }, [adminPassword]);
+
+  const [currentCustomerEmail, setCurrentCustomerEmail] = useState(() => {
+    try { return localStorage.getItem("gs_session_customer_email") || null; } catch (e) { return null; }
+  });
+  useEffect(() => {
+    try {
+      if (currentCustomerEmail) localStorage.setItem("gs_session_customer_email", currentCustomerEmail);
+      else localStorage.removeItem("gs_session_customer_email");
+    } catch (e) {}
+  }, [currentCustomerEmail]);
+
+  const registerCustomer = ({ name, email, phone, password }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!name.trim() || !normalizedEmail || !password) return { ok: false, error: "Lengkapi semua kolom." };
+    if (password.length < 6) return { ok: false, error: "Kata sandi minimal 6 karakter." };
+    if (customerAccounts.some((a) => a.email === normalizedEmail)) return { ok: false, error: "Email sudah terdaftar. Silakan masuk." };
+    setCustomerAccounts((prev) => [...prev, { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || "", password }]);
+    setRole("customer");
+    setCurrentCustomerEmail(normalizedEmail);
+    return { ok: true };
+  };
+  const loginCustomer = ({ email, password }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const acc = customerAccounts.find((a) => a.email === normalizedEmail);
+    if (!acc || acc.password !== password) return { ok: false, error: "Email atau kata sandi salah." };
+    setRole("customer");
+    setCurrentCustomerEmail(normalizedEmail);
+    return { ok: true };
+  };
+  const loginAdmin = (password) => {
+    if (password !== adminPassword) return { ok: false, error: "Kata sandi admin salah." };
+    setRole("admin");
+    setRedirectAfterAuth(null);
+    go("admin");
+    return { ok: true };
+  };
+  const updateCustomerProfile = (email, patch) => {
+    setCustomerAccounts((prev) => prev.map((a) => (a.email === email ? { ...a, ...patch } : a)));
+  };
+
   // Sinkronkan tombol back browser/HP dengan navigasi di dalam app. Tanpa ini, browser tidak
   // punya history entry sama sekali untuk SPA ini sehingga back langsung keluar dari web.
   useEffect(() => {
@@ -3430,20 +3730,23 @@ export default function App() {
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
   const openProduct = (slug) => go("product", slug);
-  const ownedIds = role === "customer" ? Array.from(new Set(
-    orders.filter((o) => o.payment === "PAID")
-      .flatMap((o) => o.items)
-      .map((itemName) => products.find((p) => p.name === itemName)?.id)
+  const currentAccount = role === "customer" && currentCustomerEmail ? customerAccounts.find((a) => a.email === currentCustomerEmail) : null;
+  // PENTING: ownedIds/pendingIds HARUS difilter ke order milik customer yang sedang login saja.
+  // Sebelumnya ini memakai SELURUH order di seluruh toko, artinya siapa pun yang login sebagai
+  // customer otomatis melihat & bisa mengakses produk yang dibeli orang lain. Sudah diperbaiki.
+  const myOrdersForAccess = role === "customer" && currentCustomerEmail ? orders.filter((o) => o.customerEmail === currentCustomerEmail) : [];
+  const ownedIds = Array.from(new Set(
+    myOrdersForAccess.filter((o) => o.payment === "PAID")
+      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
       .filter(Boolean)
-  )) : [];
+  ));
   // Produk yang sedang menunggu verifikasi pembayaran (belum PAID, belum juga Gagal) —
   // dipakai untuk mencegah customer checkout ganda untuk produk yang sama.
-  const pendingIds = role === "customer" ? Array.from(new Set(
-    orders.filter((o) => o.payment === "Pending")
-      .flatMap((o) => o.items)
-      .map((itemName) => products.find((p) => p.name === itemName)?.id)
+  const pendingIds = Array.from(new Set(
+    myOrdersForAccess.filter((o) => o.payment === "Pending")
+      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
       .filter((id) => id && !ownedIds.includes(id))
-  )) : [];
+  ));
   const goToAuth = () => {
     setPreAuthView({ view, slug: productSlug });
     go("auth");
@@ -3464,12 +3767,54 @@ export default function App() {
     if (!role) { setRedirectAfterAuth({ view: target, slug }); setPreAuthView({ view, slug: productSlug }); go("auth"); return; }
     go(target, slug);
   };
-  const onCustomerLogin = () => {
-    setRole("customer");
-    if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
-    else go("shop");
+  const onCustomerLogin = ({ email, password }) => {
+    const result = loginCustomer({ email, password });
+    if (result.ok) {
+      if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
+      else go("customer");
+    }
+    return result;
   };
-  const onAdminLogin = () => { setRole("admin"); setRedirectAfterAuth(null); go("admin"); };
+  const onCustomerRegister = ({ name, email, phone, password }) => {
+    const result = registerCustomer({ name, email, phone, password });
+    if (result.ok) {
+      if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
+      else go("customer");
+    }
+    return result;
+  };
+  const onAdminLogin = (password) => loginAdmin(password);
+  const logout = () => { setRole(null); setCurrentCustomerEmail(null); go("home"); };
+
+  const changeAdminPassword = (currentPw, newPw) => {
+    if (currentPw !== adminPassword) return { ok: false, error: "Kata sandi saat ini salah." };
+    if (newPw.length < 6) return { ok: false, error: "Kata sandi baru minimal 6 karakter." };
+    setAdminPassword(newPw);
+    return { ok: true };
+  };
+
+  // Ekspor semua data prototipe (pesanan, produk, kupon, testimoni, akun) sebagai file JSON,
+  // supaya admin punya cara backup manual selama belum ada database sungguhan.
+  const exportAllData = () => {
+    const snapshot = { exportedAt: new Date().toISOString(), products, orders, coupons, testimonials, customerAccounts, bankInfo, siteContent, customPages };
+    try {
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gitarsakti-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+  };
+  const resetAllData = () => {
+    try {
+      ["gs_testimonials", "gs_bank_info", "gs_customer_accounts", "gs_admin_password", "gs_session_customer_email", "gs_session_role"].forEach((k) => localStorage.removeItem(k));
+    } catch (e) {}
+    window.location?.reload?.();
+  };
   const onBack = () => {
     if (preAuthView) { go(preAuthView.view, preAuthView.slug); setPreAuthView(null); }
     else go("home");
@@ -3546,6 +3891,14 @@ export default function App() {
     )));
   };
   const deleteProduct = (id) => {
+    const hasOrders = orders.some((o) => (o.itemIds && o.itemIds.includes(id)) || o.items.includes(products.find((p) => p.id === id)?.name));
+    if (hasOrders) {
+      // Jangan benar-benar dihapus — kalau ada customer yang sudah membeli produk ini, menghapus
+      // record-nya akan membuat mereka kehilangan akses ke materi yang sudah dibayar. Diarsipkan
+      // saja: hilang dari Shop/Beranda, tapi tetap bisa diakses oleh yang sudah memilikinya.
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: "archived" } : p)));
+      return;
+    }
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setCurriculumData((prev) => {
       const next = { ...prev };
@@ -3635,21 +3988,56 @@ export default function App() {
         @media (min-width: 861px) { .gs-mobile-toggle { display: none !important; } }
       `}</style>
 
-      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} setRole={setRole} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
+      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
 
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
       {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
-      {view === "checkout" && <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} />}
+      {view === "checkout" && (
+        currentAccount ? (
+          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} />
+        ) : (
+          <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
+            <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("auth")}>Masuk</PrimaryBtn></div>
+          </div>
+        )
+      )}
       {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} />}
-      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onAdminLogin={onAdminLogin} onBack={onBack} />}
+      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
+      {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
-      {view === "customer" && <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} role={role} setRole={setRole} orders={orders} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} />}
-      {view === "learn" && <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} setRole={setRole} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} />}
+      {view === "customer" && (
+        currentAccount ? (
+          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} />
+        ) : (
+          <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
+            <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("auth")}>Masuk</PrimaryBtn></div>
+          </div>
+        )
+      )}
+      {view === "learn" && (() => {
+        const learnProduct = products.find((x) => x.slug === productSlug);
+        const canAccess = role === "customer" && learnProduct && ownedIds.includes(learnProduct.id);
+        if (!canAccess) {
+          return (
+            <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+              <Lock size={28} color={C.mutedDark} style={{ margin: "0 auto 14px" }} />
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Kamu belum memiliki akses ke materi ini.</p>
+              <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "center" }}>
+                <GhostBtn onClick={() => go("shop")}>Lihat Produk</GhostBtn>
+                {!role && <PrimaryBtn onClick={() => go("auth")}>Masuk</PrimaryBtn>}
+              </div>
+            </div>
+          );
+        }
+        return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />;
+      })()}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} />}
     </div>
   );
 }
