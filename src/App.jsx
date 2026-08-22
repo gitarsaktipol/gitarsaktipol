@@ -3364,11 +3364,38 @@ export default function App() {
   }, [bankInfo]);
   const updateBankInfo = (data) => setBankInfo(data);
 
+  // Sinkronkan tombol back browser/HP dengan navigasi di dalam app. Tanpa ini, browser tidak
+  // punya history entry sama sekali untuk SPA ini sehingga back langsung keluar dari web.
+  useEffect(() => {
+    try {
+      window.history.replaceState({ view: "home", productSlug, customPageSlug }, "");
+    } catch (e) {}
+    const handlePopState = (e) => {
+      const state = e.state;
+      if (!state) { setView("home"); return; }
+      if (state.productSlug) setProductSlug(state.productSlug);
+      setCustomPageSlug(state.customPageSlug || null);
+      setView(state.view);
+      setMobileOpen(false);
+      window.scrollTo?.({ top: 0, behavior: "instant" });
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Setiap navigasi di dalam app didorong sebagai history entry browser yang sesungguhnya,
+  // supaya tombol back (baik di browser maupun tombol back HP) mundur sesuai urutan halaman
+  // yang benar-benar dikunjungi, bukan langsung keluar dari web.
   const go = (target, slug) => {
+    const newProductSlug = slug || productSlug;
     if (slug) setProductSlug(slug);
     setView(target);
     setMobileOpen(false);
     window.scrollTo?.({ top: 0, behavior: "instant" });
+    try {
+      window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug }, "");
+    } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
   const openProduct = (slug) => go("product", slug);
   const ownedIds = role === "customer" ? Array.from(new Set(
@@ -3507,7 +3534,15 @@ export default function App() {
   const updateSiteContent = (section, data) => {
     setSiteContent((prev) => ({ ...prev, [section]: { ...prev[section], ...data } }));
   };
-  const openCustomPage = (slug) => { setCustomPageSlug(slug); go("custompage"); };
+  const openCustomPage = (slug) => {
+    setCustomPageSlug(slug);
+    setView("custompage");
+    setMobileOpen(false);
+    window.scrollTo?.({ top: 0, behavior: "instant" });
+    try {
+      window.history.pushState({ view: "custompage", productSlug, customPageSlug: slug }, "");
+    } catch (e) {}
+  };
   const goToAddPage = () => { setAdminSub("tampilan"); setTampilanSub("halaman"); go("admin"); };
   const addCustomPage = (title, blocks) => {
     const newId = customPages.reduce((m, p) => Math.max(m, p.id), 0) + 1;
