@@ -29,6 +29,34 @@ const C = {
 };
 
 const rp = (n) => "Rp" + n.toLocaleString("id-ID");
+
+// Hook kecil untuk state yang perlu tersimpan ke localStorage dan otomatis sinkron ke tab lain
+// di browser yang sama (lewat event "storage"). Dipakai untuk semua data toko yang harus
+// konsisten antara tab Customer dan tab Admin — sebelumnya orders/produk/kupon/dll hanya hidup
+// di memori React per-tab, jadi order yang dibuat customer di satu tab tidak pernah terlihat
+// oleh admin yang membuka tab lain, bahkan setelah refresh.
+function usePersistedState(key, initial) {
+  const [state, setState] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : initial;
+    } catch (e) { return initial; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+  }, [key, state]);
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key !== key) return;
+      try { setState(e.newValue ? JSON.parse(e.newValue) : initial); } catch (err) {}
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return [state, setState];
+}
+
 const toEmbedUrl = (url) => {
   if (!url) return null;
   try {
@@ -772,6 +800,9 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
           {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
         </div>
+        <div style={{ textAlign: "center", marginTop: 32 }}>
+          <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Jelajahi Produk</PrimaryBtn>
+        </div>
       </Section>
 
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
@@ -1424,7 +1455,7 @@ function ResetDataButton({ onReset }) {
 // Halaman konfirmasi pembayaran — tujuan setelah checkout. Menampilkan info rekening tujuan
 // dan form upload bukti transfer. Bukti yang diunggah tersimpan di order dan bisa dilihat
 // admin di menu Pesanan untuk verifikasi manual (karena Midtrans belum terhubung).
-function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo }) {
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goToCustomerOverview }) {
   const [note, setNote] = useState("");
   const [preview, setPreview] = useState(order?.proofImage || null);
   const [error, setError] = useState("");
@@ -1472,7 +1503,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo }) {
         {preview && <img src={preview} alt="Bukti transfer" style={{ maxWidth: 220, borderRadius: 10, border: `1px solid ${C.border}`, marginTop: 18 }} />}
         <div style={{ marginTop: 26, display: "flex", gap: 12, justifyContent: "center" }}>
           <GhostBtn onClick={() => go("shop")}>Lanjut Belanja</GhostBtn>
-          <PrimaryBtn onClick={() => go("customer")} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
+          <PrimaryBtn onClick={goToCustomerOverview} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
         </div>
       </div>
     );
@@ -3575,8 +3606,8 @@ function AboutPage({ go, content, footerContent, role, editMode, updateSiteConte
 export default function App() {
   const [view, setView] = useState("home");
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
-  const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
+  const [products, setProducts] = usePersistedState("gs_products", INITIAL_PRODUCTS);
+  const [curriculumData, setCurriculumData] = usePersistedState("gs_curriculum", INITIAL_CURRICULUM);
   const [cart, setCart] = useState([]);
   const [coupon, setCoupon] = useState(null);
   const [role, setRole] = useState(() => {
@@ -3597,11 +3628,11 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [videoProgress, setVideoProgress] = useState({});
   const [videoCurrent, setVideoCurrent] = useState({});
-  const [orders, setOrders] = useState(DEMO_ORDERS);
+  const [orders, setOrders] = usePersistedState("gs_orders", DEMO_ORDERS);
   const [pendingOrderId, setPendingOrderId] = useState(null);
-  const [coupons, setCoupons] = useState(INITIAL_COUPONS);
-  const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
-  const [customPages, setCustomPages] = useState([]);
+  const [coupons, setCoupons] = usePersistedState("gs_coupons", INITIAL_COUPONS);
+  const [siteContent, setSiteContent] = usePersistedState("gs_site_content", DEFAULT_SITE_CONTENT);
+  const [customPages, setCustomPages] = usePersistedState("gs_custom_pages", []);
   const [customPageSlug, setCustomPageSlug] = useState(null);
   const [testimonials, setTestimonials] = useState(() => {
     try {
@@ -3811,7 +3842,7 @@ export default function App() {
   };
   const resetAllData = () => {
     try {
-      ["gs_testimonials", "gs_bank_info", "gs_customer_accounts", "gs_admin_password", "gs_session_customer_email", "gs_session_role"].forEach((k) => localStorage.removeItem(k));
+      ["gs_testimonials", "gs_bank_info", "gs_customer_accounts", "gs_admin_password", "gs_session_customer_email", "gs_session_role", "gs_products", "gs_curriculum", "gs_orders", "gs_coupons", "gs_site_content", "gs_custom_pages", "gs_lp_secret_of_shredding_first_visit"].forEach((k) => localStorage.removeItem(k));
     } catch (e) {}
     window.location?.reload?.();
   };
@@ -3850,6 +3881,14 @@ export default function App() {
   const goToPaymentConfirm = (orderId) => {
     setPendingOrderId(orderId);
     go("paymentconfirm");
+  };
+  // Dipakai setelah checkout/konfirmasi pembayaran supaya customer selalu mendarat di tab
+  // Ringkasan (yang menampilkan pesanan Menunggu juga), bukan di tab terakhir yang mereka buka
+  // sebelumnya (misal "Produk Saya", yang cuma menampilkan produk yang sudah PAID — kalau
+  // mendarat di situ, produk yang baru dibeli terlihat seperti "hilang" padahal masih pending).
+  const goToCustomerOverview = () => {
+    setCustomerSub("overview");
+    go("customer");
   };
   const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -4004,7 +4043,7 @@ export default function App() {
           </div>
         )
       )}
-      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} goToCustomerOverview={goToCustomerOverview} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
