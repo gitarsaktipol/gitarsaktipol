@@ -1573,6 +1573,10 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Tombol tab "Admin" cuma muncul kalau buka halaman ini dengan tambahan
+  // ?admin=1 di URL (mis. https://situskamu.com/?admin=1). Pengunjung biasa
+  // tidak akan pernah lihat opsi ini.
+  const isAdminAccessAllowed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
 
   const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
 
@@ -1595,10 +1599,12 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
         <ArrowLeft size={15} /> Kembali
       </button>
       <Card style={{ padding: 28 }}>
+        {isAdminAccessAllowed && (
         <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           <button onClick={() => { setTab("customer"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "customer" ? C.gold : C.border}`, background: tab === "customer" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Customer</button>
           <button onClick={() => { setTab("admin"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "admin" ? C.gold : C.border}`, background: tab === "admin" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Admin</button>
         </div>
+        )}
 
         {tab === "customer" ? (
           <>
