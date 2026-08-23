@@ -1880,7 +1880,7 @@ function ScrollHint() {
 function OrderStatusPicker({ order, onChange, onRequestConfirmPaid }) {
   const options = [
     { payment: "PAID", status: "Selesai", label: "Selesai" },
-    { payment: "Pending", status: "Menunggu", label: "Menunggu" },
+    { payment: "Pending", status: "Menunggu Pembayaran", label: "Menunggu Pembayaran" },
     { payment: "Failed", status: "Gagal", label: "Gagal" },
   ];
   const toneColor = { PAID: C.gold, Pending: C.muted, Failed: C.emberLight };
@@ -2116,7 +2116,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
@@ -2165,8 +2165,10 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
               <StatCard label="Total Revenue" value={rp(totalRevenue)} icon={DollarSign} />
               <StatCard label="Total Orders" value={String(orders.length)} icon={ClipboardList} />
+              <StatCard label="Total Order Berhasil" value={String(paidOrders.length)} icon={Check} />
+              <StatCard label="Total Kunjungan Web" value={String(totalVisits)} icon={Eye} />
               <StatCard label="Total Customers" value={String(uniqueCustomers.length)} icon={Users} />
-              <StatCard label="Conversion Rate" value="-" icon={TrendingUp} />
+              <StatCard label="Conversion Rate" value={totalVisits > 0 ? ((paidOrders.length / totalVisits) * 100).toFixed(1) + "%" : "-"} icon={TrendingUp} />
             </div>
             <Card style={{ padding: 18, marginTop: 20 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Revenue per Hari</h3>
@@ -3641,6 +3643,7 @@ export default function App() {
   const [customPageSlug, setCustomPageSlug] = useState(null);
   const [testimonials, setTestimonials] = useState(INITIAL_TESTIMONIALS);
   const [bankInfo, setBankInfo] = useState(DEFAULT_BANK_INFO);
+  const [totalVisits, setTotalVisits] = useState(0);
 
   /* ---------------- MAPPER: baris database (snake_case) <-> bentuk data yang dipakai di seluruh app (camelCase) ---------------- */
   const mapProductRow = (row) => ({
@@ -3721,6 +3724,17 @@ export default function App() {
     if (!error && data) setOrders(data.map(mapOrderRow));
   };
 
+  // Catat 1 kunjungan setiap kali situs dibuka (dipanggil sekali saat app pertama kali dimuat).
+  // Siapa saja (belum login pun) boleh insert baris ini — lihat kebijakan di site_visits.sql.
+  const logVisit = async () => {
+    await supabase.from("site_visits").insert({});
+  };
+  // Total kunjungan cuma bisa dibaca oleh admin (dibatasi lewat RLS), dipanggil dari dashboard admin.
+  const fetchTotalVisits = async () => {
+    const { count } = await supabase.from("site_visits").select("*", { count: "exact", head: true });
+    setTotalVisits(count || 0);
+  };
+
   // Data toko (produk, kurikulum, kupon, testimoni, rekening, konten situs, halaman kustom) — publik,
   // dimuat sekali di awal, tidak bergantung status login.
   useEffect(() => {
@@ -3731,6 +3745,7 @@ export default function App() {
     fetchBankInfo();
     fetchSiteContent();
     fetchCustomPages();
+    logVisit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -3787,6 +3802,12 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, session?.user?.id]);
+
+  // Total kunjungan cuma relevan buat admin — diambil begitu status admin terdeteksi.
+  useEffect(() => {
+    if (profile?.role === "admin") fetchTotalVisits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.role]);
 
   const registerCustomer = async ({ name, email, phone, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -3972,7 +3993,7 @@ export default function App() {
       items, subtotal, discount, coupon_code: couponCode, total,
       // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
       // oleh admin setelah customer mengunggah bukti transfer.
-      payment: "Pending", status: "Menunggu", method,
+      payment: "Pending", status: "Menunggu Pembayaran", method,
     }).select().single();
     if (error) return { ok: false, error: error.message };
     fetchOrders();
@@ -4237,7 +4258,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} />}
     </div>
   );
 }
