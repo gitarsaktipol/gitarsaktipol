@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import {
   Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
@@ -11,6 +12,13 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar,
 } from "recharts";
+
+// Publishable key AMAN ditaruh di kode frontend (bukan rahasia) — akses data
+// sesungguhnya dikontrol oleh RLS policy di database, bukan oleh key ini.
+// Kunci rahasia (service_role) TIDAK BOLEH pernah ditaruh di sini.
+const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 /* ---------------- design tokens ---------------- */
 const C = {
@@ -29,33 +37,6 @@ const C = {
 };
 
 const rp = (n) => "Rp" + n.toLocaleString("id-ID");
-
-// Hook kecil untuk state yang perlu tersimpan ke localStorage dan otomatis sinkron ke tab lain
-// di browser yang sama (lewat event "storage"). Dipakai untuk semua data toko yang harus
-// konsisten antara tab Customer dan tab Admin — sebelumnya orders/produk/kupon/dll hanya hidup
-// di memori React per-tab, jadi order yang dibuat customer di satu tab tidak pernah terlihat
-// oleh admin yang membuka tab lain, bahkan setelah refresh.
-function usePersistedState(key, initial) {
-  const [state, setState] = useState(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : initial;
-    } catch (e) { return initial; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
-  }, [key, state]);
-  useEffect(() => {
-    const handleStorage = (e) => {
-      if (e.key !== key) return;
-      try { setState(e.newValue ? JSON.parse(e.newValue) : initial); } catch (err) {}
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return [state, setState];
-}
 
 const toEmbedUrl = (url) => {
   if (!url) return null;
@@ -76,11 +57,9 @@ const toEmbedUrl = (url) => {
 };
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const formatDateID = (d) => `${d.getDate().toString().padStart(2, "0")} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
-const makeOrderId = (seq) => {
-  const d = new Date();
-  const ymd = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, "0")}${d.getDate().toString().padStart(2, "0")}`;
-  return `GS-${ymd}-${seq.toString().padStart(3, "0")}`;
-};
+// Catatan: ID pesanan (format GS-YYYYMMDD-XXX) sekarang dibuat otomatis oleh database lewat
+// sequence (lihat backend/schema.sql -> generate_order_id()), bukan dihitung di sini lagi —
+// supaya tidak bentrok kalau ada beberapa customer checkout bersamaan.
 
 /* ---------------- demo data ---------------- */
 const CATEGORIES = [
@@ -1201,13 +1180,14 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, orders, addOrder, calcDiscount, goToPaymentConfirm, account }) {
+function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
   const [form, setForm] = useState({ name: account.name, phone: account.phone });
   const [method, setMethod] = useState("bank");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const methodLabel = { qris: "QRIS", bank: "Transfer Bank", ewallet: "E-Wallet" };
   const [couponInput, setCouponInput] = useState(coupon || "");
   const [couponMsg, setCouponMsg] = useState("");
@@ -1224,23 +1204,18 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
     setCouponMsg(found.type === "percent" ? `Kupon ${found.code} diterapkan — diskon ${found.value}%.` : `Kupon ${found.code} diterapkan — diskon ${rp(found.value)}.`);
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!form.name.trim() || !form.phone.trim()) { setError("Lengkapi nama dan nomor WhatsApp terlebih dahulu."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
     setError("");
-    const newOrderId = makeOrderId(orders.length + 1);
-    addOrder({
-      id: newOrderId,
-      date: formatDateID(new Date()),
-      items: cartProducts.map((p) => p.name),
-      itemIds: cartProducts.map((p) => p.id),
+    setSubmitting(true);
+    const result = await addOrder({
+      cartProducts,
       total,
-      couponCode: coupon || null,
       discount,
+      couponCode: coupon || null,
       // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
       // oleh admin setelah customer mengunggah bukti transfer.
-      payment: "Pending",
-      status: "Menunggu",
       method: methodLabel[method],
       customerName: form.name.trim(),
       // Email dikunci ke akun yang sedang login (bukan input bebas) supaya pesanan selalu
@@ -1248,8 +1223,10 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
       customerEmail: account.email,
       customerPhone: form.phone.trim(),
     });
+    setSubmitting(false);
+    if (!result.ok) { setError(result.error || "Gagal membuat pesanan. Coba lagi."); return; }
     clearCart();
-    goToPaymentConfirm(newOrderId);
+    goToPaymentConfirm(result.orderId);
   };
 
   return (
@@ -1307,7 +1284,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight }}>{rp(total)}</span></div>
             </div>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
-            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder}>Buat Pesanan</PrimaryBtn></div>
+            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder}>{submitting ? "Memproses..." : "Buat Pesanan"}</PrimaryBtn></div>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi pembayaran. Produk masuk ke akunmu setelah admin memverifikasi bukti transfer.</p>
           </Card>
         </div>
@@ -1455,10 +1432,30 @@ function ResetDataButton({ onReset }) {
 // Halaman konfirmasi pembayaran — tujuan setelah checkout. Menampilkan info rekening tujuan
 // dan form upload bukti transfer. Bukti yang diunggah tersimpan di order dan bisa dilihat
 // admin di menu Pesanan untuk verifikasi manual (karena Midtrans belum terhubung).
+// Menampilkan bukti transfer yang tersimpan di Storage privat — perlu signed URL
+// (tidak bisa diakses lewat URL publik langsung), jadi diambil async lewat komponen ini.
+function ProofImage({ path, alt, style }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let active = true;
+    if (!path) return;
+    supabase.storage.from("payment-proofs").createSignedUrl(path, 3600).then(({ data }) => {
+      if (active && data) setUrl(data.signedUrl);
+    });
+    return () => { active = false; };
+  }, [path]);
+  if (!url) {
+    return <div style={{ ...style, display: "flex", alignItems: "center", justifyContent: "center", background: C.surface2, color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 12 }}>Memuat gambar...</div>;
+  }
+  return <img src={url} alt={alt || "Bukti transfer"} style={style} />;
+}
+
 function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goToCustomerOverview }) {
   const [note, setNote] = useState("");
-  const [preview, setPreview] = useState(order?.proofImage || null);
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
 
   if (!order) {
@@ -1473,20 +1470,24 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
   const alreadySubmitted = !!order.proofImage;
 
   const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { setError("File harus berupa gambar (JPG/PNG)."); return; }
-    if (file.size > 5 * 1024 * 1024) { setError("Ukuran file maksimal 5MB."); return; }
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setError("File harus berupa gambar (JPG/PNG)."); return; }
+    if (f.size > 5 * 1024 * 1024) { setError("Ukuran file maksimal 5MB."); return; }
     setError("");
+    setFile(f);
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(f);
   };
 
-  const handleSubmit = () => {
-    if (!preview) { setError("Unggah bukti transfer terlebih dahulu."); return; }
+  const handleSubmit = async () => {
+    if (!file) { setError("Unggah bukti transfer terlebih dahulu."); return; }
     setError("");
-    attachPaymentProof(order.id, { proofImage: preview, proofNote: note.trim() });
+    setSubmitting(true);
+    const result = await attachPaymentProof(order.id, file, note.trim());
+    setSubmitting(false);
+    if (!result.ok) { setError(result.error || "Gagal mengunggah bukti. Coba lagi."); return; }
     setJustSubmitted(true);
   };
 
@@ -1500,7 +1501,11 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>
           Pesanan <b style={{ color: C.text }}>{order.id}</b> sedang menunggu verifikasi admin. Produk akan otomatis muncul di dashboard begitu pembayaran dikonfirmasi.
         </p>
-        {preview && <img src={preview} alt="Bukti transfer" style={{ maxWidth: 220, borderRadius: 10, border: `1px solid ${C.border}`, marginTop: 18 }} />}
+        {preview ? (
+          <img src={preview} alt="Bukti transfer" style={{ maxWidth: 220, borderRadius: 10, border: `1px solid ${C.border}`, marginTop: 18 }} />
+        ) : (
+          <ProofImage path={order.proofImage} style={{ maxWidth: 220, minHeight: 140, borderRadius: 10, border: `1px solid ${C.border}`, marginTop: 18, display: "inline-flex" }} />
+        )}
         <div style={{ marginTop: 26, display: "flex", gap: 12, justifyContent: "center" }}>
           <GhostBtn onClick={() => go("shop")}>Lanjut Belanja</GhostBtn>
           <PrimaryBtn onClick={goToCustomerOverview} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
@@ -1540,7 +1545,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
           <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
         </label>
         {preview && (
-          <button onClick={() => setPreview(null)} style={{ marginTop: 8, background: "none", border: "none", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12, cursor: "pointer", padding: 0 }}>Ganti foto</button>
+          <button onClick={() => { setPreview(null); setFile(null); }} style={{ marginTop: 8, background: "none", border: "none", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12, cursor: "pointer", padding: 0 }}>Ganti foto</button>
         )}
 
         <div style={{ marginTop: 14 }}>
@@ -1549,7 +1554,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
         </div>
 
         {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
-        <div style={{ marginTop: 14 }}><PrimaryBtn full onClick={handleSubmit} icon={Check}>Kirim Konfirmasi Pembayaran</PrimaryBtn></div>
+        <div style={{ marginTop: 14 }}><PrimaryBtn full onClick={handleSubmit} icon={Check}>{submitting ? "Mengunggah..." : "Kirim Konfirmasi Pembayaran"}</PrimaryBtn></div>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Belum sempat transfer? Kamu bisa kembali ke halaman ini lewat menu Pesanan di dashboard.</p>
       </Card>
     </div>
@@ -1564,17 +1569,23 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
 
-  const submitCustomer = () => {
-    const result = mode === "login" ? onCustomerLogin({ email, password }) : onCustomerRegister({ name, email, phone, password });
+  const submitCustomer = async () => {
+    setSubmitting(true);
+    const result = mode === "login" ? await onCustomerLogin({ email, password }) : await onCustomerRegister({ name, email, phone, password });
+    setSubmitting(false);
     if (!result.ok) setError(result.error);
   };
-  const submitAdmin = () => {
-    const result = onAdminLogin(adminPasswordInput);
+  const submitAdmin = async () => {
+    setSubmitting(true);
+    const result = await onAdminLogin({ email: adminEmail, password: adminPasswordInput });
+    setSubmitting(false);
     if (!result.ok) setError(result.error);
   };
 
@@ -1602,15 +1613,16 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
             {mode === "register" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Nomor WhatsApp" style={inputStyle} />}
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} />
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
-            <PrimaryBtn full onClick={submitCustomer}>{mode === "login" ? "Masuk" : "Daftar & Masuk"}</PrimaryBtn>
+            <PrimaryBtn full onClick={submitCustomer}>{submitting ? "Memproses..." : mode === "login" ? "Masuk" : "Daftar & Masuk"}</PrimaryBtn>
           </>
         ) : (
           <>
             <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan kata sandi admin. Kata sandi ini bisa diganti lewat Pengaturan → Keamanan setelah masuk.</p>
-            <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi admin" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Gunakan akun yang sudah diberi akses admin. Kata sandi bisa diganti lewat Pengaturan → Keamanan setelah masuk.</p>
+            <input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Email admin" type="email" style={inputStyle} />
+            <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
-            <PrimaryBtn full onClick={submitAdmin}>Masuk sebagai Admin</PrimaryBtn>
+            <PrimaryBtn full onClick={submitAdmin}>{submitting ? "Memproses..." : "Masuk sebagai Admin"}</PrimaryBtn>
           </>
         )}
       </Card>
@@ -1677,14 +1689,10 @@ function ProfileForm({ account, onSave }) {
 }
 
 function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm }) {
-  // Hanya pesanan milik customer yang sedang login — sebelumnya seluruh order (milik semua
-  // customer) ikut ditampilkan di sini, yang berarti siapa pun yang login bisa melihat riwayat
-  // pembelian dan otomatis punya akses ke produk orang lain. Sekarang benar-benar terisolasi per akun.
-  const myOrders = orders.filter((o) => o.customerEmail === account.email);
+  // "orders" di sini sudah otomatis terbatas ke milik customer yang login (lewat RLS di database).
+  const myOrders = orders;
   const ownedIds = Array.from(new Set(
-    myOrders.filter((o) => o.payment === "PAID")
-      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
-      .filter(Boolean)
+    myOrders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter(Boolean)
   ));
   const owned = products.filter((p) => ownedIds.includes(p.id));
   const totalSpend = myOrders.filter((o) => o.payment === "PAID").reduce((s, o) => s + o.total, 0);
@@ -2562,12 +2570,12 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
             <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
             <Card style={{ padding: 20, maxWidth: 480 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Backup Data</h3>
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Unduh salinan seluruh data (produk, pesanan, kupon, testimoni, akun customer, rekening) sebagai file JSON. Berguna karena data prototipe ini hanya tersimpan di browser (belum ada database sungguhan).</p>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Unduh salinan data toko (produk, pesanan, kupon, testimoni, rekening) sebagai file JSON. Data sekarang tersimpan di database Supabase, tapi file ini tetap berguna sebagai cadangan manual.</p>
               <GhostBtn onClick={onExportData} icon={Download}>Ekspor Data (JSON)</GhostBtn>
             </Card>
             <Card style={{ padding: 20, maxWidth: 480, marginTop: 16, borderColor: C.ember }}>
-              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.emberLight, marginTop: 0 }}>Zona Berbahaya</h3>
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Menghapus semua testimoni, akun customer, rekening, dan kata sandi admin yang tersimpan di browser ini secara permanen. Tidak bisa dibatalkan — pastikan sudah ekspor data dulu kalau perlu.</p>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.emberLight, marginTop: 0 }}>Reset Data</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 14 }}>Karena data sekarang tersimpan di database (bukan browser lagi), reset tidak bisa dilakukan satu klik dari sini. Lakukan lewat Supabase Dashboard → Table Editor, atau jalankan ulang script seed.sql di SQL Editor.</p>
               <ResetDataButton onReset={onResetData} />
             </Card>
           </div>
@@ -2656,7 +2664,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               <div>{showProofOrder.customerName} · {rp(showProofOrder.total)}</div>
               <div>Diunggah: {showProofOrder.proofSubmittedAt || "-"}</div>
             </div>
-            {showProofOrder.proofImage && <img src={showProofOrder.proofImage} alt="Bukti transfer" style={{ width: "100%", borderRadius: 10, border: `1px solid ${C.border}` }} />}
+            {showProofOrder.proofImage && <ProofImage path={showProofOrder.proofImage} alt="Bukti transfer" style={{ width: "100%", minHeight: 160, borderRadius: 10, border: `1px solid ${C.border}` }} />}
             {showProofOrder.proofNote && (
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.text, marginTop: 10, background: C.surface2, padding: 10, borderRadius: 8 }}>
                 <b style={{ color: C.muted }}>Catatan:</b> {showProofOrder.proofNote}
@@ -3606,19 +3614,10 @@ function AboutPage({ go, content, footerContent, role, editMode, updateSiteConte
 export default function App() {
   const [view, setView] = useState("home");
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
-  const [products, setProducts] = usePersistedState("gs_products", INITIAL_PRODUCTS);
-  const [curriculumData, setCurriculumData] = usePersistedState("gs_curriculum", INITIAL_CURRICULUM);
+  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
   const [cart, setCart] = useState([]);
   const [coupon, setCoupon] = useState(null);
-  const [role, setRole] = useState(() => {
-    try { return localStorage.getItem("gs_session_role") || null; } catch (e) { return null; }
-  });
-  useEffect(() => {
-    try {
-      if (role) localStorage.setItem("gs_session_role", role);
-      else localStorage.removeItem("gs_session_role");
-    } catch (e) {}
-  }, [role]);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
   const [preAuthView, setPreAuthView] = useState(null);
   const [customerSub, setCustomerSub] = useState("overview");
@@ -3628,103 +3627,236 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [videoProgress, setVideoProgress] = useState({});
   const [videoCurrent, setVideoCurrent] = useState({});
-  const [orders, setOrders] = usePersistedState("gs_orders", DEMO_ORDERS);
+  const [orders, setOrders] = useState(DEMO_ORDERS);
   const [pendingOrderId, setPendingOrderId] = useState(null);
-  const [coupons, setCoupons] = usePersistedState("gs_coupons", INITIAL_COUPONS);
-  const [siteContent, setSiteContent] = usePersistedState("gs_site_content", DEFAULT_SITE_CONTENT);
-  const [customPages, setCustomPages] = usePersistedState("gs_custom_pages", []);
+  const [coupons, setCoupons] = useState(INITIAL_COUPONS);
+  const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
+  const [customPages, setCustomPages] = useState([]);
   const [customPageSlug, setCustomPageSlug] = useState(null);
-  const [testimonials, setTestimonials] = useState(() => {
-    try {
-      const raw = localStorage.getItem("gs_testimonials");
-      return raw ? JSON.parse(raw) : INITIAL_TESTIMONIALS;
-    } catch (e) {
-      return INITIAL_TESTIMONIALS;
-    }
+  const [testimonials, setTestimonials] = useState(INITIAL_TESTIMONIALS);
+  const [bankInfo, setBankInfo] = useState(DEFAULT_BANK_INFO);
+
+  /* ---------------- MAPPER: baris database (snake_case) <-> bentuk data yang dipakai di seluruh app (camelCase) ---------------- */
+  const mapProductRow = (row) => ({
+    id: row.id, slug: row.slug, name: row.name, category: row.category, level: row.level,
+    price: row.price, oldPrice: row.old_price, rating: Number(row.rating) || 0, reviews: row.reviews, sold: row.sold,
+    badge: row.badge, duration: row.duration, format: row.format, hue: row.hue,
+    desc: row.description, benefits: row.benefits || [], learn: row.learn_points || [],
+    bonus: row.bonus, previewVideo: row.preview_video || "", pricingTiers: row.pricing_tiers, status: row.status,
   });
-  useEffect(() => {
-    try { localStorage.setItem("gs_testimonials", JSON.stringify(testimonials)); } catch (e) {}
-  }, [testimonials]);
-  const addTestimonial = (productId, { rating, quote, name }) => {
-    setTestimonials((prev) => {
-      const list = prev[productId] || [];
-      const entry = { id: `${productId}-${Date.now()}`, rating, quote, name, date: formatDateID(new Date()) };
-      return { ...prev, [productId]: [entry, ...list] };
+  const mapCouponRow = (row) => ({
+    code: row.code, type: row.type, value: row.value, minPurchase: row.min_purchase,
+    limit: row.usage_limit, used: row.used, expiry: row.expiry,
+  });
+  const mapOrderRow = (row) => ({
+    id: row.id,
+    date: formatDateID(new Date(row.created_at)),
+    items: (row.items || []).map((it) => it.name),
+    itemIds: (row.items || []).map((it) => it.id),
+    total: row.total,
+    discount: row.discount,
+    couponCode: row.coupon_code,
+    payment: row.payment,
+    status: row.status,
+    method: row.method,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    customerPhone: row.customer_phone,
+    customerId: row.customer_id,
+    proofImage: row.proof_image_url,
+    proofNote: row.proof_note,
+    proofSubmittedAt: row.proof_submitted_at ? formatDateID(new Date(row.proof_submitted_at)) : null,
+  });
+
+  /* ---------------- FETCH DATA DARI SUPABASE ---------------- */
+  const fetchProducts = async () => {
+    const { data, error } = await supabase.from("products").select("*").order("sort_order");
+    if (!error && data) setProducts(data.map(mapProductRow));
+  };
+  const fetchCurriculum = async () => {
+    const { data, error } = await supabase.from("curriculum_videos").select("*").order("sort_order");
+    if (error || !data) return;
+    const grouped = {};
+    data.forEach((v) => {
+      if (!grouped[v.product_id]) grouped[v.product_id] = [];
+      grouped[v.product_id].push({ id: v.id, title: v.title, desc: v.description || "", url: v.url || "", duration: v.duration || "" });
     });
+    setCurriculumData(grouped);
+  };
+  const fetchCoupons = async () => {
+    const { data, error } = await supabase.from("coupons").select("*").order("created_at");
+    if (!error && data) setCoupons(data.map(mapCouponRow));
+  };
+  const fetchTestimonials = async () => {
+    const { data, error } = await supabase.from("testimonials").select("*").order("created_at", { ascending: false });
+    if (error || !data) return;
+    const grouped = {};
+    data.forEach((t) => {
+      if (!grouped[t.product_id]) grouped[t.product_id] = [];
+      grouped[t.product_id].push({ id: t.id, rating: t.rating, quote: t.quote, name: t.name, date: formatDateID(new Date(t.created_at)) });
+    });
+    setTestimonials(grouped);
+  };
+  const fetchBankInfo = async () => {
+    const { data } = await supabase.from("bank_info").select("*").eq("id", 1).maybeSingle();
+    if (data) setBankInfo({ bankName: data.bank_name, accountNumber: data.account_number, accountHolder: data.account_holder });
+  };
+  const fetchSiteContent = async () => {
+    const { data } = await supabase.from("site_content").select("*").eq("id", 1).maybeSingle();
+    if (data && data.content && Object.keys(data.content).length > 0) setSiteContent(data.content);
+  };
+  const fetchCustomPages = async () => {
+    const { data, error } = await supabase.from("custom_pages").select("*").order("created_at");
+    if (!error && data) setCustomPages(data.map((p) => ({ id: p.id, slug: p.slug, title: p.title, blocks: p.content || [] })));
+  };
+  const fetchOrders = async () => {
+    // RLS otomatis membatasi hasil: customer hanya lihat order miliknya, admin lihat semua.
+    const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+    if (!error && data) setOrders(data.map(mapOrderRow));
   };
 
-  // Rekening tujuan pembayaran — bisa diubah admin di Pengaturan → Rekening, tersimpan permanen.
-  const [bankInfo, setBankInfo] = useState(() => {
-    try {
-      const raw = localStorage.getItem("gs_bank_info");
-      return raw ? JSON.parse(raw) : DEFAULT_BANK_INFO;
-    } catch (e) {
-      return DEFAULT_BANK_INFO;
-    }
-  });
+  // Data toko (produk, kurikulum, kupon, testimoni, rekening, konten situs, halaman kustom) — publik,
+  // dimuat sekali di awal, tidak bergantung status login.
   useEffect(() => {
-    try { localStorage.setItem("gs_bank_info", JSON.stringify(bankInfo)); } catch (e) {}
-  }, [bankInfo]);
-  const updateBankInfo = (data) => setBankInfo(data);
+    fetchProducts();
+    fetchCurriculum();
+    fetchCoupons();
+    fetchTestimonials();
+    fetchBankInfo();
+    fetchSiteContent();
+    fetchCustomPages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // --- AKUN & SESI ---
-  // Prototipe ini menyimpan password apa adanya (plaintext) di localStorage karena belum ada
-  // backend. Ini TIDAK aman untuk produksi — begitu backend siap, autentikasi harus dipindah
-  // ke server dengan password di-hash (bcrypt/argon2), bukan disimpan di browser seperti ini.
-  const [customerAccounts, setCustomerAccounts] = useState(() => {
-    try {
-      const raw = localStorage.getItem("gs_customer_accounts");
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-  });
+  const addTestimonial = async (productId, { rating, quote, name }) => {
+    if (!session) return;
+    const { error } = await supabase.from("testimonials").insert({
+      product_id: productId, customer_id: session.user.id, rating, quote, name,
+    });
+    if (!error) fetchTestimonials();
+  };
+
+  const updateBankInfo = async (data) => {
+    setBankInfo(data); // optimistic
+    await supabase.from("bank_info").update({
+      bank_name: data.bankName, account_number: data.accountNumber, account_holder: data.accountHolder,
+    }).eq("id", 1);
+  };
+
+  /* ---------------- AKUN & SESI (Supabase Auth) ---------------- */
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const role = profile?.role || null;
+
+  const fetchProfile = async (userId) => {
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    setProfile(data || null);
+  };
+
   useEffect(() => {
-    try { localStorage.setItem("gs_customer_accounts", JSON.stringify(customerAccounts)); } catch (e) {}
-  }, [customerAccounts]);
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      setSession(s);
+      if (s) await fetchProfile(s.user.id);
+      setAuthReady(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      setSession(s);
+      if (s) await fetchProfile(s.user.id);
+      else setProfile(null);
+    });
+    return () => listener.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const [adminPassword, setAdminPassword] = useState(() => {
-    try { return localStorage.getItem("gs_admin_password") || "admin123"; } catch (e) { return "admin123"; }
-  });
+  // Pesanan bergantung siapa yang login (RLS membatasi hasil) — dimuat ulang tiap kali sesi
+  // berubah, dan disinkronkan real-time supaya admin & customer tidak perlu refresh manual.
   useEffect(() => {
-    try { localStorage.setItem("gs_admin_password", adminPassword); } catch (e) {}
-  }, [adminPassword]);
+    if (!authReady) return;
+    fetchOrders();
+    const channel = supabase
+      .channel("orders-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchOrders())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, session?.user?.id]);
 
-  const [currentCustomerEmail, setCurrentCustomerEmail] = useState(() => {
-    try { return localStorage.getItem("gs_session_customer_email") || null; } catch (e) { return null; }
-  });
-  useEffect(() => {
-    try {
-      if (currentCustomerEmail) localStorage.setItem("gs_session_customer_email", currentCustomerEmail);
-      else localStorage.removeItem("gs_session_customer_email");
-    } catch (e) {}
-  }, [currentCustomerEmail]);
-
-  const registerCustomer = ({ name, email, phone, password }) => {
+  const registerCustomer = async ({ name, email, phone, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!name.trim() || !normalizedEmail || !password) return { ok: false, error: "Lengkapi semua kolom." };
     if (password.length < 6) return { ok: false, error: "Kata sandi minimal 6 karakter." };
-    if (customerAccounts.some((a) => a.email === normalizedEmail)) return { ok: false, error: "Email sudah terdaftar. Silakan masuk." };
-    setCustomerAccounts((prev) => [...prev, { name: name.trim(), email: normalizedEmail, phone: phone?.trim() || "", password }]);
-    setRole("customer");
-    setCurrentCustomerEmail(normalizedEmail);
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail, password,
+      options: { data: { name: name.trim(), phone: phone?.trim() || "" } },
+    });
+    if (error) return { ok: false, error: error.message === "User already registered" ? "Email sudah terdaftar. Silakan masuk." : error.message };
+    if (!data.session) {
+      // Kalau "Confirm email" masih aktif di Supabase Auth settings, akun dibuat tapi belum
+      // langsung bisa login sampai email diverifikasi.
+      return { ok: false, error: "Akun dibuat. Silakan cek email untuk verifikasi sebelum masuk (atau matikan 'Confirm email' di Supabase untuk testing)." };
+    }
+    setSession(data.session);
+    await fetchProfile(data.session.user.id);
     return { ok: true };
   };
-  const loginCustomer = ({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const acc = customerAccounts.find((a) => a.email === normalizedEmail);
-    if (!acc || acc.password !== password) return { ok: false, error: "Email atau kata sandi salah." };
-    setRole("customer");
-    setCurrentCustomerEmail(normalizedEmail);
+  const loginCustomer = async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error) return { ok: false, error: "Email atau kata sandi salah." };
+    setSession(data.session);
+    await fetchProfile(data.user.id);
     return { ok: true };
   };
-  const loginAdmin = (password) => {
-    if (password !== adminPassword) return { ok: false, error: "Kata sandi admin salah." };
-    setRole("admin");
-    setRedirectAfterAuth(null);
-    go("admin");
+  const loginAdmin = async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error) return { ok: false, error: "Email atau kata sandi salah." };
+    const { data: prof } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
+    if (prof?.role !== "admin") {
+      await supabase.auth.signOut();
+      return { ok: false, error: "Akun ini tidak memiliki akses admin." };
+    }
+    setSession(data.session);
+    setProfile(prof);
     return { ok: true };
   };
-  const updateCustomerProfile = (email, patch) => {
-    setCustomerAccounts((prev) => prev.map((a) => (a.email === email ? { ...a, ...patch } : a)));
+  const updateCustomerProfile = async (_email, patch) => {
+    if (!session) return;
+    setProfile((prev) => (prev ? { ...prev, ...patch } : prev)); // optimistic
+    await supabase.from("profiles").update(patch).eq("id", session.user.id);
+  };
+  const logout = async () => {
+    await supabase.auth.signOut();
+    go("home");
+  };
+  const changeAdminPassword = async (currentPw, newPw) => {
+    if (newPw.length < 6) return { ok: false, error: "Kata sandi baru minimal 6 karakter." };
+    const { error: reauthError } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPw });
+    if (reauthError) return { ok: false, error: "Kata sandi saat ini salah." };
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  };
+
+  // Ekspor data toko (bukan data pribadi tiap customer, karena itu terlindungi RLS) sebagai backup manual.
+  const exportAllData = async () => {
+    const snapshot = { exportedAt: new Date().toISOString(), products, orders, coupons, testimonials, siteContent, customPages, bankInfo };
+    try {
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gitarsakti-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+  };
+  // Data sekarang tersimpan di database (bukan localStorage lagi), jadi "reset" tidak bisa
+  // dilakukan dari browser. Kalau perlu reset data toko, lakukan lewat Supabase Table Editor
+  // atau jalankan ulang SQL seed di SQL Editor.
+  const resetAllData = () => {
+    alert("Data sekarang tersimpan di database Supabase, bukan di browser. Untuk reset data, buka Supabase Dashboard -> Table Editor, atau jalankan ulang script seed.sql.");
   };
 
   // Sinkronkan tombol back browser/HP dengan navigasi di dalam app. Tanpa ini, browser tidak
@@ -3761,23 +3893,18 @@ export default function App() {
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
   const openProduct = (slug) => go("product", slug);
-  const currentAccount = role === "customer" && currentCustomerEmail ? customerAccounts.find((a) => a.email === currentCustomerEmail) : null;
-  // PENTING: ownedIds/pendingIds HARUS difilter ke order milik customer yang sedang login saja.
-  // Sebelumnya ini memakai SELURUH order di seluruh toko, artinya siapa pun yang login sebagai
-  // customer otomatis melihat & bisa mengakses produk yang dibeli orang lain. Sudah diperbaiki.
-  const myOrdersForAccess = role === "customer" && currentCustomerEmail ? orders.filter((o) => o.customerEmail === currentCustomerEmail) : [];
-  const ownedIds = Array.from(new Set(
-    myOrdersForAccess.filter((o) => o.payment === "PAID")
-      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
-      .filter(Boolean)
-  ));
+  const currentAccount = role === "customer" && profile ? { name: profile.name, email: profile.email, phone: profile.phone } : null;
+  // PENTING: orders sudah otomatis terbatas ke milik customer yang login (lewat RLS di database),
+  // jadi tidak perlu filter manual lagi di sini — beda dengan versi localStorage sebelumnya yang
+  // rawan bocor data antar-customer kalau lupa difilter.
+  const ownedIds = role === "customer" ? Array.from(new Set(
+    orders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter(Boolean)
+  )) : [];
   // Produk yang sedang menunggu verifikasi pembayaran (belum PAID, belum juga Gagal) —
   // dipakai untuk mencegah customer checkout ganda untuk produk yang sama.
-  const pendingIds = Array.from(new Set(
-    myOrdersForAccess.filter((o) => o.payment === "Pending")
-      .flatMap((o) => (o.itemIds && o.itemIds.length ? o.itemIds : o.items.map((itemName) => products.find((p) => p.name === itemName)?.id)))
-      .filter((id) => id && !ownedIds.includes(id))
-  ));
+  const pendingIds = role === "customer" ? Array.from(new Set(
+    orders.filter((o) => o.payment === "Pending").flatMap((o) => o.itemIds).filter((id) => id && !ownedIds.includes(id))
+  )) : [];
   const goToAuth = () => {
     setPreAuthView({ view, slug: productSlug });
     go("auth");
@@ -3798,53 +3925,26 @@ export default function App() {
     if (!role) { setRedirectAfterAuth({ view: target, slug }); setPreAuthView({ view, slug: productSlug }); go("auth"); return; }
     go(target, slug);
   };
-  const onCustomerLogin = ({ email, password }) => {
-    const result = loginCustomer({ email, password });
+  const onCustomerLogin = async ({ email, password }) => {
+    const result = await loginCustomer({ email, password });
     if (result.ok) {
       if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
       else go("customer");
     }
     return result;
   };
-  const onCustomerRegister = ({ name, email, phone, password }) => {
-    const result = registerCustomer({ name, email, phone, password });
+  const onCustomerRegister = async ({ name, email, phone, password }) => {
+    const result = await registerCustomer({ name, email, phone, password });
     if (result.ok) {
       if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
       else go("customer");
     }
     return result;
   };
-  const onAdminLogin = (password) => loginAdmin(password);
-  const logout = () => { setRole(null); setCurrentCustomerEmail(null); go("home"); };
-
-  const changeAdminPassword = (currentPw, newPw) => {
-    if (currentPw !== adminPassword) return { ok: false, error: "Kata sandi saat ini salah." };
-    if (newPw.length < 6) return { ok: false, error: "Kata sandi baru minimal 6 karakter." };
-    setAdminPassword(newPw);
-    return { ok: true };
-  };
-
-  // Ekspor semua data prototipe (pesanan, produk, kupon, testimoni, akun) sebagai file JSON,
-  // supaya admin punya cara backup manual selama belum ada database sungguhan.
-  const exportAllData = () => {
-    const snapshot = { exportedAt: new Date().toISOString(), products, orders, coupons, testimonials, customerAccounts, bankInfo, siteContent, customPages };
-    try {
-      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `gitarsakti-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {}
-  };
-  const resetAllData = () => {
-    try {
-      ["gs_testimonials", "gs_bank_info", "gs_customer_accounts", "gs_admin_password", "gs_session_customer_email", "gs_session_role", "gs_products", "gs_curriculum", "gs_orders", "gs_coupons", "gs_site_content", "gs_custom_pages", "gs_lp_secret_of_shredding_first_visit"].forEach((k) => localStorage.removeItem(k));
-    } catch (e) {}
-    window.location?.reload?.();
+  const onAdminLogin = async ({ email, password }) => {
+    const result = await loginAdmin({ email, password });
+    if (result.ok) { setRedirectAfterAuth(null); go("admin"); }
+    return result;
   };
   const onBack = () => {
     if (preAuthView) { go(preAuthView.view, preAuthView.slug); setPreAuthView(null); }
@@ -3853,30 +3953,53 @@ export default function App() {
   const accessProduct = (p) => (curriculumData[p.id] ? go("learn", p.slug) : go("product", p.slug));
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
   const clearCart = () => { setCart([]); setCoupon(null); };
-  const addOrder = (order) => {
-    setOrders((prev) => [order, ...prev]);
-    // "Terjual" bertambah dari transaksi asli, bukan angka statis — dasar untuk slot 100 pembeli pertama.
-    if (order.itemIds && order.itemIds.length) {
-      setProducts((prev) => prev.map((p) => (order.itemIds.includes(p.id) ? { ...p, sold: (p.sold || 0) + 1 } : p)));
-    }
-    // Pemakaian kupon bertambah dari transaksi asli, dipakai untuk tampilan "X/limit" di admin.
-    if (order.couponCode) {
-      setCoupons((prev) => prev.map((c) => (c.code === order.couponCode ? { ...c, used: (c.used || 0) + 1 } : c)));
-    }
+
+  const addOrder = async ({ cartProducts, total, discount, couponCode, method, customerName, customerEmail, customerPhone }) => {
+    if (!session) return { ok: false, error: "Sesi tidak ditemukan, silakan masuk ulang." };
+    const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price }));
+    const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
+    const { data, error } = await supabase.from("orders").insert({
+      customer_id: session.user.id,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      items, subtotal, discount, coupon_code: couponCode, total,
+      // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
+      // oleh admin setelah customer mengunggah bukti transfer.
+      payment: "Pending", status: "Menunggu", method,
+    }).select().single();
+    if (error) return { ok: false, error: error.message };
+    fetchOrders();
+    return { ok: true, orderId: data.id };
   };
   // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
   // masuk keranjang, supaya harga di checkout sama persis dengan yang ditampilkan di landing page.
   const applyPricingAndBuy = (productId, price, oldPrice) => {
-    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, price, oldPrice } : p)));
+    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, price, oldPrice } : p))); // optimistic
+    supabase.from("products").update({ price, old_price: oldPrice }).eq("id", productId).then(() => {});
     return addToCart(productId);
   };
-  const updateOrderStatus = (id, payment, status) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment, status } : o)));
+  // Perubahan status (terutama jadi PAID) lewat RPC di server — bukan UPDATE langsung — supaya
+  // penambahan counter "sold" produk & "used" kupon konsisten dan tidak bisa dipalsukan dari client.
+  const updateOrderStatus = async (id, payment, status) => {
+    const { error } = await supabase.rpc("admin_update_order_status", { p_order_id: id, p_payment: payment, p_status: status });
+    if (error) { alert("Gagal mengubah status pesanan: " + error.message); return; }
+    fetchOrders();
+    fetchProducts();
+    fetchCoupons();
   };
-  // Menyimpan bukti transfer yang diunggah customer ke order terkait, supaya admin bisa
-  // melihat & memverifikasinya secara manual di menu Pesanan.
-  const attachPaymentProof = (id, { proofImage, proofNote }) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, proofImage, proofNote, proofSubmittedAt: formatDateID(new Date()) } : o)));
+  // Upload foto ke Storage privat, lalu catat path-nya ke order lewat RPC (bukan UPDATE langsung,
+  // supaya customer hanya bisa mengisi kolom bukti transfer, bukan kolom lain seperti payment/status).
+  const attachPaymentProof = async (orderId, file, note) => {
+    if (!session) return { ok: false, error: "Sesi tidak ditemukan." };
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${session.user.id}/${orderId}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("payment-proofs").upload(path, file);
+    if (uploadError) return { ok: false, error: uploadError.message };
+    const { error: rpcError } = await supabase.rpc("attach_payment_proof", { p_order_id: orderId, p_proof_url: path, p_note: note });
+    if (rpcError) return { ok: false, error: rpcError.message };
+    fetchOrders();
+    return { ok: true };
   };
   const goToPaymentConfirm = (orderId) => {
     setPendingOrderId(orderId);
@@ -3892,71 +4015,86 @@ export default function App() {
   };
   const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const addProduct = (data, videos) => {
-    const newId = products.reduce((m, p) => Math.max(m, p.id), 0) + 1;
-    let baseSlug = slugify(data.name) || `produk-${newId}`;
+
+  const addProduct = async (data, videos) => {
+    let baseSlug = slugify(data.name) || `produk-${Date.now()}`;
     let slug = baseSlug;
     let n = 2;
     while (products.some((p) => p.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
-    const newProduct = {
-      id: newId, slug, name: data.name, category: data.category, level: data.level,
-      price: data.price, oldPrice: data.oldPrice || data.price, rating: 5, reviews: 0, sold: 0,
+    const { data: inserted, error } = await supabase.from("products").insert({
+      slug, name: data.name, category: data.category, level: data.level,
+      price: data.price, old_price: data.oldPrice || data.price, rating: 0, reviews: 0, sold: 0,
       badge: "New", duration: data.duration || `${videos.length} video`, format: data.format || "Video Course",
-      hue: data.hue || "#C9A24B", desc: data.desc || "", benefits: data.benefits || [], learn: data.learn || [],
-      bonus: data.bonus || "", status: data.status || "draft", previewVideo: data.previewVideo || "",
-    };
-    setProducts((prev) => [...prev, newProduct]);
+      hue: data.hue || "#C9A24B", description: data.desc || "", benefits: data.benefits || [], learn_points: data.learn || [],
+      bonus: data.bonus || "", status: data.status || "draft", preview_video: data.previewVideo || "",
+      sort_order: products.length,
+    }).select().single();
+    if (error) { alert("Gagal menambah produk: " + error.message); return null; }
     if (videos && videos.length > 0) {
-      setCurriculumData((prev) => ({ ...prev, [newId]: videos }));
+      await supabase.from("curriculum_videos").insert(videos.map((v, i) => ({
+        product_id: inserted.id, title: v.title, description: v.desc || "", url: v.url || "", duration: v.duration || "", sort_order: i,
+      })));
     }
-    return newProduct;
+    await fetchProducts();
+    await fetchCurriculum();
+    return mapProductRow(inserted);
   };
-  const updateProduct = (id, data, videos) => {
-    setProducts((prev) => prev.map((p) => (
-      p.id === id
-        ? {
-            ...p, name: data.name, category: data.category, level: data.level,
-            price: data.price, oldPrice: data.oldPrice || data.price, desc: data.desc || "",
-            status: data.status || p.status || "published", previewVideo: data.previewVideo || "",
-            duration: videos.length > 0 ? `${videos.length} video` : p.duration,
-          }
-        : p
-    )));
-    setCurriculumData((prev) => ({ ...prev, [id]: videos }));
+  const updateProduct = async (id, data, videos) => {
+    const payload = {
+      name: data.name, category: data.category, level: data.level,
+      price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",
+      status: data.status || "published", preview_video: data.previewVideo || "",
+    };
+    if (videos.length > 0) payload.duration = `${videos.length} video`;
+    await supabase.from("products").update(payload).eq("id", id);
+    await supabase.from("curriculum_videos").delete().eq("product_id", id);
+    if (videos && videos.length > 0) {
+      await supabase.from("curriculum_videos").insert(videos.map((v, i) => ({
+        product_id: id, title: v.title, description: v.desc || "", url: v.url || "", duration: v.duration || "", sort_order: i,
+      })));
+    }
+    await fetchProducts();
+    await fetchCurriculum();
   };
-  const toggleProductStatus = (id) => {
-    setProducts((prev) => prev.map((p) => (
-      p.id === id ? { ...p, status: (p.status || "published") === "published" ? "draft" : "published" } : p
-    )));
+  const toggleProductStatus = async (id) => {
+    const current = products.find((p) => p.id === id);
+    if (!current) return;
+    const next = (current.status || "published") === "published" ? "draft" : "published";
+    await supabase.from("products").update({ status: next }).eq("id", id);
+    fetchProducts();
   };
-  const deleteProduct = (id) => {
-    const hasOrders = orders.some((o) => (o.itemIds && o.itemIds.includes(id)) || o.items.includes(products.find((p) => p.id === id)?.name));
+  const deleteProduct = async (id) => {
+    const hasOrders = orders.some((o) => o.itemIds.includes(id));
     if (hasOrders) {
       // Jangan benar-benar dihapus — kalau ada customer yang sudah membeli produk ini, menghapus
       // record-nya akan membuat mereka kehilangan akses ke materi yang sudah dibayar. Diarsipkan
       // saja: hilang dari Shop/Beranda, tapi tetap bisa diakses oleh yang sudah memilikinya.
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: "archived" } : p)));
-      return;
+      await supabase.from("products").update({ status: "archived" }).eq("id", id);
+    } else {
+      await supabase.from("curriculum_videos").delete().eq("product_id", id);
+      await supabase.from("products").delete().eq("id", id);
     }
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setCurriculumData((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
+    fetchProducts();
+    fetchCurriculum();
   };
-  const moveProduct = (id, direction) => {
+  const moveProduct = async (id, direction) => {
+    const idx = products.findIndex((p) => p.id === id);
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || newIdx < 0 || newIdx >= products.length) return;
+    const a = products[idx], b = products[newIdx];
     setProducts((prev) => {
-      const idx = prev.findIndex((p) => p.id === id);
-      const newIdx = direction === "up" ? idx - 1 : idx + 1;
-      if (idx < 0 || newIdx < 0 || newIdx >= prev.length) return prev;
       const copy = [...prev];
       [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
       return copy;
     });
+    await supabase.from("products").update({ sort_order: newIdx }).eq("id", a.id);
+    await supabase.from("products").update({ sort_order: idx }).eq("id", b.id);
+    fetchProducts();
   };
-  const updateSiteContent = (section, data) => {
-    setSiteContent((prev) => ({ ...prev, [section]: { ...prev[section], ...data } }));
+  const updateSiteContent = async (section, data) => {
+    const next = { ...siteContent, [section]: { ...siteContent[section], ...data } };
+    setSiteContent(next); // optimistic
+    await supabase.from("site_content").update({ content: next }).eq("id", 1);
   };
   const openCustomPage = (slug) => {
     setCustomPageSlug(slug);
@@ -3968,23 +4106,32 @@ export default function App() {
     } catch (e) {}
   };
   const goToAddPage = () => { setAdminSub("tampilan"); setTampilanSub("halaman"); go("admin"); };
-  const addCustomPage = (title, blocks) => {
-    const newId = customPages.reduce((m, p) => Math.max(m, p.id), 0) + 1;
-    let baseSlug = slugify(title) || `halaman-${newId}`;
+  const addCustomPage = async (title, blocks) => {
+    let baseSlug = slugify(title) || `halaman-${Date.now()}`;
     let slug = baseSlug;
     let n = 2;
     while (customPages.some((p) => p.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
-    setCustomPages((prev) => [...prev, { id: newId, slug, title, blocks }]);
+    await supabase.from("custom_pages").insert({ slug, title, content: blocks });
+    fetchCustomPages();
   };
-  const updateCustomPage = (id, title, blocks) => {
-    setCustomPages((prev) => prev.map((p) => (p.id === id ? { ...p, title, blocks } : p)));
+  const updateCustomPage = async (id, title, blocks) => {
+    await supabase.from("custom_pages").update({ title, content: blocks }).eq("id", id);
+    fetchCustomPages();
   };
-  const deleteCustomPage = (id) => {
-    setCustomPages((prev) => prev.filter((p) => p.id !== id));
+  const deleteCustomPage = async (id) => {
+    await supabase.from("custom_pages").delete().eq("id", id);
+    fetchCustomPages();
   };
-  const addCoupon = (data) => {
-    setCoupons((prev) => [...prev, { ...data, used: 0 }]);
+  const addCoupon = async (data) => {
+    await supabase.from("coupons").insert({
+      code: data.code, type: data.type, value: data.value,
+      min_purchase: data.minPurchase || 0, usage_limit: data.limit || 0, used: 0, expiry: data.expiry || null,
+    });
+    fetchCoupons();
   };
+  // Dihitung di client dari daftar kupon yang sudah di-fetch — cukup untuk kebutuhan sekarang.
+  // (Ada juga RPC validate_coupon di database untuk validasi sisi-server yang lebih ketat kalau
+  // nanti dibutuhkan, tapi belum dipakai supaya alur tampilan harga tetap instan/sinkron.)
   const calcDiscount = (subtotal, couponCode) => {
     if (!couponCode) return 0;
     const c = coupons.find((x) => x.code === couponCode);
@@ -3993,6 +4140,14 @@ export default function App() {
     if (c.type === "percent") return Math.round(subtotal * (c.value / 100));
     return Math.min(c.value, subtotal);
   };
+
+  if (!authReady) {
+    return (
+      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Memuat...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: C.bg, minHeight: "100%", color: C.text }}>
@@ -4035,7 +4190,7 @@ export default function App() {
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
-          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} orders={orders} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} />
+          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
