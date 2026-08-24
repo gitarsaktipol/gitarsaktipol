@@ -3345,7 +3345,7 @@ const LP_GENERIC_FAQ = [
 
 /* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
 function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds }) {
-  const p = products.find((x) => x.id === lp?.product_id);
+  const p = products.find((x) => x.id === lp?.productId);
 
   if (!lp || !p) {
     return (
