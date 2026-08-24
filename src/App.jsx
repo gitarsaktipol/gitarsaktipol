@@ -67,6 +67,10 @@ const CATEGORIES = [
   "Improvisation", "Music Theory", "Ebook", "Bundle",
 ];
 
+// Judul materi (section header) di kurikulum video disimpan sebagai baris curriculum_videos biasa,
+// ditandai lewat sentinel ini di kolom "duration" — supaya tidak perlu menambah kolom baru di database.
+const SECTION_MARKER = "__section__";
+
 const INITIAL_PRODUCTS = [
   {
     id: 1, slug: "secret-of-shredding", name: "Secret of Shredding",
@@ -2161,7 +2165,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
@@ -2693,11 +2697,11 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       {showProductForm && (
         <ProductFormModal
           initialProduct={editingProduct}
-          initialVideos={editingProduct ? (curriculumData[editingProduct.id] || []) : []}
+          initialItems={editingProduct ? (curriculumOutline[editingProduct.id] || []) : []}
           onClose={() => { setShowProductForm(false); setEditingProduct(null); }}
-          onSubmit={(data, videos) => {
-            if (editingProduct) updateProduct(editingProduct.id, data, videos);
-            else addProduct(data, videos);
+          onSubmit={(data, items) => {
+            if (editingProduct) updateProduct(editingProduct.id, data, items);
+            else addProduct(data, items);
             setShowProductForm(false);
             setEditingProduct(null);
           }}
@@ -2843,7 +2847,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
 }
 
 /* ---------------- FORM TAMBAH PRODUK ---------------- */
-function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) {
+function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const isEdit = !!initialProduct;
   const [name, setName] = useState(initialProduct?.name || "");
   const [category, setCategory] = useState(initialProduct?.category || CATEGORIES[0]);
@@ -2856,18 +2860,21 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
   const [learn, setLearn] = useState(initialProduct?.learn && initialProduct.learn.length > 0 ? initialProduct.learn : [""]);
   const [benefits, setBenefits] = useState(initialProduct?.benefits && initialProduct.benefits.length > 0 ? initialProduct.benefits : [""]);
   const [bonus, setBonus] = useState(initialProduct?.bonus || "");
-  const [videos, setVideos] = useState(
-    initialVideos && initialVideos.length > 0
-      ? initialVideos.map((v) => ({ title: v.title || "", desc: v.desc || "", url: v.url || "", duration: v.duration || "" }))
-      : [{ title: "", desc: "", url: "", duration: "" }]
+  const [items, setItems] = useState(
+    initialItems && initialItems.length > 0
+      ? initialItems.map((it) => it.type === "section"
+          ? { type: "section", title: it.title || "" }
+          : { type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
+      : [{ type: "video", title: "", desc: "", url: "", duration: "" }]
   );
   const [error, setError] = useState("");
 
   const updateVideo = (idx, field, value) => {
-    setVideos((v) => v.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
+    setItems((list) => list.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
   };
-  const addVideoRow = () => setVideos((v) => [...v, { title: "", desc: "", url: "", duration: "" }]);
-  const removeVideoRow = (idx) => setVideos((v) => v.filter((_, i) => i !== idx));
+  const addVideoRow = () => setItems((list) => [...list, { type: "video", title: "", desc: "", url: "", duration: "" }]);
+  const addSectionRow = () => setItems((list) => [...list, { type: "section", title: "" }]);
+  const removeItemRow = (idx) => setItems((list) => list.filter((_, i) => i !== idx));
 
   const updateListItem = (setter) => (idx, value) => setter((list) => list.map((item, i) => (i === idx ? value : item)));
   const addListItem = (setter) => () => setter((list) => [...list, ""]);
@@ -2876,7 +2883,11 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
   const handleSubmit = () => {
     if (!name.trim()) { setError("Nama produk wajib diisi."); return; }
     if (!price || Number(price) <= 0) { setError("Harga produk wajib diisi dengan benar."); return; }
-    const validVideos = videos.filter((v) => v.title.trim());
+    const validItems = items
+      .filter((it) => it.title.trim())
+      .map((it) => it.type === "section"
+        ? { type: "section", title: it.title.trim() }
+        : { type: "video", title: it.title.trim(), desc: (it.desc || "").trim(), url: (it.url || "").trim(), duration: (it.duration || "").trim() || "—" });
     setError("");
     onSubmit(
       {
@@ -2887,7 +2898,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
         benefits: benefits.map((b) => b.trim()).filter(Boolean),
         bonus: bonus.trim(),
       },
-      validVideos.map((v) => ({ title: v.title.trim(), desc: v.desc.trim(), url: v.url.trim(), duration: v.duration.trim() || "—" }))
+      validItems
     );
   };
 
@@ -2976,25 +2987,34 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
           </div>
 
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
               <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Video Materi</label>
-              <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Video</GhostBtn>
+              <div style={{ display: "flex", gap: 8 }}>
+                <GhostBtn small onClick={addSectionRow} icon={Plus}>Tambah Judul Materi Baru</GhostBtn>
+                <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Video</GhostBtn>
+              </div>
             </div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: -6, marginBottom: 10 }}>Masukkan link video (YouTube/Vimeo/dll) — upload file langsung belum didukung di prototipe ini.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: -6, marginBottom: 10 }}>Masukkan link video (YouTube/Vimeo/dll) — upload file langsung belum didukung di prototipe ini. Pakai "Tambah Judul Materi Baru" untuk mengelompokkan video di bawah judul tertentu (mis. "Pendahuluan", "Bonus 1 Partitur") — urutan di sini akan sama persis dengan yang tampil ke pembeli.</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {videos.map((v, idx) => (
+              {items.map((it, idx) => it.type === "section" ? (
+                <div key={idx} style={{ padding: 12, borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, flexShrink: 0 }}>Judul</span>
+                  <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder={`Contoh: Pendahuluan`} style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, boxSizing: "border-box" }} />
+                  <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} color={C.mutedDark} /></button>
+                </div>
+              ) : (
                 <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>Video {idx + 1}</span>
-                    {videos.length > 1 && <button onClick={() => removeVideoRow(idx)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>}
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>Video</span>
+                    <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <input value={v.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder="Judul video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                    <input value={v.desc} onChange={(e) => updateVideo(idx, "desc", e.target.value)} placeholder="Deskripsi singkat video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                    <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder="Judul video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                    <input value={it.desc} onChange={(e) => updateVideo(idx, "desc", e.target.value)} placeholder="Deskripsi singkat video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
                     <div style={{ display: "flex", gap: 8 }}>
-                      <input value={v.url} onChange={(e) => updateVideo(idx, "url", e.target.value)} placeholder="Link video (https://...)" style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                      <input value={v.duration} onChange={(e) => updateVideo(idx, "duration", e.target.value)} placeholder="Durasi (mis. 12:30)" style={{ width: 110, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, boxSizing: "border-box" }} />
+                      <input value={it.url} onChange={(e) => updateVideo(idx, "url", e.target.value)} placeholder="Link video (https://...)" style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                      <input value={it.duration} onChange={(e) => updateVideo(idx, "duration", e.target.value)} placeholder="Durasi (mis. 12:30)" style={{ width: 110, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, boxSizing: "border-box" }} />
                     </div>
                   </div>
                 </div>
@@ -3275,9 +3295,10 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
 }
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
-function LearnPage({ slug, go, progress, setProgress, current, setCurrent, products, curriculumData }) {
+function LearnPage({ slug, go, progress, setProgress, current, setCurrent, products, curriculumData, curriculumOutline }) {
   const product = products.find((x) => x.slug === slug) || products[0];
   const curriculum = curriculumData[product.id] || [];
+  const outline = (curriculumOutline?.[product.id] && curriculumOutline[product.id].length > 0) ? curriculumOutline[product.id] : curriculum.map((v) => ({ type: "video", ...v }));
   const completed = progress[product.id] || [];
   const curIdx = current[product.id] ?? 0;
   const video = curriculum[curIdx];
@@ -3388,21 +3409,34 @@ function LearnPage({ slug, go, progress, setProgress, current, setCurrent, produ
 
         <div>
           <Card style={{ padding: 6, maxHeight: 560, overflowY: "auto" }}>
-            {curriculum.map((v, idx) => {
-              const done = completed.includes(idx);
-              const active = idx === curIdx;
-              return (
-                <div key={idx} onClick={() => selectVideo(idx)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 10px", borderRadius: 8, cursor: "pointer", background: active ? C.surface2 : "transparent" }}>
-                  <div style={{ width: 22, height: 22, borderRadius: "50%", border: `1px solid ${done ? C.gold : C.border}`, background: done ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {done ? <Check size={13} color="#1A140A" /> : <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.muted }}>{idx + 1}</span>}
+            {(() => {
+              let videoCounter = -1;
+              return outline.map((item, i) => {
+                if (item.type === "section") {
+                  return (
+                    <div key={`s-${i}`} style={{ padding: "14px 10px 6px", fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: C.gold, textTransform: "uppercase" }}>
+                      {item.title}
+                    </div>
+                  );
+                }
+                const idx = ++videoCounter;
+                const v = curriculum[idx];
+                if (!v) return null;
+                const done = completed.includes(idx);
+                const active = idx === curIdx;
+                return (
+                  <div key={`v-${i}`} onClick={() => selectVideo(idx)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 10px", borderRadius: 8, cursor: "pointer", background: active ? C.surface2 : "transparent" }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", border: `1px solid ${done ? C.gold : C.border}`, background: done ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {done ? <Check size={13} color="#1A140A" /> : <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.muted }}>{idx + 1}</span>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? C.goldLight : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.title}</div>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.muted }}>{v.duration}</div>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? C.goldLight : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.title}</div>
-                    <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.muted }}>{v.duration}</div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </Card>
         </div>
       </div>
@@ -3877,6 +3911,7 @@ export default function App() {
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
+  const [curriculumOutline, setCurriculumOutline] = useState({});
   const [cart, setCart] = useState([]);
   const [coupon, setCoupon] = useState(null);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
@@ -3938,12 +3973,22 @@ export default function App() {
   const fetchCurriculum = async () => {
     const { data, error } = await supabase.from("curriculum_videos").select("*").order("sort_order");
     if (error || !data) return;
-    const grouped = {};
+    const outline = {};
     data.forEach((v) => {
-      if (!grouped[v.product_id]) grouped[v.product_id] = [];
-      grouped[v.product_id].push({ id: v.id, title: v.title, desc: v.description || "", url: v.url || "", duration: v.duration || "" });
+      if (!outline[v.product_id]) outline[v.product_id] = [];
+      outline[v.product_id].push(
+        v.duration === SECTION_MARKER
+          ? { id: v.id, type: "section", title: v.title }
+          : { id: v.id, type: "video", title: v.title, desc: v.description || "", url: v.url || "", duration: v.duration || "" }
+      );
     });
-    setCurriculumData(grouped);
+    const videosOnly = {};
+    Object.keys(outline).forEach((pid) => {
+      const vids = outline[pid].filter((x) => x.type === "video").map(({ id, title, desc, url, duration }) => ({ id, title, desc, url, duration }));
+      if (vids.length > 0) videosOnly[pid] = vids;
+    });
+    setCurriculumOutline(outline);
+    setCurriculumData(videosOnly);
   };
   const fetchCoupons = async () => {
     const { data, error } = await supabase.from("coupons").select("*").order("created_at");
@@ -4321,43 +4366,49 @@ export default function App() {
   const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-  const addProduct = async (data, videos) => {
+  const addProduct = async (data, items) => {
     let baseSlug = slugify(data.name) || `produk-${Date.now()}`;
     let slug = baseSlug;
     let n = 2;
     while (products.some((p) => p.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
+    const videoCount = items.filter((it) => it.type === "video").length;
     const { data: inserted, error } = await supabase.from("products").insert({
       slug, name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, rating: 0, reviews: 0, sold: 0,
-      badge: "New", duration: data.duration || `${videos.length} video`, format: data.format || "Video Course",
+      badge: "New", duration: data.duration || `${videoCount} video`, format: data.format || "Video Course",
       hue: data.hue || "#C9A24B", description: data.desc || "", benefits: data.benefits || [], learn_points: data.learn || [],
       bonus: data.bonus || "", status: data.status || "draft", preview_video: data.previewVideo || "",
       sort_order: products.length,
     }).select().single();
     if (error) { alert("Gagal menambah produk: " + error.message); return null; }
-    if (videos && videos.length > 0) {
-      await supabase.from("curriculum_videos").insert(videos.map((v, i) => ({
-        product_id: inserted.id, title: v.title, description: v.desc || "", url: v.url || "", duration: v.duration || "", sort_order: i,
-      })));
+    if (items && items.length > 0) {
+      await supabase.from("curriculum_videos").insert(items.map((it, i) => (
+        it.type === "section"
+          ? { product_id: inserted.id, title: it.title, description: "", url: "", duration: SECTION_MARKER, sort_order: i }
+          : { product_id: inserted.id, title: it.title, description: it.desc || "", url: it.url || "", duration: it.duration || "", sort_order: i }
+      )));
     }
     await fetchProducts();
     await fetchCurriculum();
     return mapProductRow(inserted);
   };
-  const updateProduct = async (id, data, videos) => {
+  const updateProduct = async (id, data, items) => {
+    const videoCount = items.filter((it) => it.type === "video").length;
     const payload = {
       name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",
       status: data.status || "published", preview_video: data.previewVideo || "",
       benefits: data.benefits || [], learn_points: data.learn || [], bonus: data.bonus || "",
     };
-    if (videos.length > 0) payload.duration = `${videos.length} video`;
+    if (videoCount > 0) payload.duration = `${videoCount} video`;
     await supabase.from("products").update(payload).eq("id", id);
     await supabase.from("curriculum_videos").delete().eq("product_id", id);
-    if (videos && videos.length > 0) {
-      await supabase.from("curriculum_videos").insert(videos.map((v, i) => ({
-        product_id: id, title: v.title, description: v.desc || "", url: v.url || "", duration: v.duration || "", sort_order: i,
-      })));
+    if (items && items.length > 0) {
+      await supabase.from("curriculum_videos").insert(items.map((it, i) => (
+        it.type === "section"
+          ? { product_id: id, title: it.title, description: "", url: "", duration: SECTION_MARKER, sort_order: i }
+          : { product_id: id, title: it.title, description: it.desc || "", url: it.url || "", duration: it.duration || "", sort_order: i }
+      )));
     }
     await fetchProducts();
     await fetchCurriculum();
@@ -4562,9 +4613,9 @@ export default function App() {
             </div>
           );
         }
-        return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />;
+        return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} />}
     </div>
   );
 }
