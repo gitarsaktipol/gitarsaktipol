@@ -3361,7 +3361,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials?.[p.id] || [];
   const headline = lp.headline || p.name;
-  const subheadline = lp.subheadline || p.description;
+  const subheadline = lp.subheadline || p.desc;
   const badgeText = lp.badgeText || "Metode Latihan Yang Sudah Teruji";
   const videoUrl = lp.videoUrl || "";
 
@@ -3531,10 +3531,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Perkenalkan</span>
           <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }}>{p.description}</p>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }}>{p.desc}</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(p.learnPoints || []).map((item) => (
+          {(p.learn || []).map((item) => (
             <div key={item} style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Sparkles size={14} color={C.goldLight} />
