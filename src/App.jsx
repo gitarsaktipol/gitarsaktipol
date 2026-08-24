@@ -55,6 +55,34 @@ const toEmbedUrl = (url) => {
   } catch (e) { /* bukan URL valid */ }
   return null;
 };
+
+// Versi embed yang otomatis play. Browser hanya izinkan autoplay kalau videonya di-mute,
+// jadi selalu tambahkan mute=1 — kalau tidak, video tidak akan autoplay sama sekali.
+const toAutoplayEmbedUrl = (url) => {
+  const base = toEmbedUrl(url);
+  if (!base) return null;
+  try {
+    const u = new URL(base);
+    if (u.hostname.includes("youtube.com")) {
+      const id = u.pathname.split("/").filter(Boolean).pop();
+      u.searchParams.set("autoplay", "1");
+      u.searchParams.set("mute", "1");
+      u.searchParams.set("loop", "1");
+      u.searchParams.set("playlist", id);
+      u.searchParams.set("rel", "0");
+      u.searchParams.set("modestbranding", "1");
+      u.searchParams.set("playsinline", "1");
+      return u.toString();
+    }
+    if (u.hostname.includes("vimeo.com")) {
+      u.searchParams.set("autoplay", "1");
+      u.searchParams.set("muted", "1");
+      u.searchParams.set("loop", "1");
+      return u.toString();
+    }
+    return base;
+  } catch (e) { return base; }
+};
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const formatDateID = (d) => `${d.getDate().toString().padStart(2, "0")} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
 // Catatan: ID pesanan (format GS-YYYYMMDD-XXX) sekarang dibuat otomatis oleh database lewat
@@ -207,6 +235,7 @@ const DEFAULT_SITE_CONTENT = {
     heroTitleHighlight: "JADI GITARIS",
     heroTitleEnd: "YANG KAMU IMPIKAN.",
     heroSubtitle: "Kursus video terstruktur dari fondasi dasar sampai teknik shredding lanjutan. Belajar sesuai ritme kamu, akses materi selamanya.",
+    heroVideoUrl: "",
     heroCta1: "Lihat Semua Produk",
     heroCta2: "Lihat Contoh Materi",
     stat1Num: "8.200+", stat1Label: "Siswa aktif",
@@ -747,6 +776,8 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const home = content.home;
   const admin = role === "admin" && editMode;
   const onSaveHome = (patch) => updateSiteContent("home", patch);
+  const [heroVideoEditing, setHeroVideoEditing] = useState(false);
+  const [heroVideoDraft, setHeroVideoDraft] = useState(home.heroVideoUrl || "");
   const T = (key, area) => (admin ? <EditableText value={home[key]} admin onSave={(v) => onSaveHome({ [key]: v })} tag="span" area={area} /> : home[key]);
   const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
   return (
@@ -779,14 +810,49 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
             </div>
           </div>
           <div style={{ position: "relative", height: 380, borderRadius: 16, background: `linear-gradient(160deg, ${C.surface2}, ${C.bg})`, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(90deg, ${C.border} 0, ${C.border} 1px, transparent 1px, transparent 46px)` }} />
-            {[70, 130, 190, 250, 310].map((top) => (
-              <div key={top} style={{ position: "absolute", left: 0, right: 0, top, height: 1.3, background: `linear-gradient(90deg, transparent, ${C.gold}88, transparent)` }} />
-            ))}
-            <div style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
-              <Music size={64} color={C.goldLight} strokeWidth={1} />
-              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginTop: 12 }}>Video course + tab interaktif</p>
-            </div>
+            {home.heroVideoUrl && toEmbedUrl(home.heroVideoUrl) ? (
+              <iframe
+                key={home.heroVideoUrl}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                src={toAutoplayEmbedUrl(home.heroVideoUrl)}
+                title="Video Gitar Sakti"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <>
+                <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(90deg, ${C.border} 0, ${C.border} 1px, transparent 1px, transparent 46px)` }} />
+                {[70, 130, 190, 250, 310].map((top) => (
+                  <div key={top} style={{ position: "absolute", left: 0, right: 0, top, height: 1.3, background: `linear-gradient(90deg, transparent, ${C.gold}88, transparent)` }} />
+                ))}
+                <div style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
+                  <Music size={64} color={C.goldLight} strokeWidth={1} />
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginTop: 12 }}>Video course + tab interaktif</p>
+                </div>
+              </>
+            )}
+
+            {admin && (
+              <div style={{ position: "absolute", bottom: 10, right: 10, zIndex: 6 }}>
+                {heroVideoEditing ? (
+                  <div style={{ display: "flex", gap: 6, background: "rgba(15,12,20,0.94)", padding: 8, borderRadius: 8, border: `1px solid ${C.gold}` }}>
+                    <input
+                      autoFocus
+                      value={heroVideoDraft}
+                      onChange={(e) => setHeroVideoDraft(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      style={{ width: 210, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 8px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }}
+                    />
+                    <button onClick={() => { onSaveHome({ heroVideoUrl: heroVideoDraft.trim() }); setHeroVideoEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><Check size={13} color="#161019" /></button>
+                    <button onClick={() => { setHeroVideoDraft(home.heroVideoUrl || ""); setHeroVideoEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><X size={13} color={C.muted} /></button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setHeroVideoDraft(home.heroVideoUrl || ""); setHeroVideoEditing(true); }} title={home.heroVideoUrl ? "Ganti video YouTube" : "Tautkan video YouTube"} style={{ width: 28, height: 28, borderRadius: 8, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.45)" }}>
+                    <Pencil size={13} color="#161019" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
