@@ -657,7 +657,6 @@ function Footer({ go, content, admin, onSave }) {
           <span onClick={() => go("terms")} style={{ cursor: "pointer" }}>Syarat & Ketentuan</span>
           <span onClick={() => go("refund")} style={{ cursor: "pointer" }}>Kebijakan Refund</span>
         </div>
-        <span onClick={() => go("lp")} style={{ cursor: "pointer", textDecoration: "underline" }}>Pratinjau landing page iklan (demo) →</span>
       </div>
     </div>
   );
@@ -2116,7 +2115,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
@@ -2127,6 +2126,10 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
   const [settingsSub, setSettingsSub] = useState("menu");
   const [showProofOrder, setShowProofOrder] = useState(null);
   const [confirmPaidOrder, setConfirmPaidOrder] = useState(null);
+  const [showLpForm, setShowLpForm] = useState(false);
+  const [editingLp, setEditingLp] = useState(null);
+  const [deleteLpTarget, setDeleteLpTarget] = useState(null);
+  const [copiedLpSlug, setCopiedLpSlug] = useState(null);
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -2134,6 +2137,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
     { key: "customers", label: "Pelanggan", icon: Users },
     { key: "coupons", label: "Kupon", icon: Tag },
     { key: "analytics", label: "Analitik", icon: BarChart3 },
+    { key: "landingpages", label: "Landing Page", icon: TrendingUp },
     { key: "settings", label: "Pengaturan", icon: Settings },
   ];
 
@@ -2157,7 +2161,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "0 0 20px" }}>
           {sub === "tampilan"
             ? { menu: "TAMPILAN", beranda: "EDIT BERANDA", produk: "EDIT SEMUA PRODUK", halaman: "KELOLA HALAMAN" }[tampilanSub] || "TAMPILAN"
-            : { overview: "RINGKASAN ADMIN", products: "MANAJEMEN PRODUK", orders: "MANAJEMEN PESANAN", customers: "MANAJEMEN PELANGGAN", coupons: "KUPON & PROMO", analytics: "ANALITIK", settings: "PENGATURAN" }[sub]}
+            : { overview: "RINGKASAN ADMIN", products: "MANAJEMEN PRODUK", orders: "MANAJEMEN PESANAN", customers: "MANAJEMEN PELANGGAN", coupons: "KUPON & PROMO", analytics: "ANALITIK", landingpages: "LANDING PAGE", settings: "PENGATURAN" }[sub]}
         </h1>
 
         {sub === "overview" && (
@@ -2383,6 +2387,59 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                 </tbody>
               </table>
             </Card>
+          </div>
+        )}
+
+        {sub === "landingpages" && (
+          <div>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>Buat halaman promosi khusus untuk 1 produk, lalu pakai link-nya di iklan (Instagram/Facebook Ads, dsb). Setiap landing page punya link sendiri dan statistik kunjungan + klik order sendiri-sendiri.</p>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><PrimaryBtn small icon={Plus} onClick={() => setShowLpForm(true)}>Tambah Landing Page</PrimaryBtn></div>
+            {landingPages.length === 0 ? (
+              <Card style={{ padding: 30, textAlign: "center" }}>
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada landing page. Klik "Tambah Landing Page" untuk membuat yang pertama.</p>
+              </Card>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {landingPages.map((lp) => {
+                  const prod = products.find((x) => x.id === lp.productId);
+                  const lpUrl = typeof window !== "undefined" ? `${window.location.origin}/?halaman=${lp.slug}` : `/?halaman=${lp.slug}`;
+                  return (
+                    <Card key={lp.id} style={{ padding: 18 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>{lp.name}</h3>
+                            <Badge tone={lp.status === "published" ? "gold" : "muted"}>{lp.status === "published" ? "Aktif" : "Draft"}</Badge>
+                          </div>
+                          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: "4px 0 0" }}>Produk: {prod ? prod.name : "(produk tidak ditemukan)"}</p>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                            <code style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.goldLight, background: C.surface2, padding: "4px 8px", borderRadius: 6, wordBreak: "break-all" }}>{lpUrl}</code>
+                            <button onClick={() => { navigator.clipboard?.writeText(lpUrl); setCopiedLpSlug(lp.slug); setTimeout(() => setCopiedLpSlug(null), 1500); }} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 11.5 }}>
+                              <Copy size={12} />{copiedLpSlug === lp.slug ? "Tersalin!" : "Salin Link"}
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => openLandingPage(lp.slug)} title="Lihat" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Eye size={15} color={C.muted} /></button>
+                          <button onClick={() => { setEditingLp(lp); setShowLpForm(true); }} title="Edit" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Pencil size={15} color={C.muted} /></button>
+                          <button onClick={() => setDeleteLpTarget(lp)} title="Hapus" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Trash2 size={15} color={C.emberLight} /></button>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 24, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                        <div>
+                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: C.text }}>{lp.visits}</div>
+                          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Total Kunjungan</div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: C.goldLight }}>{lp.orderClicks}</div>
+                          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Total Klik Order</div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -2661,6 +2718,35 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           </Card>
         </div>
       )}
+      {showLpForm && (
+        <LandingPageFormModal
+          products={products}
+          initialLp={editingLp}
+          onClose={() => { setShowLpForm(false); setEditingLp(null); }}
+          onSubmit={(form) => {
+            if (editingLp) updateLandingPage(editingLp.id, form);
+            else addLandingPage(form);
+            setShowLpForm(false);
+            setEditingLp(null);
+          }}
+        />
+      )}
+
+      {deleteLpTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Landing Page?</h3>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+              Landing page <b style={{ color: C.text }}>{deleteLpTarget.name}</b> beserta link dan statistiknya akan dihapus permanen. Link yang sudah dipakai di iklan tidak akan bisa dibuka lagi setelah ini.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <GhostBtn full onClick={() => setDeleteLpTarget(null)}>Batal</GhostBtn>
+              <PrimaryBtn full onClick={() => { deleteLandingPage(deleteLpTarget.id); setDeleteLpTarget(null); }} icon={Trash2}>Hapus</PrimaryBtn>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {showProofOrder && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
           <Card style={{ width: "100%", maxWidth: 460, padding: 22 }}>
@@ -2930,6 +3016,86 @@ function CouponFormModal({ onClose, onSubmit }) {
   );
 }
 
+/* ---------------- FORM TAMBAH/EDIT LANDING PAGE ---------------- */
+function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
+  const [name, setName] = useState(initialLp?.name || "");
+  const [productId, setProductId] = useState(initialLp?.productId || products[0]?.id || "");
+  const [headline, setHeadline] = useState(initialLp?.headline || "");
+  const [subheadline, setSubheadline] = useState(initialLp?.subheadline || "");
+  const [videoUrl, setVideoUrl] = useState(initialLp?.videoUrl || "");
+  const [badgeText, setBadgeText] = useState(initialLp?.badgeText || "");
+  const [status, setStatus] = useState(initialLp?.status || "published");
+  const [error, setError] = useState("");
+
+  const handleSubmit = () => {
+    if (!name.trim()) { setError("Nama landing page wajib diisi."); return; }
+    if (!productId) { setError("Pilih produk untuk landing page ini."); return; }
+    setError("");
+    onSubmit({ name: name.trim(), productId: Number(productId), headline: headline.trim(), subheadline: subheadline.trim(), videoUrl: videoUrl.trim(), badgeText: badgeText.trim(), status });
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+      <Card style={{ width: "100%", maxWidth: 480, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "EDIT LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+        </div>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>Cukup isi Nama & pilih Produk — bagian lain opsional dan otomatis pakai data produk kalau dikosongkan.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Nama Landing Page (untuk kamu sendiri, tidak tampil ke pengunjung)</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Iklan IG - Fondasi Pemula Agustus" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Produk</label>
+            <select value={productId} onChange={(e) => setProductId(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }}>
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Judul Utama / Headline (opsional — kosongkan untuk pakai nama produk)</label>
+            <textarea value={headline} onChange={(e) => setHeadline(e.target.value)} rows={2} placeholder="Contoh: Kuasai Gitar Dalam 30 Hari, Dijamin!" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Sub-judul (opsional — kosongkan untuk pakai deskripsi produk)</label>
+            <textarea value={subheadline} onChange={(e) => setSubheadline(e.target.value)} rows={2} placeholder="Kalimat pendukung di bawah judul utama" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Video YouTube (opsional)</label>
+            <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Teks Badge Kecil di Atas Judul (opsional)</label>
+            <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} placeholder="Contoh: Promo Spesial Kemerdekaan" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Status</label>
+            <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+              <button onClick={() => setStatus("published")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "published" ? C.gold : C.border}`, background: status === "published" ? C.surface2 : "transparent", color: status === "published" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Aktif</button>
+              <button onClick={() => setStatus("draft")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "draft" ? C.gold : C.border}`, background: status === "draft" ? C.surface2 : "transparent", color: status === "draft" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Draft (belum bisa dibuka)</button>
+            </div>
+          </div>
+
+          {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+            <GhostBtn full onClick={onClose}>Batal</GhostBtn>
+            <PrimaryBtn full onClick={handleSubmit} icon={Check}>Simpan</PrimaryBtn>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 /* ---------------- FORM TAMBAH/EDIT HALAMAN KUSTOM ---------------- */
 function PageFormModal({ onClose, onSubmit, products, initialPage }) {
   const isEdit = !!initialPage;
@@ -3158,113 +3324,124 @@ function LearnPage({ slug, go, progress, setProgress, current, setCurrent, produ
   );
 }
 
-const LP_PROBLEMS = [
-  { title: "Tutorial YouTube Terlalu Random", desc: "Nonton dari video satu ke video lain, tapi gak ada sistem yang jelas. Akhirnya malah makin bingung." },
-  { title: "Diajari Teman, Tapi Tetap Nggak Ngerti", desc: "Temennya jago, tapi gak bisa ngajar dengan baik. Yang kamu dapat cuma \"coba aja lagi\" tanpa tau cara benerinnya." },
-  { title: "Latihan Bertahun-tahun, Progress Minim", desc: "Sudah 2-3 tahun rutin latihan, tapi speed masih di tempat. Kayak ada yang salah dengan cara latih kamu." },
-];
-
-const LP_LEARN = [
-  { title: "Teknik Shredding Fundamental", desc: "Pelajari dasar-dasar yang sering dilewatkan, dari alternate picking sampai economy picking yang efisien.", icon: "bolt" },
-  { title: "Membaca Not Balok & Tablatur", desc: "Ngerti baca partitur dan tab dengan mudah, jadi kamu bisa belajar lagu apapun secara mandiri.", icon: "note" },
-  { title: "Panduan 10 Exercise", desc: "Latihan-latihan yang jarang dibahas di kelas manapun, dirancang khusus untuk memaksimalkan progress.", icon: "list" },
+const LP_GENERIC_PROBLEMS = [
+  { title: "Belajar Sendiri Lewat YouTube Tanpa Arah", desc: "Nonton banyak video tapi nggak ada sistem yang jelas, jadi bingung mana yang harus dipelajari duluan." },
+  { title: "Sudah Lama Latihan, Progress Masih Lambat", desc: "Sudah rutin latihan berbulan-bulan, tapi kemampuan masih di tempat yang sama." },
+  { title: "Bingung Harus Mulai Dari Mana", desc: "Banyak yang mau belajar tapi nggak tau harus fokus ke bagian mana dulu." },
 ];
 
 const LP_COMPARISON = [
   { label: "Struktur Materi", us: true, other: false },
-  { label: "Exercise Spesifik", us: true, other: false },
   { label: "Bisa Ditonton Ulang", us: true, other: false },
-  { label: "Bonus Scale & Lick", us: true, other: false },
+  { label: "Bonus Materi Tambahan", us: true, other: false },
   { label: "Harga Terjangkau", us: true, other: "partial" },
 ];
 
-const LP_BONUSES = [
-  { title: "Secret of Shredding (Main Course)", desc: "Video pembelajaran lengkap", value: 597000, main: true, tag: "COURSE", cover: "SECRET OF SHRED", hue: "#B8432A" },
-  { title: "Membaca Not Balok & Tablatur Simple", desc: "BONUS — Panduan praktis", value: 149000, tag: "PANDUAN", cover: "BACA TAB & NOT", hue: "#3E7D64" },
-  { title: "Panduan 10 Exercise Langka", desc: "BONUS — Latihan eksklusif", value: 99000, tag: "LATIHAN", cover: "10 EXERCISE", hue: "#7C6BB0" },
-  { title: "Scale Pentatonic Eksklusif", desc: "BONUS — Scale lengkap", value: 129000, tag: "SCALE", cover: "PENTATONIC", hue: "#C9A24B" },
-  { title: "10 Lick untuk Praktek", desc: "BONUS — Lick siap pakai", value: 149000, tag: "LICK", cover: "10 LICK", hue: "#B8432A" },
+const LP_GENERIC_FAQ = [
+  { q: "Saya masih pemula, cocok ikut course ini?", a: "Materinya disusun bertahap dari dasar, jadi kamu bisa ikuti sesuai levelmu masing-masing." },
+  { q: "Berapa lama saya bisa akses materinya?", a: "Akses selamanya — sekali bayar, kamu bisa tonton ulang kapan pun kamu mau." },
+  { q: "Kalau saya belum ngerti materinya gimana?", a: "Kamu bisa ulang-ulang video sampai benar-benar paham, materinya tidak akan hilang." },
 ];
 
-const LP_FAQ = [
-  { q: "Saya udah latihan lama, tapi tetap gak jago-jago. Course ini cocok?", a: "Justru ini yang sering terjadi. Banyak gitaris latihan bertahun-tahun tapi pakai metode yang salah. Di Secret of Shredding, kamu akan tau mana latihan yang efektif dan mana yang cuma buang-buang waktu." },
-  { q: "Banyak tutorial gratis di YouTube, kenapa harus beli?", a: "Tutorial YouTube itu bagus, tapi kebanyakan nggak punya struktur yang jelas. Secret of Shredding disusun sistematis dari dasar sampai advanced, jadi kamu tinggal ikutin step by step." },
-  { q: "Sering diajari teman tapi tetap tidak bisa, bedanya apa?", a: "Teman yang jago belum tentu bisa ngajar dengan baik. Di course ini, materi sudah disusun dengan cara yang mudah dipahami. Plus, kamu bisa ulang-ulang nonton sampai benar-benar ngerti." },
-  { q: "Saya pemula total, bisa ikut?", a: "Course ini cocok untuk level pemula menengah ke atas. Kalau kamu sudah bisa pegang gitar dan tau posisi chord dasar, insyaallah bisa ngikut." },
-];
+/* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
+function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds }) {
+  const p = products.find((x) => x.id === lp?.product_id);
 
-/* ---------------- LANDING PAGE IKLAN (Secret of Shredding) ---------------- */
-const LP_FIRST_VISIT_KEY = "gs_lp_secret_of_shredding_first_visit";
+  if (!lp || !p) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+      </div>
+    );
+  }
 
-function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds }) {
-  const p = products.find((x) => x.slug === "secret-of-shredding");
-  const tiers = p.pricingTiers;
-  const bonusTotal = LP_BONUSES.reduce((s, b) => s + b.value, 0);
+  const tiers = p.pricingTiers || null;
+  const hasTiers = !!tiers;
   const owned = ownedIds?.includes(p.id);
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials?.[p.id] || [];
+  const headline = lp.headline || p.name;
+  const subheadline = lp.subheadline || p.description;
+  const badgeText = lp.badgeText || "Metode Latihan Yang Sudah Teruji";
+  const videoUrl = lp.videoUrl || "";
 
   useEffect(() => {
-    // Titik integrasi Meta Pixel + Conversions API (server-side, pakai event_id yang sama untuk deduplikasi)
+    // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
+    // Titik integrasi Meta Pixel + Conversions API juga bisa ditaruh di sini kalau perlu nanti.
+    supabase.rpc("increment_lp_visit", { p_slug: lp.slug }).then(() => {}).catch(() => {});
     console.log("[MetaPixel] ViewContent", { content_id: p.id, content_name: p.name, value: p.price, currency: "IDR" });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lp.slug]);
 
   const scrollToPricing = () => {
     document.getElementById("lp-pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   // Countdown JUJUR: dihitung dari kunjungan PERTAMA user ke halaman ini, disimpan di localStorage
-  // supaya tidak reset kalau halaman dibuka/refresh ulang. Begitu waktunya habis, tetap habis selamanya
-  // untuk browser/user tsb — bukan evergreen yang reset sendiri.
+  // supaya tidak reset kalau halaman dibuka/refresh ulang. Begitu waktunya habis, tetap habis
+  // selamanya untuk browser/user tsb. Hanya berlaku kalau produk punya pricingTiers (harga bertahap).
+  const firstVisitKey = `gs_lp_${lp.slug}_first_visit`;
   const [deadline, setDeadline] = useState(null);
   useEffect(() => {
+    if (!hasTiers) return;
     let firstVisit;
     try {
-      const saved = localStorage.getItem(LP_FIRST_VISIT_KEY);
+      const saved = localStorage.getItem(firstVisitKey);
       if (saved) {
         firstVisit = parseInt(saved, 10);
       } else {
         firstVisit = Date.now();
-        localStorage.setItem(LP_FIRST_VISIT_KEY, String(firstVisit));
+        localStorage.setItem(firstVisitKey, String(firstVisit));
       }
     } catch (e) {
       firstVisit = Date.now(); // fallback kalau localStorage diblokir browser
     }
     setDeadline(firstVisit + tiers.earlyBirdHours * 60 * 60 * 1000);
-  }, [tiers.earlyBirdHours]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasTiers, tiers?.earlyBirdHours]);
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (!hasTiers) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [hasTiers]);
 
-  const expired = deadline !== null && now >= deadline;
-  const timeLeft = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
-  const hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
-  const mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
-  const ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
-
-  // Slot 100 pembeli pertama dihitung dari p.sold ASLI (bertambah tiap transaksi sukses di addOrder),
-  // bukan angka yang berkurang sendiri seiring waktu.
-  const founderSlotsLeft = Math.max(0, tiers.founderSlots - (p.sold || 0));
-  const isFounder = founderSlotsLeft > 0;
-
-  let currentPrice, tierNote;
-  if (expired) {
-    currentPrice = tiers.regularPrice;
-    tierNote = "Harga sudah kembali ke harga reguler";
-  } else if (isFounder) {
-    currentPrice = tiers.founderPrice;
-    tierNote = `Harga Spesial Pendiri — sisa ${founderSlotsLeft} dari ${tiers.founderSlots} slot`;
+  let currentPrice, anchorPrice, disc, tierNote, expired, founderSlotsLeft, timeLeft, hh, mm, ss;
+  if (hasTiers) {
+    expired = deadline !== null && now >= deadline;
+    timeLeft = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
+    hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
+    mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
+    ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
+    // Slot pembeli pertama dihitung dari p.sold ASLI (bertambah tiap transaksi sukses), bukan
+    // angka yang berkurang sendiri seiring waktu.
+    founderSlotsLeft = Math.max(0, tiers.founderSlots - (p.sold || 0));
+    const isFounder = founderSlotsLeft > 0;
+    if (expired) {
+      currentPrice = tiers.regularPrice;
+      tierNote = "Harga sudah kembali ke harga reguler";
+    } else if (isFounder) {
+      currentPrice = tiers.founderPrice;
+      tierNote = `Harga Spesial Pendiri — sisa ${founderSlotsLeft} dari ${tiers.founderSlots} slot`;
+    } else {
+      currentPrice = tiers.earlyBirdPrice;
+      tierNote = "Harga Early Bird";
+    }
+    anchorPrice = tiers.regularPrice;
+    disc = Math.round((1 - currentPrice / anchorPrice) * 100);
   } else {
-    currentPrice = tiers.earlyBirdPrice;
-    tierNote = "Harga Early Bird";
+    expired = true; // tanpa countdown, langsung tampil harga apa adanya
+    currentPrice = p.price;
+    anchorPrice = p.oldPrice && p.oldPrice > p.price ? p.oldPrice : p.price;
+    disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
+    tierNote = "Harga Spesial";
   }
-  const anchorPrice = tiers.regularPrice;
-  const disc = Math.round((1 - currentPrice / anchorPrice) * 100);
 
-  const buyNow = () => { if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout"); };
+  const buyNow = () => {
+    supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
+    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout");
+  };
 
   return (
     <div style={{ background: C.bg, minHeight: "100%" }}>
@@ -3282,36 +3459,37 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px 8px" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: C.surface2, border: `1px solid ${C.gold}55`, color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
-            <Sparkles size={14} /> Metode Latihan Yang Sudah Teruji
+            <Sparkles size={14} /> {badgeText}
           </span>
         </div>
 
         <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, lineHeight: 1.12, letterSpacing: 0.3, color: C.text, textAlign: "center", margin: "0 0 14px" }}>
-          Sudah Latihan Bertahun-Tahun<br />
-          <span style={{ color: C.goldLight }}>Tapi Melodi Masih Lambat & Berantakan?</span>
+          {headline}
         </h1>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, color: C.muted, textAlign: "center", maxWidth: 480, margin: "0 auto 26px", lineHeight: 1.65 }}>
-          Temukan rahasia teknik shredding yang membuat latihan kamu jauh lebih efektif — tanpa harus menghabiskan ribuan jam sia-sia.
+          {subheadline}
         </p>
 
-        <a
-          href="https://www.youtube.com/watch?v=nzuzPzMa_8Y"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
-        >
-          <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
+        {videoUrl ? (
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
+          >
+            <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
+                </div>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview di YouTube ↗</span>
               </div>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview di YouTube ↗</span>
             </div>
-          </div>
-        </a>
+          </a>
+        ) : null}
 
         <div style={{ textAlign: "center" }}>
-          <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Ingin Bisa Shredding</PrimaryBtn>
+          <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Mau Belajar Sekarang</PrimaryBtn>
           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 10 }}>Akses langsung setelah pembayaran</p>
         </div>
       </div>
@@ -3321,12 +3499,12 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 30 }}>
             <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }}>
-              Bermain Melody Dengan Kecepatan Tinggi Itu <span style={{ color: C.goldLight }}>Sangat Sulit?</span>
+              Belajar Sendiri Itu <span style={{ color: C.goldLight }}>Sering Bikin Stuck?</span>
             </h2>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 8 }}>Mari kita jujur sama diri sendiri...</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {LP_PROBLEMS.map((item) => (
+            {LP_GENERIC_PROBLEMS.map((item) => (
               <Card key={item.title} style={{ padding: 18 }}>
                 <div style={{ display: "flex", gap: 14 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.ember}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -3352,22 +3530,17 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Perkenalkan</span>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "8px 0" }}>Secret of Shredding</h2>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }}>Course yang fokus pada teknik-teknik spesifik untuk meningkatkan speed dan akurasi main gitar kamu.</p>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }}>{p.description}</p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {LP_LEARN.map((item) => (
-            <Card key={item.title} style={{ padding: 18 }}>
-              <div style={{ display: "flex", gap: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Sparkles size={18} color={C.goldLight} />
-                </div>
-                <div>
-                  <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: "0 0 4px" }}>{item.title}</h3>
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.55 }}>{item.desc}</p>
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {(p.learnPoints || []).map((item) => (
+            <div key={item} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Sparkles size={14} color={C.goldLight} />
               </div>
-            </Card>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{item}</span>
+            </div>
           ))}
         </div>
       </div>
@@ -3375,9 +3548,9 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
       {/* SOCIAL PROOF */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px" }}>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Dipercaya oleh ratusan gitaris pemula & menengah</p>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Dipercaya oleh pelajar gitar di seluruh Indonesia</p>
           <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[["500+", "Member Aktif"], ["4.8", "Rating Rata-rata"], ["15+", "Video Materi"]].map(([n, l]) => (
+            {[[`${p.sold || 0}+`, "Pembeli"], [String(p.rating || "5.0"), "Rating Rata-rata"], [p.duration || "-", "Materi"]].map(([n, l]) => (
               <div key={l} style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.goldLight }}>{n}</div>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
@@ -3397,21 +3570,22 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
           owned={owned}
           reviews={productReviews}
           onSubmit={addTestimonial}
-          emptyLabel="Belum ada ulasan untuk Secret of Shredding. Jadilah pembeli pertama yang berbagi pengalaman!"
+          emptyLabel={`Belum ada ulasan untuk ${p.name}. Jadilah pembeli pertama yang berbagi pengalaman!`}
         />
       </div>
+
       {/* PERBANDINGAN */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", marginBottom: 24 }}>
-            Secret of Shredding vs <span style={{ color: C.goldLight }}>Cara Lain</span>
+            {p.name} vs <span style={{ color: C.goldLight }}>Cara Lain</span>
           </h2>
           <Card style={{ overflow: "auto", padding: 0 }}>
             <table style={{ width: "100%", minWidth: 420, borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.surface2 }}>
                   <th style={{ textAlign: "left", padding: "12px 16px", color: C.muted, fontWeight: 600 }}>Perbandingan</th>
-                  <th style={{ textAlign: "center", padding: "12px 16px", color: C.goldLight, fontWeight: 700 }}>Secret of Shredding</th>
+                  <th style={{ textAlign: "center", padding: "12px 16px", color: C.goldLight, fontWeight: 700 }}>{p.name}</th>
                   <th style={{ textAlign: "center", padding: "12px 16px", color: C.muted, fontWeight: 600 }}>Cara Lain</th>
                 </tr>
               </thead>
@@ -3437,35 +3611,21 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
         </div>
       </div>
 
-      {/* BONUS STACK */}
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <Badge tone="gold">BONUS SPESIAL</Badge>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "12px 0 0" }}>Nilai Lebih yang Kamu Dapatkan</h2>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {LP_BONUSES.map((b) => (
-            <Card key={b.title} style={{ padding: 14, display: "flex", alignItems: "center", gap: 14 }}>
-              <BookCover title={b.cover} tag={b.tag} hue={b.hue} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{b.title}</div>
-                <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>{b.desc}</div>
-              </div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 700, color: b.main ? C.goldLight : C.gold, whiteSpace: "nowrap" }}>{rp(b.value)}</div>
-            </Card>
-          ))}
-        </div>
-        <div style={{ marginTop: 18, padding: 18, borderRadius: 12, background: `${C.gold}12`, border: `1px solid ${C.gold}44` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Total Nilai Keseluruhan:</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 18, color: C.mutedDark, textDecoration: "line-through" }}>{rp(bonusTotal)}</span>
+      {/* BONUS — pakai teks bonus yang sudah diisi di data produk (menu Produk -> edit produk) */}
+      {p.bonus ? (
+        <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <Badge tone="gold">BONUS SPESIAL</Badge>
+            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "12px 0 0" }}>Nilai Lebih yang Kamu Dapatkan</h2>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Harga Normal:</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 22, color: C.goldLight }}>{rp(anchorPrice)}</span>
-          </div>
+          <Card style={{ padding: 18, display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Sparkles size={18} color={C.goldLight} />
+            </div>
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{p.bonus}</span>
+          </Card>
         </div>
-      </div>
+      ) : null}
 
       {/* PRICING / CTA */}
       <div id="lp-pricing" style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
@@ -3478,15 +3638,15 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
 
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "26px 24px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
-              {!expired ? (
+              {hasTiers && !expired ? (
                 <>
                   <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Harga Ini Berakhir Dalam</p>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.emberLight, marginBottom: 16 }}>{hh} : {mm} : {ss}</div>
                 </>
-              ) : (
+              ) : hasTiers ? (
                 <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 16 }}>Periode harga spesial untuk kamu sudah berakhir</p>
-              )}
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}>{expired ? "Harga Reguler" : "Harga Spesial Terbatas"}</span>
+              ) : null}
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}>{hasTiers && expired ? "Harga Reguler" : "Harga Spesial Terbatas"}</span>
               {disc > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>{rp(anchorPrice)}</span>
@@ -3517,7 +3677,7 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
           </Card>
 
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-            {["Akses selamanya—sekali bayar, milik selamanya", "Bisa ditonton ulang kapanpun kamu mau", "Cocok untuk pelajar & mahasiswa dengan budget terbatas"].map((r) => (
+            {["Akses selamanya—sekali bayar, milik selamanya", "Bisa ditonton ulang kapanpun kamu mau", "Cocok untuk pemula sampai menengah dengan budget terbatas"].map((r) => (
               <div key={r} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Check size={15} color={C.gold} style={{ flexShrink: 0 }} />
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{r}</span>
@@ -3533,24 +3693,24 @@ function LandingSecretShredding({ go, applyPricingAndBuy, products, testimonials
           Masih Ragu? <span style={{ color: C.goldLight }}>Ini Jawabannya</span>
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {LP_FAQ.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)}
+          {LP_GENERIC_FAQ.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)}
         </div>
       </div>
 
       {/* CTA PENUTUP */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface, padding: "44px 20px 20px", textAlign: "center" }}>
         <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "0 0 12px" }}>
-          Masih Mau <span style={{ color: C.goldLight }}>Latihan Sia-sia?</span>
+          Masih Mau <span style={{ color: C.goldLight }}>Belajar Sendirian Tanpa Arah?</span>
         </h2>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 380, margin: "0 auto 22px", lineHeight: 1.6 }}>
-          Atau kamu mau mulai latihan dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?
+          Atau kamu mau mulai belajar dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?
         </p>
-        <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Mau Bisa Shredding</PrimaryBtn>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 14 }}>Bergabung dengan 500+ gitaris lainnya</p>
+        <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Mau Mulai Sekarang</PrimaryBtn>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 14 }}>Bergabung dengan pelajar gitar lainnya di Gitar Sakti</p>
       </div>
 
       <div style={{ padding: "20px 20px 40px", textAlign: "center" }}>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>© 2026 Secret of Shredding × Gitar Sakti. Seluruh hak cipta dilindungi.</p>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>© 2026 {p.name} × Gitar Sakti. Seluruh hak cipta dilindungi.</p>
       </div>
     </div>
   );
@@ -3620,7 +3780,14 @@ function AboutPage({ go, content, footerContent, role, editMode, updateSiteConte
 
 /* ---------------- APP ---------------- */
 export default function App() {
-  const [view, setView] = useState("home");
+  // Kalau situs dibuka dengan tambahan ?halaman=nama-slug di URL (link dari iklan), langsung
+  // arahkan ke landing page itu sejak render pertama — supaya tidak sempat "kelip" ke Beranda dulu.
+  const [view, setView] = useState(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("halaman")) return "lp";
+    return "home";
+  });
+  const [lpSlug, setLpSlug] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("halaman") : null));
+  const [landingPages, setLandingPages] = useState([]);
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
@@ -3718,6 +3885,17 @@ export default function App() {
     const { data, error } = await supabase.from("custom_pages").select("*").order("created_at");
     if (!error && data) setCustomPages(data.map((p) => ({ id: p.id, slug: p.slug, title: p.title, blocks: p.content || [] })));
   };
+  const fetchLandingPages = async () => {
+    // RLS: pengunjung biasa cuma lihat yang status published, admin lihat semua (termasuk draft).
+    const { data, error } = await supabase.from("landing_pages").select("*").order("created_at", { ascending: false });
+    if (!error && data) {
+      setLandingPages(data.map((l) => ({
+        id: l.id, slug: l.slug, name: l.name, productId: l.product_id,
+        headline: l.headline, subheadline: l.subheadline, videoUrl: l.video_url,
+        badgeText: l.badge_text, status: l.status, visits: l.visits || 0, orderClicks: l.order_clicks || 0,
+      })));
+    }
+  };
   const fetchOrders = async () => {
     // RLS otomatis membatasi hasil: customer hanya lihat order miliknya, admin lihat semua.
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
@@ -3745,6 +3923,7 @@ export default function App() {
     fetchBankInfo();
     fetchSiteContent();
     fetchCustomPages();
+    fetchLandingPages();
     logVisit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -3890,13 +4069,14 @@ export default function App() {
   // punya history entry sama sekali untuk SPA ini sehingga back langsung keluar dari web.
   useEffect(() => {
     try {
-      window.history.replaceState({ view: "home", productSlug, customPageSlug }, "");
+      window.history.replaceState({ view, productSlug, customPageSlug, lpSlug }, "");
     } catch (e) {}
     const handlePopState = (e) => {
       const state = e.state;
       if (!state) { setView("home"); return; }
       if (state.productSlug) setProductSlug(state.productSlug);
       setCustomPageSlug(state.customPageSlug || null);
+      setLpSlug(state.lpSlug || null);
       setView(state.view);
       setMobileOpen(false);
       window.scrollTo?.({ top: 0, behavior: "instant" });
@@ -3916,8 +4096,20 @@ export default function App() {
     setMobileOpen(false);
     window.scrollTo?.({ top: 0, behavior: "instant" });
     try {
-      window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug }, "");
+      window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug, lpSlug }, "");
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
+  };
+  // Buka landing page tertentu lewat slug-nya. URL address bar ikut berubah jadi ?halaman=slug
+  // supaya link ini bisa dipakai langsung di iklan (Instagram/Facebook Ads dll) dan tetap
+  // terbuka ke landing page yang benar meski halaman di-refresh atau dibuka di tab baru.
+  const openLandingPage = (slug) => {
+    setLpSlug(slug);
+    setView("lp");
+    setMobileOpen(false);
+    window.scrollTo?.({ top: 0, behavior: "instant" });
+    try {
+      window.history.pushState({ view: "lp", productSlug, customPageSlug, lpSlug: slug }, "", `?halaman=${encodeURIComponent(slug)}`);
+    } catch (e) {}
   };
   const openProduct = (slug) => go("product", slug);
   const currentAccount = role === "customer" && profile ? { name: profile.name, email: profile.email, phone: profile.phone } : null;
@@ -4149,6 +4341,33 @@ export default function App() {
     await supabase.from("custom_pages").delete().eq("id", id);
     fetchCustomPages();
   };
+  const addLandingPage = async (form) => {
+    let baseSlug = slugify(form.name) || `lp-${Date.now()}`;
+    let slug = baseSlug;
+    let n = 2;
+    while (landingPages.some((l) => l.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
+    const { error } = await supabase.from("landing_pages").insert({
+      slug, name: form.name, product_id: form.productId,
+      headline: form.headline || "", subheadline: form.subheadline || "",
+      video_url: form.videoUrl || "", badge_text: form.badgeText || "",
+      status: "published",
+    });
+    fetchLandingPages();
+    return { ok: !error, error: error?.message, slug };
+  };
+  const updateLandingPage = async (id, form) => {
+    await supabase.from("landing_pages").update({
+      name: form.name, product_id: form.productId,
+      headline: form.headline || "", subheadline: form.subheadline || "",
+      video_url: form.videoUrl || "", badge_text: form.badgeText || "",
+      status: form.status || "published",
+    }).eq("id", id);
+    fetchLandingPages();
+  };
+  const deleteLandingPage = async (id) => {
+    await supabase.from("landing_pages").delete().eq("id", id);
+    fetchLandingPages();
+  };
   const addCoupon = async (data) => {
     await supabase.from("coupons").insert({
       code: data.code, type: data.type, value: data.value,
@@ -4228,7 +4447,7 @@ export default function App() {
       {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} goToCustomerOverview={goToCustomerOverview} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingSecretShredding go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
+      {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
       {view === "customer" && (
@@ -4258,7 +4477,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} />}
     </div>
   );
 }
