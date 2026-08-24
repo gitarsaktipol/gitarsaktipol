@@ -941,7 +941,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const showAdminControls = isAdmin && !previewBuyer;
   const status = p.status || "published";
-  const owned = ownedIds.includes(p.id);
+  const owned = ownedIds.includes(p.id) || (isAdmin && previewBuyer);
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials[p.id] || [];
   // Rating & jumlah ulasan dihitung dari ulasan asli. Kalau belum ada ulasan sama sekali,
@@ -4501,7 +4501,7 @@ export default function App() {
       )}
       {view === "learn" && (() => {
         const learnProduct = products.find((x) => x.slug === productSlug);
-        const canAccess = role === "customer" && learnProduct && ownedIds.includes(learnProduct.id);
+        const canAccess = learnProduct && (role === "admin" || (role === "customer" && ownedIds.includes(learnProduct.id)));
         if (!canAccess) {
           return (
             <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
