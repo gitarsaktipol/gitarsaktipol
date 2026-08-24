@@ -2129,7 +2129,6 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
   const [showLpForm, setShowLpForm] = useState(false);
   const [editingLp, setEditingLp] = useState(null);
   const [deleteLpTarget, setDeleteLpTarget] = useState(null);
-  const [copiedLpSlug, setCopiedLpSlug] = useState(null);
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
@@ -2402,7 +2401,6 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {landingPages.map((lp) => {
                   const prod = products.find((x) => x.id === lp.productId);
-                  const lpUrl = typeof window !== "undefined" ? `${window.location.origin}/?halaman=${lp.slug}` : `/?halaman=${lp.slug}`;
                   return (
                     <Card key={lp.id} style={{ padding: 18 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
@@ -2412,15 +2410,11 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                             <Badge tone={lp.status === "published" ? "gold" : "muted"}>{lp.status === "published" ? "Aktif" : "Draft"}</Badge>
                           </div>
                           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: "4px 0 0" }}>Produk: {prod ? prod.name : "(produk tidak ditemukan)"}</p>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                            <code style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.goldLight, background: C.surface2, padding: "4px 8px", borderRadius: 6, wordBreak: "break-all" }}>{lpUrl}</code>
-                            <button onClick={() => { navigator.clipboard?.writeText(lpUrl); setCopiedLpSlug(lp.slug); setTimeout(() => setCopiedLpSlug(null), 1500); }} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 11.5 }}>
-                              <Copy size={12} />{copiedLpSlug === lp.slug ? "Tersalin!" : "Salin Link"}
-                            </button>
+                          <div style={{ marginTop: 10 }}>
+                            <GhostBtn small onClick={() => openLandingPage(lp.slug)} icon={ArrowRight}>{lp.name}</GhostBtn>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={() => openLandingPage(lp.slug)} title="Lihat" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Eye size={15} color={C.muted} /></button>
                           <button onClick={() => { setEditingLp(lp); setShowLpForm(true); }} title="Edit" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Pencil size={15} color={C.muted} /></button>
                           <button onClick={() => setDeleteLpTarget(lp)} title="Hapus" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Trash2 size={15} color={C.emberLight} /></button>
                         </div>
