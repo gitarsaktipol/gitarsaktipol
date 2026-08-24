@@ -1004,26 +1004,30 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.7, marginTop: 16, maxWidth: 620 }}>{p.desc}</p>
           </div>
 
-          <div style={{ marginTop: 28 }}>
-            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text }}>Yang akan kamu pelajari</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }} className="gs-grid-2">
-              {p.learn.map((l) => (
-                <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                  <Check size={15} color={C.gold} style={{ marginTop: 2, flexShrink: 0 }} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{l}</span>
-                </div>
-              ))}
+          {p.learn && p.learn.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text }}>Yang akan kamu pelajari</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }} className="gs-grid-2">
+                {p.learn.map((l) => (
+                  <div key={l} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <Check size={15} color={C.gold} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{l}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div style={{ marginTop: 26 }}>
-            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text }}>Manfaat</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-              {p.benefits.map((b) => (
-                <div key={b} style={{ display: "flex", gap: 10 }}><FretDot /><span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted }}>{b}</span></div>
-              ))}
+          {p.benefits && p.benefits.length > 0 && (
+            <div style={{ marginTop: 26 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text }}>Manfaat</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+                {p.benefits.map((b) => (
+                  <div key={b} style={{ display: "flex", gap: 10 }}><FretDot /><span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted }}>{b}</span></div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div style={{ marginTop: 32 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>Ulasan Pembeli</h3>
@@ -1108,7 +1112,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Format</span><span style={{ color: C.text, textAlign: "right" }}>{p.format}</span></div>
             </div>
 
-            {!owned && !pending && (
+            {!owned && !pending && p.bonus && (
               <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, display: "flex", gap: 8 }}>
                 <Sparkles size={15} color={C.gold} style={{ flexShrink: 0, marginTop: 1 }} />
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}><b style={{ color: C.text }}>Bonus:</b> {p.bonus}</span>
@@ -2849,6 +2853,9 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
   const [desc, setDesc] = useState(initialProduct?.desc || "");
   const [previewVideo, setPreviewVideo] = useState(initialProduct?.previewVideo || "");
   const [status, setStatus] = useState(initialProduct?.status || "draft");
+  const [learn, setLearn] = useState(initialProduct?.learn && initialProduct.learn.length > 0 ? initialProduct.learn : [""]);
+  const [benefits, setBenefits] = useState(initialProduct?.benefits && initialProduct.benefits.length > 0 ? initialProduct.benefits : [""]);
+  const [bonus, setBonus] = useState(initialProduct?.bonus || "");
   const [videos, setVideos] = useState(
     initialVideos && initialVideos.length > 0
       ? initialVideos.map((v) => ({ title: v.title || "", desc: v.desc || "", url: v.url || "", duration: v.duration || "" }))
@@ -2862,6 +2869,10 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
   const addVideoRow = () => setVideos((v) => [...v, { title: "", desc: "", url: "", duration: "" }]);
   const removeVideoRow = (idx) => setVideos((v) => v.filter((_, i) => i !== idx));
 
+  const updateListItem = (setter) => (idx, value) => setter((list) => list.map((item, i) => (i === idx ? value : item)));
+  const addListItem = (setter) => () => setter((list) => [...list, ""]);
+  const removeListItem = (setter) => (idx) => setter((list) => list.filter((_, i) => i !== idx));
+
   const handleSubmit = () => {
     if (!name.trim()) { setError("Nama produk wajib diisi."); return; }
     if (!price || Number(price) <= 0) { setError("Harga produk wajib diisi dengan benar."); return; }
@@ -2872,6 +2883,9 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
         name: name.trim(), category, level, price: Number(price),
         oldPrice: oldPrice ? Number(oldPrice) : Number(price), desc: desc.trim(), status,
         previewVideo: previewVideo.trim(),
+        learn: learn.map((l) => l.trim()).filter(Boolean),
+        benefits: benefits.map((b) => b.trim()).filter(Boolean),
+        bonus: bonus.trim(),
       },
       validVideos.map((v) => ({ title: v.title.trim(), desc: v.desc.trim(), url: v.url.trim(), duration: v.duration.trim() || "—" }))
     );
@@ -2926,6 +2940,39 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialVideos }) 
             <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Video Preview (tampil di halaman produk)</label>
             <input value={previewVideo} onChange={(e) => setPreviewVideo(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Beda dengan video materi di bawah — ini video cuplikan/trailer yang tampil duluan ke calon pembeli. Upload file langsung belum didukung di prototipe ini, gunakan link.</p>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Yang akan kamu pelajari</label>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 4, marginBottom: 10 }}>Poin-poin materi yang tampil di halaman produk. Baris kosong akan diabaikan.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {learn.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input value={item} onChange={(e) => updateListItem(setLearn)(idx, e.target.value)} placeholder={`Contoh: Alternate picking fundamental`} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                  {learn.length > 1 && <button onClick={() => removeListItem(setLearn)(idx)} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} color={C.mutedDark} /></button>}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}><GhostBtn small onClick={addListItem(setLearn)} icon={Plus}>Tambah Poin</GhostBtn></div>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Manfaat</label>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 4, marginBottom: 10 }}>Manfaat yang dirasakan pembeli. Baris kosong akan diabaikan.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {benefits.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input value={item} onChange={(e) => updateListItem(setBenefits)(idx, e.target.value)} placeholder={`Contoh: Kecepatan picking naik terukur tiap minggu`} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                  {benefits.length > 1 && <button onClick={() => removeListItem(setBenefits)(idx)} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} color={C.mutedDark} /></button>}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}><GhostBtn small onClick={addListItem(setBenefits)} icon={Plus}>Tambah Poin</GhostBtn></div>
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Bonus (opsional)</label>
+            <input value={bonus} onChange={(e) => setBonus(e.target.value)} placeholder="Contoh: Ebook 40 Warm-up Wajib (gratis, tanpa batas waktu)" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
           </div>
 
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
@@ -4302,6 +4349,7 @@ export default function App() {
       name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",
       status: data.status || "published", preview_video: data.previewVideo || "",
+      benefits: data.benefits || [], learn_points: data.learn || [], bonus: data.bonus || "",
     };
     if (videos.length > 0) payload.duration = `${videos.length} video`;
     await supabase.from("products").update(payload).eq("id", id);
