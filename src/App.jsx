@@ -2875,6 +2875,13 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const addVideoRow = () => setItems((list) => [...list, { type: "video", title: "", desc: "", url: "", duration: "" }]);
   const addSectionRow = () => setItems((list) => [...list, { type: "section", title: "" }]);
   const removeItemRow = (idx) => setItems((list) => list.filter((_, i) => i !== idx));
+  const moveItemRow = (idx, direction) => setItems((list) => {
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= list.length) return list;
+    const copy = list.slice();
+    [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
+    return copy;
+  });
 
   const updateListItem = (setter) => (idx, value) => setter((list) => list.map((item, i) => (i === idx ? value : item)));
   const addListItem = (setter) => () => setter((list) => [...list, ""]);
@@ -2999,6 +3006,10 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {items.map((it, idx) => it.type === "section" ? (
                 <div key={idx} style={{ padding: 12, borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                    <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 2, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.goldLight} /></button>
+                    <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 2, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.goldLight} /></button>
+                  </div>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, flexShrink: 0 }}>Judul</span>
                   <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder={`Contoh: Pendahuluan`} style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, boxSizing: "border-box" }} />
                   <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} color={C.mutedDark} /></button>
@@ -3006,7 +3017,13 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
               ) : (
                 <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>Video</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>Video</span>
+                      <div style={{ display: "flex", gap: 2 }}>
+                        <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 2, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.muted} /></button>
+                        <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 2, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.muted} /></button>
+                      </div>
+                    </div>
                     <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
