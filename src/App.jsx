@@ -449,8 +449,10 @@ function EditableText({ value, onSave, admin, tag = "span", style, area, block }
 }
 
 /* ---------------- product card ---------------- */
-function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData }) {
+function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData, role, onToggleStatus }) {
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
+  const isAdmin = role === "admin";
+  const status = p.status || "published";
   const curriculum = curriculumData?.[p.id];
   const completedCount = (videoProgress?.[p.id] || []).length;
   const pct = curriculum ? Math.round((completedCount / curriculum.length) * 100) : null;
@@ -496,8 +498,19 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>
           </div>
         )}
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          {owned ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
+          {isAdmin ? (
+            <>
+              <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Eye}>Detail</GhostBtn>
+              {status === "archived" ? (
+                <Badge tone="muted">Diarsipkan</Badge>
+              ) : (
+                <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} title="Klik untuk ubah status">
+                  <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Publish" : "Draft"}</Badge>
+                </button>
+              )}
+            </>
+          ) : owned ? (
             <PrimaryBtn small full onClick={() => onAccess(p)} icon={PlayCircle}>Akses Produk</PrimaryBtn>
           ) : pending ? (
             <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Clock}>Menunggu Pembayaran</GhostBtn>
@@ -726,12 +739,12 @@ function Section({ eyebrow, title, sub, children, id }) {
 }
 
 /* ---------------- HOME ---------------- */
-function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent }) {
+function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent, onToggleStatus }) {
   const home = content.home;
   const admin = role === "admin" && editMode;
   const onSaveHome = (patch) => updateSiteContent("home", patch);
   const T = (key, area) => (admin ? <EditableText value={home[key]} admin onSave={(v) => onSaveHome({ [key]: v })} tag="span" area={area} /> : home[key]);
-  const featured = products.filter((p) => (p.status || "published") === "published").slice(0, 3);
+  const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
   return (
     <div>
       <div style={{ borderBottom: `1px solid ${C.borderSoft}`, background: `radial-gradient(1100px 500px at 80% -10%, ${C.ember}22, transparent)` }}>
@@ -776,7 +789,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
       <Section eyebrow={T("featuredEyebrow")} title={T("featuredTitle")} sub={T("featuredSub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-          {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+          {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
         </div>
         <div style={{ textAlign: "center", marginTop: 32 }}>
           <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Jelajahi Produk</PrimaryBtn>
@@ -871,13 +884,14 @@ function FaqItem({ q, a }) {
 }
 
 /* ---------------- SHOP ---------------- */
-function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content }) {
+function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, onToggleStatus }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Semua");
   const [sort, setSort] = useState("Terbaru");
+  const isAdmin = role === "admin";
 
   const filtered = useMemo(() => {
-    let list = products.filter((p) => (p.status || "published") === "published");
+    let list = isAdmin ? products.slice() : products.filter((p) => (p.status || "published") === "published");
     list = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
     if (cat !== "Semua") list = list.filter((p) => p.category === cat);
     if (sort === "Harga Terendah") list = [...list].sort((a, b) => a.price - b.price);
@@ -885,7 +899,7 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
     if (sort === "Terlaris") list = [...list].sort((a, b) => b.sold - a.sold);
     if (sort === "Rating") list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [q, cat, sort, products]);
+  }, [q, cat, sort, products, isAdmin]);
 
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "36px 20px 60px" }}>
@@ -911,7 +925,7 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 16 }}>{filtered.length} produk ditemukan</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-        {filtered.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+        {filtered.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
       </div>
       {filtered.length === 0 && <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted, textAlign: "center", padding: 40 }}>Tidak ada produk yang cocok dengan pencarianmu.</p>}
     </div>
@@ -919,10 +933,14 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 }
 
 /* ---------------- PRODUCT DETAIL ---------------- */
-function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial }) {
+function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus }) {
   const p = products.find((x) => x.slug === slug) || products[0];
   const related = products.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
+  const isAdmin = role === "admin";
+  const [previewBuyer, setPreviewBuyer] = useState(false);
+  const showAdminControls = isAdmin && !previewBuyer;
+  const status = p.status || "published";
   const owned = ownedIds.includes(p.id);
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials[p.id] || [];
@@ -1022,7 +1040,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
             <div style={{ marginTop: 40 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>Produk terkait</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }} className="gs-grid-3">
-                {related.map((r) => <ProductCard key={r.id} p={r} onOpen={(s) => go("product", s)} onAdd={addToCart} inCart={cart.includes(r.id)} owned={ownedIds.includes(r.id)} pending={pendingIds?.includes(r.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+                {related.map((r) => <ProductCard key={r.id} p={r} onOpen={(s) => go("product", s)} onAdd={addToCart} inCart={cart.includes(r.id)} owned={ownedIds.includes(r.id)} pending={pendingIds?.includes(r.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
               </div>
             </div>
           )}
@@ -1030,7 +1048,27 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
 
         <div>
           <Card style={{ padding: 20, position: "sticky", top: 90 }}>
-            {owned ? (
+            {isAdmin && previewBuyer && (
+              <button onClick={() => setPreviewBuyer(false)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 14 }}>
+                <ArrowLeft size={13} color={C.gold} />
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, color: C.gold }}>Kembali ke Mode Admin</span>
+              </button>
+            )}
+            {showAdminControls ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.goldLight }}>{rp(p.price)}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>
+                </div>
+                {status === "archived" ? (
+                  <Badge tone="muted">Diarsipkan</Badge>
+                ) : (
+                  <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none" }} title="Klik untuk ubah status">
+                    <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Publish" : "Draft"}</Badge>
+                  </button>
+                )}
+              </div>
+            ) : owned ? (
               (() => {
                 const curriculum = curriculumData[p.id];
                 const completedCount = (videoProgress?.[p.id] || []).length;
@@ -1077,7 +1115,11 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               </div>
             )}
 
-            {owned ? (
+            {showAdminControls ? (
+              <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                <PrimaryBtn full onClick={() => setPreviewBuyer(true)} icon={Eye}>Lihat Tampilan Pembeli</PrimaryBtn>
+              </div>
+            ) : owned ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
                   <Check size={15} color={C.gold} />
@@ -2256,6 +2298,9 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                         </td>
                         <td style={{ padding: "10px 14px" }}>
                           <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => go("product", p.slug)} title="Lihat Detail" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                              <Eye size={14} color={C.muted} />
+                            </button>
                             <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                               <Pencil size={14} color={C.muted} />
                             </button>
@@ -3712,7 +3757,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
 
 /* ---------------- HALAMAN KUSTOM (dibuat via Admin) ---------------- */
-function CustomPageView({ slug, customPages, products, go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, curriculumData }) {
+function CustomPageView({ slug, customPages, products, go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, curriculumData, role, onToggleStatus }) {
   const page = customPages.find((p) => p.slug === slug);
   if (!page) {
     return (
@@ -3738,7 +3783,7 @@ function CustomPageView({ slug, customPages, products, go, openProduct, addToCar
             if (items.length === 0) return null;
             return (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />)}
+                {items.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
               </div>
             );
           }
@@ -4424,9 +4469,9 @@ export default function App() {
 
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
 
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} />}
+      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
@@ -4443,7 +4488,7 @@ export default function App() {
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
-      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} />}
+      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
           <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} />
