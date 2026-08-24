@@ -1743,7 +1743,7 @@ function ProfileForm({ account, onSave }) {
   );
 }
 
-function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm }) {
+function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct }) {
   // "orders" di sini sudah otomatis terbatas ke milik customer yang login (lewat RLS di database).
   const myOrders = orders;
   const ownedIds = Array.from(new Set(
@@ -1835,7 +1835,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                         <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark }}>{completedCount}/{curriculum.length} video selesai</span>
                       </div>
                     )}
-                    <GhostBtn small onClick={() => (curriculum ? go("learn", p.slug) : go("product", p.slug))} icon={PlayCircle}>Akses Produk</GhostBtn>
+                    <GhostBtn small onClick={() => accessProduct(p)} icon={PlayCircle}>Akses Produk</GhostBtn>
                   </div>
                 </Card>
               );
@@ -4317,7 +4317,13 @@ export default function App() {
     if (preAuthView) { go(preAuthView.view, preAuthView.slug); setPreAuthView(null); }
     else go("home");
   };
-  const accessProduct = (p) => (curriculumData[p.id] ? go("learn", p.slug) : go("product", p.slug));
+  const accessProduct = (p) => {
+    if (curriculumData[p.id] && curriculumData[p.id].length > 0) { go("learn", p.slug); return; }
+    // Produk tanpa video (mis. bundle atau ebook) belum punya halaman materinya sendiri.
+    // Sebelumnya tombol ini diam-diam mengarahkan kembali ke halaman produk yang sama,
+    // yang tampak seperti tidak berfungsi karena tidak ada perubahan tampilan.
+    alert(`Materi video untuk "${p.name}" belum ditambahkan. Tambahkan kurikulum lewat halaman edit produk di Admin.`);
+  };
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
   const clearCart = () => { setCart([]); setCoupon(null); };
 
@@ -4607,7 +4613,7 @@ export default function App() {
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
-          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} />
+          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
