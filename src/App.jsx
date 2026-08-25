@@ -3795,21 +3795,36 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         </p>
 
         {videoUrl ? (
-          <a
-            href={videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
-          >
-            <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
-                </div>
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview di YouTube ↗</span>
-              </div>
+          toEmbedUrl(videoUrl) ? (
+            <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})` }}>
+              <iframe
+                key={videoUrl}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                src={toAutoplayEmbedUrl(videoUrl)}
+                title={`Video preview ${p.name}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
             </div>
-          </a>
+          ) : (
+            // URL yang dimasukkan bukan link YouTube/Vimeo yang dikenali -> tetap tampilkan
+            // sebagai link keluar biasa daripada iframe kosong yang tidak akan pernah autoplay.
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
+            >
+              <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
+                  </div>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview ↗</span>
+                </div>
+              </div>
+            </a>
+          )
         ) : null}
 
         <div style={{ textAlign: "center" }}>
