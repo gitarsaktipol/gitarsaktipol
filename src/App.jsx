@@ -1035,8 +1035,9 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                 <div>
                   <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, background: C.surface2 }}>
                     <iframe
+                      key={p.previewVideo}
                       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                      src={embedUrl}
+                      src={toAutoplayEmbedUrl(p.previewVideo)}
                       title={`${p.name} - Video Preview`}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
@@ -3378,7 +3379,7 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
 }
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
-function LearnPage({ slug, go, progress, setProgress, current, setCurrent, products, curriculumData, curriculumOutline }) {
+function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, products, curriculumData, curriculumOutline }) {
   const product = products.find((x) => x.slug === slug) || products[0];
   const curriculum = curriculumData[product.id] || [];
   const outline = (curriculumOutline?.[product.id] && curriculumOutline[product.id].length > 0) ? curriculumOutline[product.id] : curriculum.map((v) => ({ type: "video", ...v }));
@@ -3390,10 +3391,7 @@ function LearnPage({ slug, go, progress, setProgress, current, setCurrent, produ
 
   const selectVideo = (idx) => setCurrent((prev) => ({ ...prev, [product.id]: idx }));
   const markCompleteAndNext = () => {
-    setProgress((prev) => {
-      const list = prev[product.id] || [];
-      return list.includes(curIdx) ? prev : { ...prev, [product.id]: [...list, curIdx] };
-    });
+    onMarkComplete(product.id, curIdx);
     if (!isLast) setCurrent((prev) => ({ ...prev, [product.id]: curIdx + 1 }));
   };
 
@@ -4073,6 +4071,23 @@ export default function App() {
     setCurriculumOutline(outline);
     setCurriculumData(videosOnly);
   };
+  // Progres video yang sudah ditandai selesai oleh customer yang sedang login. Disimpan di tabel
+  // video_progress (bukan lagi cuma di state browser), jadi tidak hilang saat logout/ganti perangkat.
+  // Barisnya nyimpan video_id (bukan urutan/index), lalu di sini dikonversi balik ke index supaya
+  // cocok sama cara LearnPage & ProductCard membaca progress (array index per produk).
+  const fetchVideoProgress = async () => {
+    const { data, error } = await supabase.from("video_progress").select("product_id, video_id");
+    if (error || !data) return;
+    const grouped = {};
+    data.forEach((row) => {
+      const vids = curriculumData[row.product_id] || [];
+      const idx = vids.findIndex((v) => v.id == row.video_id);
+      if (idx === -1) return; // video sudah dihapus/kurikulum berubah — lewati baris lama ini
+      if (!grouped[row.product_id]) grouped[row.product_id] = [];
+      grouped[row.product_id].push(idx);
+    });
+    setVideoProgress(grouped);
+  };
   const fetchCoupons = async () => {
     const { data, error } = await supabase.from("coupons").select("*").order("created_at");
     if (!error && data) setCoupons(data.map(mapCouponRow));
@@ -4201,6 +4216,15 @@ export default function App() {
     if (profile?.role === "admin") fetchTotalVisits();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.role]);
+
+  // Progres video: dimuat ulang tiap kali sesi berubah ATAU data kurikulum termuat/berubah —
+  // butuh curriculumData supaya video_id dari database bisa dicocokkan ke index video yang benar.
+  useEffect(() => {
+    if (!authReady) return;
+    if (!session) { setVideoProgress({}); return; } // logout / belum login -> progres lokal dikosongkan
+    fetchVideoProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, session?.user?.id, curriculumData]);
 
   const registerCustomer = async ({ name, email, phone, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -4443,6 +4467,26 @@ export default function App() {
   const goToPaymentConfirm = (orderId) => {
     setPendingOrderId(orderId);
     go("paymentconfirm");
+  };
+  // Tandai 1 video selesai ditonton. Update state lokal dulu (biar terasa instan di LearnPage),
+  // lalu simpan permanen ke tabel video_progress supaya tidak hilang saat logout/ganti perangkat.
+  // "idx" tetap dipakai di seluruh UI (LearnPage, ProductCard, dll), tapi yang disimpan ke database
+  // adalah video_id asli-nya — lebih tahan kalau urutan kurikulum berubah di kemudian hari.
+  const markVideoComplete = (productId, idx) => {
+    setVideoProgress((prev) => {
+      const list = prev[productId] || [];
+      if (list.includes(idx)) return prev;
+      return { ...prev, [productId]: [...list, idx] };
+    });
+    if (!session) return; // belum login (seharusnya tidak terjadi di halaman ini, jaga-jaga saja)
+    const video = curriculumData[productId]?.[idx];
+    if (!video?.id) return; // data kurikulum belum termuat, lewati simpan ke server kali ini
+    supabase.from("video_progress").insert({
+      customer_id: session.user.id, product_id: productId, video_id: video.id,
+    }).then(({ error }) => {
+      // 23505 = baris sudah ada (unique constraint) — aman diabaikan, bukan error sungguhan
+      if (error && error.code !== "23505") console.error("Gagal menyimpan progres video:", error.message);
+    });
   };
   // Dipakai setelah checkout/konfirmasi pembayaran supaya customer selalu mendarat di tab
   // Ringkasan (yang menampilkan pesanan Menunggu juga), bukan di tab terakhir yang mereka buka
@@ -4702,7 +4746,7 @@ export default function App() {
             </div>
           );
         }
-        return <LearnPage slug={productSlug} go={go} progress={videoProgress} setProgress={setVideoProgress} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} />;
+        return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} />;
       })()}
       {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} />}
     </div>
