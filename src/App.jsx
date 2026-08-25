@@ -2372,15 +2372,15 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                           )}
                         </td>
                         <td style={{ padding: "10px 14px" }}>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => go("product", p.slug)} title="Lihat Detail" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <button onClick={() => go("product", p.slug)} title="Lihat Detail" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Eye size={14} color={C.muted} />
                             </button>
-                            <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                            <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} title="Edit Produk" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Pencil size={14} color={C.muted} />
                             </button>
-                            <button onClick={() => setDeleteTarget(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                              <Trash2 size={14} color={C.muted} />
+                            <button onClick={() => setDeleteTarget(p)} title="Hapus Produk" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 6 }}>
+                              <Trash2 size={14} color={C.emberLight} />
                             </button>
                           </div>
                         </td>
