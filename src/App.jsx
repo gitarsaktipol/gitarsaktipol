@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
@@ -6,7 +6,7 @@ import {
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
-  Image as ImageIcon
+  Image as ImageIcon, Bold, Italic, Type, List
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -403,6 +403,127 @@ function Badge({ children, tone = "gold" }) {
     <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "4px 10px", borderRadius: 999, background: bg, color: tone === "muted" ? C.muted : fg, border: tone === "muted" ? `1px solid ${C.border}` : "none" }}>
       {children}
     </span>
+  );
+}
+
+/* ---------------- teks berformat (bold/italic/judul/bullet) ---------------- */
+// Parser ringan buat markdown sederhana: **tebal**, *miring*, "## " di awal baris jadi judul,
+// dan "* " di awal baris (atau di tengah kalimat, hasil konten lama) jadi bullet list.
+function parseInlineFormatting(text, keyPrefix = "") {
+  const nodes = [];
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+    if (match[2] !== undefined) nodes.push(<strong key={`${keyPrefix}b${key++}`}>{match[2]}</strong>);
+    else nodes.push(<em key={`${keyPrefix}i${key++}`}>{match[3]}</em>);
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
+}
+
+function RichText({ text, style }) {
+  if (!text) return null;
+  // Konten lama sering nulis bullet " * " di tengah kalimat (bukan di awal baris) — ubah dulu
+  // jadi baris baru supaya tetap kebaca rapi tanpa admin perlu edit ulang teks lamanya.
+  const normalized = text.replace(/ \*(?!\*)\s+/g, "\n* ");
+  const lines = normalized.split("\n");
+  const blocks = [];
+  let paragraph = [];
+  let list = [];
+  const flushParagraph = () => { if (paragraph.length) { blocks.push({ type: "p", content: paragraph.join(" ") }); paragraph = []; } };
+  const flushList = () => { if (list.length) { blocks.push({ type: "ul", items: list }); list = []; } };
+  lines.forEach((raw) => {
+    const line = raw.trim();
+    if (line === "") { flushParagraph(); flushList(); return; }
+    if (/^##\s+/.test(line)) { flushParagraph(); flushList(); blocks.push({ type: "h", content: line.replace(/^##\s+/, "") }); return; }
+    if (/^\*\s+/.test(line) && !/^\*\*/.test(line)) { flushParagraph(); list.push(line.replace(/^\*\s+/, "")); return; }
+    flushList(); paragraph.push(line);
+  });
+  flushParagraph(); flushList();
+
+  return (
+    <div style={style}>
+      {blocks.map((b, i) => {
+        if (b.type === "h") return <p key={i} style={{ fontSize: "1.2em", fontWeight: 800, color: C.text, margin: i === 0 ? "0 0 8px" : "16px 0 8px" }}>{parseInlineFormatting(b.content, `h${i}`)}</p>;
+        if (b.type === "ul") return (
+          <ul key={i} style={{ margin: "6px 0 12px", paddingLeft: 20 }}>
+            {b.items.map((item, j) => <li key={j} style={{ marginBottom: 4 }}>{parseInlineFormatting(item, `l${i}${j}`)}</li>)}
+          </ul>
+        );
+        return <p key={i} style={{ margin: i === 0 ? "0 0 10px" : "10px 0" }}>{parseInlineFormatting(b.content, `p${i}`)}</p>;
+      })}
+    </div>
+  );
+}
+
+const richToolbarBtnStyle = { display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", color: C.muted };
+
+// Textarea deskripsi + toolbar Bold/Italic/Judul/Bullet. Tombolnya membungkus teks yang
+// diseleksi dengan sintaks markdown ringan di atas (**, *, ## , * ), yang lalu dirender rapi
+// oleh <RichText/> di halaman produk — jadi admin tidak perlu ngetik HTML atau simbol manual.
+function RichTextEditor({ value, onChange, placeholder, rows = 6 }) {
+  const taRef = useRef(null);
+  const pendingSelection = useRef(null);
+
+  useEffect(() => {
+    if (pendingSelection.current && taRef.current) {
+      const { start, end } = pendingSelection.current;
+      taRef.current.focus();
+      taRef.current.setSelectionRange(start, end);
+      pendingSelection.current = null;
+    }
+  }, [value]);
+
+  const applyWrap = (marker, placeholderText) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const selected = value.slice(start, end);
+    const inner = selected || placeholderText;
+    const newValue = value.slice(0, start) + marker + inner + marker + value.slice(end);
+    onChange(newValue);
+    pendingSelection.current = { start: start + marker.length, end: start + marker.length + inner.length };
+  };
+
+  const applyLinePrefix = (prefix) => {
+    const ta = taRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    let lineEnd = value.indexOf("\n", end);
+    if (lineEnd === -1) lineEnd = value.length;
+    const block = value.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+    const alreadyPrefixed = lines.every((l) => l.trim() === "" || l.startsWith(prefix));
+    const newLines = lines.map((l) => (l.trim() === "" ? l : alreadyPrefixed ? l.slice(prefix.length) : prefix + l));
+    const newBlock = newLines.join("\n");
+    const newValue = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+    onChange(newValue);
+    pendingSelection.current = { start: lineStart, end: lineStart + newBlock.length };
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <button type="button" onClick={() => applyWrap("**", "teks tebal")} title="Tebal" style={richToolbarBtnStyle}><Bold size={13} /></button>
+        <button type="button" onClick={() => applyWrap("*", "teks miring")} title="Miring" style={richToolbarBtnStyle}><Italic size={13} /></button>
+        <button type="button" onClick={() => applyLinePrefix("## ")} title="Judul besar" style={richToolbarBtnStyle}><Type size={13} /></button>
+        <button type="button" onClick={() => applyLinePrefix("* ")} title="Bullet list" style={richToolbarBtnStyle}><List size={13} /></button>
+      </div>
+      <textarea
+        ref={taRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        style={{ width: "100%", background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical", lineHeight: 1.6 }}
+      />
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: "6px 0 0" }}>Pilih teks lalu klik tombol untuk memformat. Bisa juga ketik manual: **tebal**, *miring*, ## Judul, * poin list.</p>
+    </div>
   );
 }
 
@@ -1072,7 +1193,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               <StarRow rating={liveRating} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{liveReviewCount > 0 ? `${liveRating.toFixed(1)} · ${liveReviewCount} ulasan · ` : ""}{p.sold} terjual</span>
             </div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.7, marginTop: 16, maxWidth: 620 }}>{p.desc}</p>
+            <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.7, marginTop: 16, maxWidth: 620 }} />
           </div>
 
           {p.learn && p.learn.length > 0 && (
@@ -3018,7 +3139,9 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
 
           <div>
             <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Keterangan / Deskripsi Produk</label>
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Jelaskan singkat isi produk ini..." style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
+            <div style={{ marginTop: 5 }}>
+              <RichTextEditor value={desc} onChange={setDesc} rows={4} placeholder="Jelaskan singkat isi produk ini..." />
+            </div>
           </div>
 
           <div>
@@ -3732,7 +3855,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Perkenalkan</span>
           <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }}>{p.desc}</p>
+          <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {(p.learn || []).map((item) => (
