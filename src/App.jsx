@@ -3450,25 +3450,49 @@ function CouponFormModal({ onClose, onSubmit }) {
 
 /* ---------------- FORM TAMBAH/EDIT LANDING PAGE ---------------- */
 function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
-  // Headline, sub-judul, video, dan badge sekarang diedit langsung di halamannya (tombol
-  // "Edit di Halaman" -> klik ikon pensil di teks/video yang mau diubah). Modal ini cuma
-  // ngurus hal yang memang harus diatur di luar halaman: nama internal, produk yang dipromosikan,
-  // dan status aktif/draft.
+  // Headline, sub-judul, video, dan teks-teks lain sekarang diedit langsung di halamannya (tombol
+  // "Edit di Halaman" -> klik ikon pensil di teks/video yang mau diubah). Modal ini ngurus hal yang
+  // memang harus diatur di luar halaman: nama internal, produk, status, dan pengaturan Promo.
   const [name, setName] = useState(initialLp?.name || "");
   const [productId, setProductId] = useState(initialLp?.productId || products[0]?.id || "");
   const [status, setStatus] = useState(initialLp?.status || "published");
   const [error, setError] = useState("");
 
+  const selectedProduct = products.find((pr) => pr.id === Number(productId)) || products[0];
+  const legacyTiers = selectedProduct?.pricingTiers || null;
+  const existingPromo = initialLp?.extra?.promo || (legacyTiers ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours } : null);
+  // "Edit Promo": harga khusus untuk N pembeli pertama (custom, default 100) + batas waktu.
+  // Begitu slot habis ATAU waktunya habis (mana lebih dulu), harga otomatis & permanen kembali
+  // ke harga normal produk untuk SEMUA pengunjung berikutnya -- bukan cuma tampilan yang berkurang.
+  const [promoEnabled, setPromoEnabled] = useState(existingPromo?.enabled || false);
+  const [founderSlots, setFounderSlots] = useState(String(existingPromo?.founderSlots ?? 100));
+  const [founderPrice, setFounderPrice] = useState(String(existingPromo?.founderPrice ?? selectedProduct?.price ?? ""));
+  const [earlyBirdHours, setEarlyBirdHours] = useState(String(existingPromo?.earlyBirdHours ?? 72));
+
   const handleSubmit = () => {
     if (!name.trim()) { setError("Nama landing page wajib diisi."); return; }
     if (!productId) { setError("Pilih produk untuk landing page ini."); return; }
+    if (promoEnabled && (!founderSlots || Number(founderSlots) <= 0)) { setError("Jumlah slot promo harus lebih dari 0."); return; }
+    if (promoEnabled && (!founderPrice || Number(founderPrice) <= 0)) { setError("Harga promo harus diisi."); return; }
     setError("");
-    onSubmit({ name: name.trim(), productId: Number(productId), status });
+    const payload = { name: name.trim(), productId: Number(productId), status };
+    if (initialLp) {
+      payload.extra = {
+        ...(initialLp.extra || {}),
+        promo: {
+          enabled: promoEnabled,
+          founderSlots: Number(founderSlots) || 0,
+          founderPrice: Number(founderPrice) || 0,
+          earlyBirdHours: Number(earlyBirdHours) || 0,
+        },
+      };
+    }
+    onSubmit(payload);
   };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
-      <Card style={{ width: "100%", maxWidth: 440, padding: 24 }}>
+      <Card style={{ width: "100%", maxWidth: 460, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "PENGATURAN LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
@@ -3497,6 +3521,40 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
               <button onClick={() => setStatus("draft")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "draft" ? C.gold : C.border}`, background: status === "draft" ? C.surface2 : "transparent", color: status === "draft" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Draft (belum bisa dibuka)</button>
             </div>
           </div>
+
+          {initialLp && (
+            <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 14 }}>
+              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Edit Promo</label>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 4, marginBottom: 10 }}>
+                Harga khusus untuk sejumlah pembeli pertama (bisa diisi custom, mis. 100). Begitu slotnya habis ATAU waktunya habis — mana yang lebih dulu — harga otomatis kembali ke harga normal produk ({selectedProduct ? rp(selectedProduct.price) : "-"}) untuk semua orang, permanen.
+              </p>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button onClick={() => setPromoEnabled(false)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${!promoEnabled ? C.gold : C.border}`, background: !promoEnabled ? C.surface2 : "transparent", color: !promoEnabled ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Tidak Pakai Promo</button>
+                <button onClick={() => setPromoEnabled(true)} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${promoEnabled ? C.gold : C.border}`, background: promoEnabled ? C.surface2 : "transparent", color: promoEnabled ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Pakai Harga Promo</button>
+              </div>
+
+              {promoEnabled && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Jumlah Pembeli Pertama (custom)</label>
+                    <input type="number" min="1" value={founderSlots} onChange={(e) => setFounderSlots(e.target.value)} placeholder="100" style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Harga Promo (Rp)</label>
+                    <input type="number" min="0" value={founderPrice} onChange={(e) => setFounderPrice(e.target.value)} placeholder="247000" style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Durasi Countdown (jam, sejak kunjungan pertama pengunjung)</label>
+                    <input type="number" min="1" value={earlyBirdHours} onChange={(e) => setEarlyBirdHours(e.target.value)} placeholder="72" style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+                  </div>
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>
+                    Slot dihitung dari total penjualan produk ini yang sebenarnya (bukan cuma tampilan) — begitu tembus {founderSlots || "0"}, promo tutup permanen untuk semua orang.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
 
@@ -3786,6 +3844,19 @@ const LP_EXTRA_DEFAULTS = {
   closingSubtitle: "Atau kamu mau mulai belajar dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?",
   closingCtaText: "Ya, Saya Mau Mulai Sekarang",
   closingFooterNote: "Bergabung dengan pelajar gitar lainnya di Gitar Sakti",
+  // Teks-teks di blok harga + countdown (section "Harga Spesial"). Bagian jumlah slot & harga
+  // itu sendiri diatur lewat "Edit Promo" di Pengaturan Landing Page, bukan di sini -- ini
+  // cuma teksnya saja, silakan sesuaikan gaya bahasanya lewat pensil di halaman.
+  promoActiveNote: "Harga Spesial Pendiri — sisa {sisa} dari {total} slot",
+  promoExpiredTimeNote: "Harga sudah kembali ke harga normal",
+  promoExpiredSlotNote: "Slot harga spesial sudah penuh — harga sudah kembali normal",
+  promoOffNote: "Harga Spesial",
+  promoCountdownLabel: "Harga Ini Berakhir Dalam",
+  promoEndedLabel: "Periode harga spesial untuk kamu sudah berakhir",
+  promoActivePriceLabel: "Harga Spesial Terbatas",
+  promoNormalPriceLabel: "Harga Normal",
+  trustBadge1: "Pembayaran Aman",
+  trustBadge2: "Akses Instan",
 };
 
 // Judul dua-warna (mis. "Belajar Sendiri Itu SERING BIKIN STUCK?") disimpan sebagai 1 string
@@ -3902,8 +3973,15 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     );
   }
 
-  const tiers = p.pricingTiers || null;
-  const hasTiers = !!tiers;
+  // Promo harga bertingkat (harga khusus utk N pembeli pertama + batas waktu) sekarang diatur
+  // per-landing-page lewat "Edit Promo" di Pengaturan Landing Page, bukan lagi hardcode di data
+  // produk. Kalau LP ini belum pernah diatur promonya, jatuh ke pricingTiers lama dari produk
+  // (kalau ada) supaya landing page yang sudah jalan sebelumnya tidak tiba-tiba berubah.
+  const legacyTiers = p.pricingTiers || null;
+  const promo = lp.extra?.promo || (legacyTiers
+    ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours }
+    : { enabled: false, founderPrice: p.price, founderSlots: 100, earlyBirdHours: 72 });
+  const hasTiers = !!promo.enabled;
   const owned = ownedIds?.includes(p.id);
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials?.[p.id] || [];
@@ -3954,7 +4032,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
   // Countdown JUJUR: dihitung dari kunjungan PERTAMA user ke halaman ini, disimpan di localStorage
   // supaya tidak reset kalau halaman dibuka/refresh ulang. Begitu waktunya habis, tetap habis
-  // selamanya untuk browser/user tsb. Hanya berlaku kalau produk punya pricingTiers (harga bertahap).
+  // selamanya untuk browser/user tsb. Hanya berlaku kalau promo LP ini dinyalakan.
   const firstVisitKey = `gs_lp_${lp.slug}_first_visit`;
   const [deadline, setDeadline] = useState(null);
   useEffect(() => {
@@ -3971,9 +4049,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     } catch (e) {
       firstVisit = Date.now(); // fallback kalau localStorage diblokir browser
     }
-    setDeadline(firstVisit + tiers.earlyBirdHours * 60 * 60 * 1000);
+    setDeadline(firstVisit + (promo.earlyBirdHours || 72) * 60 * 60 * 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasTiers, tiers?.earlyBirdHours]);
+  }, [hasTiers, promo.earlyBirdHours]);
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -3982,6 +4060,11 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     return () => clearInterval(id);
   }, [hasTiers]);
 
+  // Begitu SALAH SATU habis duluan -- slot pembeli pertama terisi penuh, ATAU waktu countdown
+  // habis -- harga otomatis & permanen kembali ke harga normal produk (p.price), bukan ke tingkat
+  // harga lain. Slot dihitung dari p.sold ASLI (bertambah tiap transaksi sukses beneran, dari
+  // seluruh landing page produk ini), jadi begitu 100 orang checkout, slotnya beneran habis untuk
+  // semua orang, bukan cuma berkurang tampilan di layar.
   let currentPrice, anchorPrice, disc, tierNote, expired, founderSlotsLeft, timeLeft, hh, mm, ss;
   if (hasTiers) {
     expired = deadline !== null && now >= deadline;
@@ -3989,28 +4072,23 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
     mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
     ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
-    // Slot pembeli pertama dihitung dari p.sold ASLI (bertambah tiap transaksi sukses), bukan
-    // angka yang berkurang sendiri seiring waktu.
-    founderSlotsLeft = Math.max(0, tiers.founderSlots - (p.sold || 0));
-    const isFounder = founderSlotsLeft > 0;
-    if (expired) {
-      currentPrice = tiers.regularPrice;
-      tierNote = "Harga sudah kembali ke harga reguler";
-    } else if (isFounder) {
-      currentPrice = tiers.founderPrice;
-      tierNote = `Harga Spesial Pendiri — sisa ${founderSlotsLeft} dari ${tiers.founderSlots} slot`;
+    founderSlotsLeft = Math.max(0, (promo.founderSlots || 0) - (p.sold || 0));
+    const promoActive = !expired && founderSlotsLeft > 0;
+    if (promoActive) {
+      currentPrice = promo.founderPrice;
+      tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", promo.founderSlots);
     } else {
-      currentPrice = tiers.earlyBirdPrice;
-      tierNote = "Harga Early Bird";
+      currentPrice = p.price;
+      tierNote = expired ? getExtra("promoExpiredTimeNote") : getExtra("promoExpiredSlotNote");
     }
-    anchorPrice = tiers.regularPrice;
-    disc = Math.round((1 - currentPrice / anchorPrice) * 100);
+    anchorPrice = p.price;
+    disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
   } else {
-    expired = true; // tanpa countdown, langsung tampil harga apa adanya
+    expired = true; // tanpa promo, langsung tampil harga apa adanya
     currentPrice = p.price;
     anchorPrice = p.oldPrice && p.oldPrice > p.price ? p.oldPrice : p.price;
     disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
-    tierNote = "Harga Spesial";
+    tierNote = getExtra("promoOffNote");
   }
 
   const buyNow = () => {
@@ -4329,19 +4407,36 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
               {tierNote}
             </span>
+            {admin && (
+              <div style={{ marginTop: 8 }}>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, fontStyle: "italic" }}>
+                  Teks di atas otomatis berganti tergantung status promo — edit kalimatnya lewat "Edit Promo" di Pengaturan Landing Page.
+                </span>
+              </div>
+            )}
           </div>
 
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "26px 24px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
               {hasTiers && !expired ? (
                 <>
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Harga Ini Berakhir Dalam</p>
+                  <div style={{ marginBottom: 8 }}>
+                    <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }} />
+                  </div>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.emberLight, marginBottom: 16 }}>{hh} : {mm} : {ss}</div>
                 </>
               ) : hasTiers ? (
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 16 }}>Periode harga spesial untuk kamu sudah berakhir</p>
+                <div style={{ marginBottom: 16 }}>
+                  <EditableText value={getExtra("promoEndedLabel")} admin={admin} onSave={saveExtra("promoEndedLabel")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: 0 }} />
+                </div>
               ) : null}
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}>{hasTiers && expired ? "Harga Reguler" : "Harga Spesial Terbatas"}</span>
+              <EditableText
+                value={getExtra(hasTiers && expired ? "promoNormalPriceLabel" : "promoActivePriceLabel")}
+                admin={admin}
+                onSave={saveExtra(hasTiers && expired ? "promoNormalPriceLabel" : "promoActivePriceLabel")}
+                tag="span"
+                style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}
+              />
               {disc > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>{rp(anchorPrice)}</span>
@@ -4365,8 +4460,12 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                 <PrimaryBtn full onClick={buyNow} icon={ArrowRight}>Beli Sekarang</PrimaryBtn>
               )}
               <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 14 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}><ShieldCheck size={13} color={C.gold} /> Pembayaran Aman</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}><Clock size={13} color={C.gold} /> Akses Instan</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>
+                  <ShieldCheck size={13} color={C.gold} /> <EditableText value={getExtra("trustBadge1")} admin={admin} onSave={saveExtra("trustBadge1")} tag="span" />
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>
+                  <Clock size={13} color={C.gold} /> <EditableText value={getExtra("trustBadge2")} admin={admin} onSave={saveExtra("trustBadge2")} tag="span" />
+                </span>
               </div>
             </div>
           </Card>
