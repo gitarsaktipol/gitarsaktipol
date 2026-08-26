@@ -3712,6 +3712,17 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{video.duration}</span>
               {isCurrentDone && <span style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}><Check size={13} color={C.gold} /><span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.gold, fontWeight: 700 }}>Sudah selesai</span></span>}
             </div>
+            {(video.desc || admin) && (
+              <EditableText
+                value={video.desc || ""}
+                admin={admin}
+                onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "desc", v)}
+                tag="p"
+                area
+                block
+                style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "10px 0 0" }}
+              />
+            )}
           </div>
 
           <div style={{ marginTop: 16, marginBottom: 18, display: "flex", gap: 10 }}>
