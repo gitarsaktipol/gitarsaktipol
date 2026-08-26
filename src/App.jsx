@@ -602,6 +602,48 @@ function EditableText({ value, onSave, admin, tag = "span", style, area, block }
   );
 }
 
+// Deskripsi video yang tampil di bawah player. Kalau teksnya panjang, otomatis dipotong
+// jadi 3 baris + tombol "Tampilkan selengkapnya" (mirip YouTube). Saat admin, teks selalu
+// tampil penuh & bisa diedit langsung (pakai EditableText), tanpa tombol sembunyikan.
+function VideoDescription({ desc, admin, onSave }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = desc || "";
+  const isLong = text.length > 180;
+
+  if (!text && !admin) return null;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <EditableText
+        value={text}
+        admin={admin}
+        onSave={onSave}
+        tag="p"
+        area
+        block
+        style={{
+          fontFamily: "'Manrope',sans-serif",
+          fontSize: 13,
+          color: C.muted,
+          lineHeight: 1.6,
+          margin: 0,
+          ...(!admin && isLong && !expanded
+            ? { display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }
+            : {}),
+        }}
+      />
+      {!admin && isLong && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.gold }}
+        >
+          {expanded ? "Tampilkan lebih sedikit" : "Tampilkan selengkapnya"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- product card ---------------- */
 function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData, role, onToggleStatus }) {
   const disc = Math.round((1 - p.price / p.oldPrice) * 100);
@@ -3712,17 +3754,6 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{video.duration}</span>
               {isCurrentDone && <span style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}><Check size={13} color={C.gold} /><span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.gold, fontWeight: 700 }}>Sudah selesai</span></span>}
             </div>
-            {(video.desc || admin) && (
-              <EditableText
-                value={video.desc || ""}
-                admin={admin}
-                onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "desc", v)}
-                tag="p"
-                area
-                block
-                style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "10px 0 0" }}
-              />
-            )}
           </div>
 
           <div style={{ marginTop: 16, marginBottom: 18, display: "flex", gap: 10 }}>
@@ -3779,6 +3810,12 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               );
             })()}
           </LpVideoEditable>
+
+          <VideoDescription
+            desc={video.desc}
+            admin={admin}
+            onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "desc", v)}
+          />
         </div>
         )}
 
