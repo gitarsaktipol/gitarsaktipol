@@ -2353,9 +2353,10 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [showQuickProductForm, setShowQuickProductForm] = useState(false);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showPageForm, setShowPageForm] = useState(false);
@@ -2461,7 +2462,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
 
         {sub === "products" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><PrimaryBtn small icon={Plus} onClick={() => { setEditingProduct(null); setShowProductForm(true); }}>Tambah Produk</PrimaryBtn></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><PrimaryBtn small icon={Plus} onClick={() => setShowQuickProductForm(true)}>Tambah Produk</PrimaryBtn></div>
             <ScrollHint />
             <Card style={{ overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
@@ -2497,8 +2498,11 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                             <button onClick={() => go("product", p.slug)} title="Lihat Detail" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <Eye size={14} color={C.muted} />
                             </button>
-                            <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} title="Edit Produk" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Pencil size={14} color={C.muted} />
+                            <button onClick={() => openLearnEditor(p.slug)} title="Kelola Materi (video & kurikulum)" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <PlayCircle size={14} color={C.gold} />
+                            </button>
+                            <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} title="Pengaturan Produk (harga, kategori, deskripsi, dll)" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Settings size={14} color={C.muted} />
                             </button>
                             <button onClick={() => setDeleteTarget(p)} title="Hapus Produk" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 6 }}>
                               <Trash2 size={14} color={C.emberLight} />
@@ -2883,6 +2887,19 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         )}
       </div>
 
+      {showQuickProductForm && (
+        <QuickProductFormModal
+          onClose={() => setShowQuickProductForm(false)}
+          onSubmit={async (data) => {
+            const created = await addProduct(data, []);
+            setShowQuickProductForm(false);
+            // Langsung lompat ke tampilan pembeli produk ini dalam Mode Edit, biar admin bisa
+            // langsung susun kurikulum & video-nya di tempat -- tidak perlu modal terpisah lagi.
+            if (created && created.slug) openLearnEditor(created.slug);
+          }}
+        />
+      )}
+
       {showProductForm && (
         <ProductFormModal
           initialProduct={editingProduct}
@@ -3044,6 +3061,68 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
 }
 
 /* ---------------- FORM TAMBAH PRODUK ---------------- */
+// Modal ringkas buat langkah pertama bikin produk baru -- cuma 3 input. Sisanya (materi/video,
+// kategori, level, deskripsi, dll) diisi belakangan langsung di tampilan aslinya (Mode Edit).
+function QuickProductFormModal({ onClose, onSubmit }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [oldPrice, setOldPrice] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) { setError("Judul produk wajib diisi."); return; }
+    if (!price || Number(price) <= 0) { setError("Harga normal wajib diisi."); return; }
+    setError("");
+    setSaving(true);
+    await onSubmit({
+      name: name.trim(),
+      price: Number(price),
+      oldPrice: oldPrice ? Number(oldPrice) : Number(price),
+      category: "Umum", level: "Pemula", desc: "", benefits: [], learn: [], bonus: "", previewVideo: "", status: "draft",
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+      <Card style={{ width: "100%", maxWidth: 420, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>TAMBAH PRODUK</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+        </div>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 0, marginBottom: 18 }}>
+          Isi ini dulu, sisanya (video, materi, deskripsi, dll) diisi langsung di halaman tampilan pembeli setelah ini tersimpan.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Judul Produk / Kelas</label>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Fondasi Gitar untuk Pemula" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Harga Normal (Rp)</label>
+              <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="299000" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13.5, boxSizing: "border-box" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Harga Coret (opsional)</label>
+              <input type="number" min="0" value={oldPrice} onChange={(e) => setOldPrice(e.target.value)} placeholder="599000" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13.5, boxSizing: "border-box" }} />
+            </div>
+          </div>
+
+          {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+            <GhostBtn full onClick={onClose}>Batal</GhostBtn>
+            <PrimaryBtn full onClick={handleSubmit} icon={ArrowRight}>{saving ? "Menyimpan..." : "Simpan & Lanjutkan"}</PrimaryBtn>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const isEdit = !!initialProduct;
   const [name, setName] = useState(initialProduct?.name || "");
@@ -3057,95 +3136,17 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const [learn, setLearn] = useState(initialProduct?.learn && initialProduct.learn.length > 0 ? initialProduct.learn : [""]);
   const [benefits, setBenefits] = useState(initialProduct?.benefits && initialProduct.benefits.length > 0 ? initialProduct.benefits : [""]);
   const [bonus, setBonus] = useState(initialProduct?.bonus || "");
-  // Tiap baris materi dikasih id stabil (bukan cuma index) supaya status buka/tutup kelompok
-  // dan status expand detail video tidak berantakan waktu urutan diubah/disisipi baris baru.
-  const idCounterRef = useRef(0);
-  const genId = () => `it${Date.now()}_${idCounterRef.current++}`;
-  const [items, setItems] = useState(() =>
+  // Video/materi tidak lagi diedit di modal ini (sekarang lewat "Kelola Materi" langsung di
+  // halaman aslinya) -- tapi kurikulum yang sudah ada tetap dibawa apa adanya waktu Simpan,
+  // supaya video yang sudah diisi tidak ikut terhapus hanya karena admin ubah harga/deskripsi.
+  const [items] = useState(() =>
     initialItems && initialItems.length > 0
       ? initialItems.map((it) => it.type === "section"
-          ? { id: genId(), type: "section", title: it.title || "" }
-          : { id: genId(), type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
-      : [{ id: genId(), type: "video", title: "", desc: "", url: "", duration: "" }]
+          ? { type: "section", title: it.title || "" }
+          : { type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
+      : []
   );
   const [error, setError] = useState("");
-
-  // Materi dikelompokkan per Judul Materi (accordion) supaya kursus dengan puluhan video
-  // tidak bikin halaman ini memanjang tanpa batas. Default: kelompok otomatis ditutup kalau
-  // videonya sudah cukup banyak (>8), biar yang kebuka cuma yang lagi dikerjakan.
-  const [collapsedSections, setCollapsedSections] = useState(() => {
-    if (items.filter((it) => it.type === "video").length <= 8) return new Set();
-    const s = new Set();
-    items.forEach((it) => { if (it.type === "section") s.add(it.id); });
-    return s;
-  });
-  // Detail tiap video (link/deskripsi/durasi) disembunyikan by default -- ini yang paling
-  // makan tempat -- dan baru muncul saat baris videonya dibuka.
-  const [expandedVideoIds, setExpandedVideoIds] = useState(() => new Set());
-
-  const updateVideo = (idx, field, value) => {
-    setItems((list) => list.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
-  };
-  const addVideoRow = () => setItems((list) => [...list, { id: genId(), type: "video", title: "", desc: "", url: "", duration: "" }]);
-  const addSectionRow = () => setItems((list) => [...list, { id: genId(), type: "section", title: "" }]);
-  const removeItemRow = (idx) => setItems((list) => list.filter((_, i) => i !== idx));
-  const moveItemRow = (idx, direction) => setItems((list) => {
-    const newIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= list.length) return list;
-    const copy = list.slice();
-    [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
-    return copy;
-  });
-  const insertItemAt = (idx, newItem) => setItems((list) => {
-    const copy = list.slice();
-    copy.splice(idx, 0, newItem);
-    return copy;
-  });
-  // Tombol "+" di samping tiap baris/kelompok -- cara cepat nyisipin video/judul baru persis
-  // di posisi itu, tanpa harus scroll ke bawah lalu urutkan ulang manual.
-  const insertVideoAfter = (idx, sectionKey) => {
-    const newItem = { id: genId(), type: "video", title: "", desc: "", url: "", duration: "" };
-    insertItemAt(idx + 1, newItem);
-    setExpandedVideoIds((prev) => new Set(prev).add(newItem.id));
-    if (sectionKey && sectionKey !== "__root__") {
-      setCollapsedSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
-    }
-  };
-  const insertSectionAfter = (idx) => insertItemAt(idx + 1, { id: genId(), type: "section", title: "" });
-  const toggleSection = (key) => setCollapsedSections((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
-  const toggleVideoExpand = (id) => setExpandedVideoIds((prev) => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-
-  const totalVideoCount = items.filter((it) => it.type === "video").length;
-  const totalSectionCount = items.filter((it) => it.type === "section").length;
-  const hasSections = totalSectionCount > 0;
-  // Kelompokkan items flat jadi grup per Judul Materi buat dirender sebagai accordion.
-  // Video yang belum punya judul materi di atasnya (di awal daftar) masuk grup "__root__"
-  // yang selalu tampil terbuka, tanpa header, supaya bentuknya tetap sama seperti sebelumnya.
-  const itemGroups = (() => {
-    const groups = [];
-    let current = null;
-    items.forEach((it, idx) => {
-      if (it.type === "section") {
-        current = { key: it.id, isRoot: false, headerIdx: idx, headerItem: it, rows: [] };
-        groups.push(current);
-      } else {
-        if (!current) {
-          current = { key: "__root__", isRoot: true, headerIdx: -1, headerItem: null, rows: [] };
-          groups.push(current);
-        }
-        current.rows.push({ item: it, idx });
-      }
-    });
-    return groups;
-  })();
 
   const updateListItem = (setter) => (idx, value) => setter((list) => list.map((item, i) => (i === idx ? value : item)));
   const addListItem = (setter) => () => setter((list) => [...list, ""]);
@@ -3260,91 +3261,11 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
           </div>
 
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
-              <div>
-                <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Video Materi</label>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.mutedDark, marginTop: 2 }}>
-                  {totalVideoCount} video{hasSections ? ` · ${totalSectionCount} judul materi` : ""}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {hasSections && (
-                  <GhostBtn small onClick={() => setCollapsedSections(collapsedSections.size > 0 ? new Set() : new Set(itemGroups.filter((g) => !g.isRoot).map((g) => g.key)))}>
-                    {collapsedSections.size > 0 ? "Buka Semua" : "Tutup Semua"}
-                  </GhostBtn>
-                )}
-                <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
-                <GhostBtn small onClick={addVideoRow} icon={Plus}>Video</GhostBtn>
-              </div>
-            </div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 0, marginBottom: 10 }}>Klik judul video buat edit langsung. Klik ikon panah di baris video buat buka link/deskripsi/durasi. Tombol "+" di samping baris/kelompok nyisipin video atau judul baru persis di posisi itu. Pakai "Judul Materi" buat mengelompokkan video (mis. "Pendahuluan") — kelompok bisa ditutup biar daftar panjang tetap rapi.</p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 460, overflowY: "auto", paddingRight: 4 }}>
-              {itemGroups.map((group) => {
-                const collapsed = collapsedSections.has(group.key);
-                return (
-                  <div key={group.key}>
-                    {!group.isRoot && (
-                      <div style={{ padding: "9px 10px", borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 6, alignItems: "center" }}>
-                        <button onClick={() => toggleSection(group.key)} title={collapsed ? "Buka kelompok" : "Tutup kelompok"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
-                          {collapsed ? <ChevronDown size={15} color={C.goldLight} /> : <ChevronUp size={15} color={C.goldLight} />}
-                        </button>
-                        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                          <button onClick={() => moveItemRow(group.headerIdx, "up")} disabled={group.headerIdx === 0} style={{ background: "none", border: "none", cursor: group.headerIdx === 0 ? "default" : "pointer", padding: 1, opacity: group.headerIdx === 0 ? 0.3 : 1 }}><ChevronUp size={11} color={C.goldLight} /></button>
-                          <button onClick={() => moveItemRow(group.headerIdx, "down")} disabled={group.headerIdx === items.length - 1} style={{ background: "none", border: "none", cursor: group.headerIdx === items.length - 1 ? "default" : "pointer", padding: 1, opacity: group.headerIdx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={11} color={C.goldLight} /></button>
-                        </div>
-                        <input value={group.headerItem.title} onChange={(e) => updateVideo(group.headerIdx, "title", e.target.value)} placeholder="Contoh: Pendahuluan" style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 10px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, boxSizing: "border-box" }} />
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.goldLight, flexShrink: 0, whiteSpace: "nowrap" }}>{group.rows.length} video</span>
-                        <button onClick={() => insertVideoAfter(group.headerIdx, group.key)} title="Tambah video di kelompok ini" style={{ background: "none", border: `1px solid ${C.gold}55`, borderRadius: 6, cursor: "pointer", padding: 4, flexShrink: 0, display: "flex" }}><Plus size={13} color={C.goldLight} /></button>
-                        <button onClick={() => removeItemRow(group.headerIdx)} title="Hapus judul ini (videonya tetap ada, jadi tanpa kelompok)" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={13} color={C.mutedDark} /></button>
-                      </div>
-                    )}
-                    {!collapsed && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: group.isRoot ? 0 : 6, paddingLeft: group.isRoot ? 0 : 8 }}>
-                        {group.rows.map(({ item: it, idx }) => {
-                          const expanded = expandedVideoIds.has(it.id);
-                          return (
-                            <div key={it.id}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: C.surface2, border: `1px solid ${C.border}` }}>
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.mutedDark, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
-                                <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                                  <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 1, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={11} color={C.muted} /></button>
-                                  <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 1, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={11} color={C.muted} /></button>
-                                </div>
-                                <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder="Judul video" style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                                {!it.url && <span title="Link video belum diisi" style={{ width: 6, height: 6, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.mutedDark, flexShrink: 0, minWidth: 32, textAlign: "right" }}>{it.duration || "—"}</span>
-                                <button onClick={() => toggleVideoExpand(it.id)} title="Link, deskripsi & durasi" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 4, flexShrink: 0, display: "flex" }}>
-                                  {expanded ? <ChevronUp size={12} color={C.muted} /> : <ChevronDown size={12} color={C.muted} />}
-                                </button>
-                                <button onClick={() => insertVideoAfter(idx, group.key)} title="Sisipkan video baru setelah ini" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Plus size={13} color={C.mutedDark} /></button>
-                                <button onClick={() => removeItemRow(idx)} title="Hapus video" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={13} color={C.mutedDark} /></button>
-                              </div>
-                              {expanded && (
-                                <div style={{ padding: "8px 9px 9px", borderRadius: "0 0 8px 8px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 7 }}>
-                                  <input value={it.desc} onChange={(e) => updateVideo(idx, "desc", e.target.value)} placeholder="Deskripsi singkat video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12, boxSizing: "border-box" }} />
-                                  <div style={{ display: "flex", gap: 7 }}>
-                                    <input value={it.url} onChange={(e) => updateVideo(idx, "url", e.target.value)} placeholder="Link video (https://...)" style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12, boxSizing: "border-box" }} />
-                                    <input value={it.duration} onChange={(e) => updateVideo(idx, "duration", e.target.value)} placeholder="Durasi (mis. 12:30)" style={{ width: 104, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, boxSizing: "border-box" }} />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {group.rows.length === 0 && (
-                          <div style={{ padding: "8px 10px", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, fontStyle: "italic" }}>Belum ada video di kelompok ini.</div>
-                        )}
-                        {!group.isRoot && (
-                          <div>
-                            <GhostBtn small onClick={() => insertSectionAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} icon={Plus}>Judul Materi Baru di Sini</GhostBtn>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div style={{ padding: 14, borderRadius: 10, background: `${C.gold}0F`, border: `1px solid ${C.gold}40`, display: "flex", alignItems: "center", gap: 10 }}>
+              <PlayCircle size={18} color={C.goldLight} style={{ flexShrink: 0 }} />
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: 0 }}>
+                Video & materi sekarang diedit langsung di halaman tampilan pembeli. Simpan dulu perubahan di sini, lalu klik ikon ▶ "Kelola Materi" di daftar produk.
+              </p>
             </div>
           </div>
 
@@ -3661,7 +3582,7 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
 }
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
-function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, products, curriculumData, curriculumOutline }) {
+function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, products, curriculumData, curriculumOutline, role, learnEditMode, setLearnEditMode, onSaveProduct, goToAdmin }) {
   const product = products.find((x) => x.slug === slug) || products[0];
   const curriculum = curriculumData[product.id] || [];
   const outline = (curriculumOutline?.[product.id] && curriculumOutline[product.id].length > 0) ? curriculumOutline[product.id] : curriculum.map((v) => ({ type: "video", ...v }));
@@ -3669,7 +3590,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   const curIdx = current[product.id] ?? 0;
   const video = curriculum[curIdx];
   const isLast = curIdx === curriculum.length - 1;
-  const isCurrentDone = completed.includes(curIdx);
+  const isCurrentDone = video ? completed.includes(curIdx) : false;
 
   const selectVideo = (idx) => setCurrent((prev) => ({ ...prev, [product.id]: idx }));
   const markCompleteAndNext = () => {
@@ -3677,7 +3598,51 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
     if (!isLast) setCurrent((prev) => ({ ...prev, [product.id]: curIdx + 1 }));
   };
 
-  if (curriculum.length === 0) {
+  // Mode Edit langsung di halaman materi (sama seperti landing page): cuma aktif kalau admin
+  // memang menyalakannya lewat tombol di bar atas. Ini yang bikin admin bisa nyusun kurikulum
+  // (judul kelas, video, link) langsung di tampilan asli yang dilihat pembeli, tanpa modal.
+  const admin = role === "admin" && !!learnEditMode;
+
+  // Setiap perubahan struktur kurikulum (tambah/hapus/urutkan/isi judul & link video) langsung
+  // disimpan ke database lewat updateProduct yang sudah ada (full-replace curriculum_videos),
+  // dengan data produk lain (harga, kategori, dst) dikirim apa adanya supaya tidak ikut berubah.
+  const saveOutline = (newOutline) => onSaveProduct && onSaveProduct(product.id, { ...product }, newOutline);
+  const updateItem = (idx, field, value) => saveOutline(outline.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
+  const removeItem = (idx) => {
+    saveOutline(outline.filter((_, i) => i !== idx));
+    if (idx === curIdx) selectVideo(Math.max(0, curIdx - 1));
+  };
+  const moveItem = (idx, direction) => {
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= outline.length) return;
+    const copy = outline.slice();
+    [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
+    saveOutline(copy);
+  };
+  const insertItemAt = (idx, newItem) => {
+    const copy = outline.slice();
+    copy.splice(idx, 0, newItem);
+    saveOutline(copy);
+  };
+  const insertVideoAfter = (idx) => insertItemAt(idx + 1, { type: "video", title: "Video Baru", desc: "", url: "", duration: "" });
+  const insertSectionAfter = (idx) => insertItemAt(idx + 1, { type: "section", title: "Judul Materi Baru" });
+  const addVideoRow = () => saveOutline([...outline, { type: "video", title: "Video Baru", desc: "", url: "", duration: "" }]);
+  const addSectionRow = () => saveOutline([...outline, { type: "section", title: "Judul Materi Baru" }]);
+
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set());
+  const [expandedVideoIdx, setExpandedVideoIdx] = useState(() => new Set());
+  const toggleSection = (key) => setCollapsedSections((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const toggleVideoExpand = (key) => setExpandedVideoIdx((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+
+  const outlineIndexForVideo = (k) => {
+    let c = -1;
+    for (let i = 0; i < outline.length; i++) {
+      if (outline[i].type === "video") { c++; if (c === k) return i; }
+    }
+    return -1;
+  };
+
+  if (curriculum.length === 0 && !admin) {
     return (
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
         <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted }}>Materi video untuk produk ini belum tersedia di prototipe.</p>
@@ -3687,7 +3652,23 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "26px 20px 60px" }}>
+    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 0 60px" }}>
+      {/* Bar mode-edit -- cuma admin yang lihat, sama seperti di landing page */}
+      {role === "admin" && (
+        <div style={{ position: "sticky", top: 0, zIndex: 40, background: "#1a1420", borderBottom: `1px solid ${admin ? C.gold : C.borderSoft}`, padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+          <button onClick={goToAdmin} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+            <ArrowLeft size={14} />Kembali ke Admin <span style={{ color: C.mutedDark }}>· {product.name}</span>
+          </button>
+          <button
+            onClick={() => setLearnEditMode && setLearnEditMode(!learnEditMode)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: admin ? C.gold : "none", border: `1px solid ${admin ? C.gold : C.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: admin ? "#161019" : C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5 }}
+          >
+            <Pencil size={13} />{admin ? "Mode Edit: ON" : "Mode Preview"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ padding: "0 20px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 16 }}>
         <span onClick={() => go("customer")} style={{ cursor: "pointer" }}>Dashboard</span><ChevronRight size={12} />
         <span onClick={() => go("customer")} style={{ cursor: "pointer" }}>Produk Saya</span><ChevronRight size={12} />
@@ -3695,20 +3676,37 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: 0 }}>{product.name.toUpperCase()}</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
-          <div style={{ flex: 1, height: 8, borderRadius: 999, background: C.surface2, overflow: "hidden" }}>
-            <div style={{ width: `${(completed.length / curriculum.length) * 100}%`, height: "100%", background: C.gold, borderRadius: 999 }} />
+        <EditableText
+          value={product.name}
+          admin={admin}
+          onSave={(v) => onSaveProduct && onSaveProduct(product.id, { ...product, name: v }, outline)}
+          tag="h1"
+          block
+          style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: 0, textTransform: "uppercase" }}
+        />
+        {curriculum.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+            <div style={{ flex: 1, height: 8, borderRadius: 999, background: C.surface2, overflow: "hidden" }}>
+              <div style={{ width: `${(completed.length / curriculum.length) * 100}%`, height: "100%", background: C.gold, borderRadius: 999 }} />
+            </div>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 700, color: C.muted, whiteSpace: "nowrap" }}>{completed.length}/{curriculum.length} selesai</span>
           </div>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 700, color: C.muted, whiteSpace: "nowrap" }}>{completed.length}/{curriculum.length} selesai</span>
-        </div>
+        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }} className="gs-hero-grid">
+      <div style={{ display: "grid", gridTemplateColumns: curriculum.length > 0 ? "1fr 320px" : "1fr", gap: 24 }} className="gs-hero-grid">
+        {curriculum.length > 0 && (
         <div>
           <div>
             <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.gold, fontWeight: 700 }}>VIDEO {curIdx + 1} DARI {curriculum.length}</span>
-            <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 19, color: C.text, margin: "6px 0" }}>{video.title}</h2>
+            <EditableText
+              value={video.title}
+              admin={admin}
+              onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "title", v)}
+              tag="h2"
+              block
+              style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 19, color: C.text, margin: "6px 0" }}
+            />
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Clock size={13} color={C.muted} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{video.duration}</span>
@@ -3733,44 +3731,65 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
             </div>
           </div>
 
-          {(() => {
-            const embedUrl = toEmbedUrl(video.url);
-            if (embedUrl) {
-              return (
-                <div>
-                  <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, background: C.surface2 }}>
-                    <iframe
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                      src={embedUrl}
-                      title={video.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
+          <LpVideoEditable url={video.url} admin={admin} onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "url", v)}>
+            {(() => {
+              const embedUrl = toEmbedUrl(video.url);
+              if (embedUrl) {
+                return (
+                  <div>
+                    <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, background: C.surface2 }}>
+                      <iframe
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                        src={embedUrl}
+                        title={video.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 8 }}>
+                      Video tidak muncul? <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ color: C.gold }}>Buka di tab baru ↗</a>
+                    </p>
                   </div>
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 8 }}>
-                    Video tidak muncul? <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ color: C.gold }}>Buka di tab baru ↗</a>
-                  </p>
+                );
+              }
+              if (video.url) {
+                return (
+                  <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                    <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
+                    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Buka video di tab baru ↗</span>
+                  </a>
+                );
+              }
+              return (
+                <div style={{ height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                  <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{admin ? "Belum ada link video — klik ikon pensil di kanan atas" : "Pemutar video (contoh tampilan)"}</span>
                 </div>
               );
-            }
-            if (video.url) {
-              return (
-                <a href={video.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", textDecoration: "none", height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                  <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Buka video di tab baru ↗</span>
-                </a>
-              );
-            }
-            return (
-              <div style={{ height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Pemutar video (contoh tampilan)</span>
-              </div>
-            );
-          })()}
+            })()}
+          </LpVideoEditable>
         </div>
+        )}
 
         <div>
+          {admin ? (
+            <LearnCurriculumEditor
+              outline={outline}
+              curIdx={curIdx}
+              onSelect={selectVideo}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              expandedVideoIdx={expandedVideoIdx}
+              toggleVideoExpand={toggleVideoExpand}
+              updateItem={updateItem}
+              removeItem={removeItem}
+              moveItem={moveItem}
+              insertVideoAfter={insertVideoAfter}
+              insertSectionAfter={insertSectionAfter}
+              addVideoRow={addVideoRow}
+              addSectionRow={addSectionRow}
+            />
+          ) : (
           <Card style={{ padding: 6, maxHeight: 560, overflowY: "auto" }}>
             {(() => {
               let videoCounter = -1;
@@ -3801,7 +3820,119 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               });
             })()}
           </Card>
+          )}
         </div>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+// Editor kurikulum yang tampil live di LearnPage waktu Mode Edit ON -- struktur & interaksinya
+// sama persis dengan editor "Video Materi" di form produk (grup per judul materi yang bisa
+// ditutup, baris ringkas, detail link/deskripsi/durasi baru muncul kalau dibuka), bedanya di sini
+// tiap perubahan langsung tersimpan ke database (tidak perlu tombol "Simpan" terpisah).
+function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, moveItem, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow }) {
+  const totalVideoCount = outline.filter((it) => it.type === "video").length;
+  const hasSections = outline.some((it) => it.type === "section");
+
+  const groups = (() => {
+    const list = [];
+    let cur = null;
+    let videoCounter = -1;
+    outline.forEach((it, idx) => {
+      if (it.type === "section") {
+        cur = { key: `s-${idx}`, isRoot: false, headerIdx: idx, headerItem: it, rows: [] };
+        list.push(cur);
+      } else {
+        videoCounter++;
+        if (!cur) { cur = { key: "__root__", isRoot: true, headerIdx: -1, headerItem: null, rows: [] }; list.push(cur); }
+        cur.rows.push({ item: it, idx, videoNumber: videoCounter });
+      }
+    });
+    return list;
+  })();
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark }}>{totalVideoCount} video{hasSections ? ` · ${outline.filter((it) => it.type === "section").length} judul materi` : ""}</div>
+      </div>
+      <Card style={{ padding: 6, maxHeight: 640, overflowY: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 4 }}>
+          {groups.map((group) => {
+            const collapsed = collapsedSections.has(group.key);
+            return (
+              <div key={group.key}>
+                {!group.isRoot && (
+                  <div style={{ padding: "8px 8px", borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 6, alignItems: "center" }}>
+                    <button onClick={() => toggleSection(group.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+                      {collapsed ? <ChevronDown size={14} color={C.goldLight} /> : <ChevronUp size={14} color={C.goldLight} />}
+                    </button>
+                    <EditableText value={group.headerItem.title} admin onSave={(v) => updateItem(group.headerIdx, "title", v)} tag="span" style={{ flex: 1, minWidth: 0, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12, color: C.goldLight }} />
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.goldLight, flexShrink: 0 }}>{group.rows.length}</span>
+                    <button onClick={() => insertVideoAfter(group.headerIdx)} title="Tambah video di kelompok ini" style={{ background: "none", border: `1px solid ${C.gold}55`, borderRadius: 6, cursor: "pointer", padding: 3, flexShrink: 0, display: "flex" }}><Plus size={12} color={C.goldLight} /></button>
+                    <button onClick={() => removeItem(group.headerIdx)} title="Hapus judul (video di dalamnya tetap ada)" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={12} color={C.mutedDark} /></button>
+                  </div>
+                )}
+                {!collapsed && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: group.isRoot ? 0 : 5, paddingLeft: group.isRoot ? 0 : 6 }}>
+                    {group.rows.map(({ item: it, idx, videoNumber }) => {
+                      const expanded = expandedVideoIdx.has(idx);
+                      const active = videoNumber === curIdx;
+                      return (
+                        <div key={idx}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 6px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: active ? C.surface2 : "transparent", border: `1px solid ${active ? C.border : "transparent"}` }}>
+                            <button onClick={() => onSelect(videoNumber)} title="Pilih video ini" style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${C.border}`, background: "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
+                              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.muted }}>{videoNumber + 1}</span>
+                            </button>
+                            <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                              <button onClick={() => moveItem(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 0, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={10} color={C.muted} /></button>
+                              <button onClick={() => moveItem(idx, "down")} disabled={idx === outline.length - 1} style={{ background: "none", border: "none", cursor: idx === outline.length - 1 ? "default" : "pointer", padding: 0, opacity: idx === outline.length - 1 ? 0.3 : 1 }}><ChevronDown size={10} color={C.muted} /></button>
+                            </div>
+                            <EditableText value={it.title} admin onSave={(v) => updateItem(idx, "title", v)} tag="span" style={{ flex: 1, minWidth: 0, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.text }} />
+                            {!it.url && <span title="Link video belum diisi" style={{ width: 6, height: 6, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
+                            <button onClick={() => toggleVideoExpand(idx)} title="Link, deskripsi & durasi" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 3, flexShrink: 0, display: "flex" }}>
+                              {expanded ? <ChevronUp size={11} color={C.muted} /> : <ChevronDown size={11} color={C.muted} />}
+                            </button>
+                            <button onClick={() => insertVideoAfter(idx)} title="Sisipkan video setelah ini" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Plus size={12} color={C.mutedDark} /></button>
+                            <button onClick={() => removeItem(idx)} title="Hapus video" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={12} color={C.mutedDark} /></button>
+                          </div>
+                          {expanded && (
+                            <div style={{ padding: "7px 8px 8px", borderRadius: "0 0 8px 8px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 6 }}>
+                              <div>
+                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Link video (YouTube/Vimeo/dll)</span>
+                                <EditableText value={it.url || ""} admin onSave={(v) => updateItem(idx, "url", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: it.url ? C.text : C.mutedDark }} />
+                              </div>
+                              <div>
+                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Deskripsi singkat</span>
+                                <EditableText value={it.desc || ""} admin onSave={(v) => updateItem(idx, "desc", v)} tag="div" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: it.desc ? C.text : C.mutedDark }} />
+                              </div>
+                              <div>
+                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Durasi (mis. 12:30)</span>
+                                <EditableText value={it.duration || ""} admin onSave={(v) => updateItem(idx, "duration", v)} tag="div" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: it.duration ? C.text : C.mutedDark }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {!group.isRoot && (
+                      <button onClick={() => insertVideoAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 11 }}><Plus size={11} />Video di kelompok ini</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {outline.length === 0 && (
+            <p style={{ padding: 14, textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, fontStyle: "italic" }}>Belum ada materi. Mulai dengan tombol di bawah.</p>
+          )}
+        </div>
+      </Card>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
+        <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Kelas / Materi</GhostBtn>
       </div>
     </div>
   );
@@ -4657,6 +4788,9 @@ export default function App() {
   // Mode edit khusus landing page: begitu admin klik "Edit di Halaman", halaman ini dibuka apa
   // adanya (sama persis dengan yang dilihat pengunjung) tapi tiap teks/video dikasih ikon pensil.
   const [lpEditMode, setLpEditMode] = useState(false);
+  // Sama seperti landing page, tapi buat halaman materi (LearnPage) -- dipakai admin buat nyusun
+  // kurikulum (judul kelas, video, link) langsung di tampilan asli yang dilihat pembeli.
+  const [learnEditMode, setLearnEditMode] = useState(false);
   const [landingPages, setLandingPages] = useState([]);
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
@@ -5025,6 +5159,18 @@ export default function App() {
     } catch (e) {}
   };
   const openProduct = (slug) => go("product", slug);
+  // Buka LearnPage (tampilan pembeli/member) langsung dalam Mode Edit -- ini yang dipakai setelah
+  // produk baru dibuat, dan lewat tombol "Kelola Materi" di daftar produk admin.
+  const openLearnEditor = (slug) => {
+    setProductSlug(slug);
+    setLearnEditMode(true);
+    setView("learn");
+    setMobileOpen(false);
+    window.scrollTo?.({ top: 0, behavior: "instant" });
+    try {
+      window.history.pushState({ view: "learn", productSlug: slug, customPageSlug, lpSlug }, "");
+    } catch (e) {}
+  };
   const currentAccount = role === "customer" && profile ? { name: profile.name, email: profile.email, phone: profile.phone } : null;
   // PENTING: orders sudah otomatis terbatas ke milik customer yang login (lewat RLS di database),
   // jadi tidak perlu filter manual lagi di sini — beda dengan versi localStorage sebelumnya yang
@@ -5428,9 +5574,9 @@ export default function App() {
             </div>
           );
         }
-        return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} />;
+        return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
     </div>
   );
 }
