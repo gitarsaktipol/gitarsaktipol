@@ -3928,6 +3928,17 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const updateFaqItem = (idx, patch) => saveExtra("faq")(faqItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const addFaqItem = () => saveExtra("faq")([...faqItems, { q: "Pertanyaan baru?", a: "Jawaban untuk pertanyaan ini." }]);
   const removeFaqItem = (idx) => saveExtra("faq")(faqItems.filter((_, i) => i !== idx));
+  // Daftar bonus per-landing-page: tiap produk bisa punya banyak bonus (logo/icon + teks + nilai
+  // harga), bukan cuma 1 baris teks seperti sebelumnya. Kalau belum pernah diisi lewat mode edit,
+  // jatuh ke bonus lama dari data produk (field "Bonus" di form Edit Produk) supaya tidak hilang.
+  const bonusItems = extra.bonusItems !== undefined ? (extra.bonusItems || []) : (p.bonus ? [{ icon: "✨", title: p.bonus, value: "" }] : []);
+  const updateBonusItem = (idx, patch) => saveExtra("bonusItems")(bonusItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addBonusItem = () => saveExtra("bonusItems")([...bonusItems, { icon: "✨", title: "Bonus baru", value: "" }]);
+  const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
+  const bonusValueTotal = bonusItems.reduce((sum, it) => {
+    const n = parseInt(String(it.value || "").replace(/[^0-9]/g, ""), 10);
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
 
   useEffect(() => {
     // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
@@ -4246,8 +4257,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         </div>
       </div>
 
-      {/* BONUS — pakai teks bonus yang sudah diisi di data produk (menu Produk -> edit produk) */}
-      {p.bonus ? (
+      {/* BONUS — bisa lebih dari 1, tiap bonus punya ikon/logo, teks, dan nilai harga sendiri.
+          Diisi & dikelola langsung di sini (Mode Edit), lepas dari field "Bonus" produk. */}
+      {(bonusItems.length > 0 || admin) ? (
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <Badge tone="gold">BONUS SPESIAL</Badge>
@@ -4255,12 +4267,58 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }} />
             </div>
           </div>
-          <Card style={{ padding: 18, display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Sparkles size={18} color={C.goldLight} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {bonusItems.map((it, idx) => (
+              <Card key={idx} style={{ padding: 16, position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {admin ? (
+                    <EditableText
+                      value={it.icon || "✨"}
+                      admin
+                      onSave={(v) => updateBonusItem(idx, { icon: (v || "✨").slice(0, 2) })}
+                      tag="span"
+                      style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18, lineHeight: "40px", textAlign: "center" }}
+                    />
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>
+                      {it.icon || "✨"}
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <EditableText value={it.title} admin={admin} onSave={(v) => updateBonusItem(idx, { title: v })} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.5 }} />
+                    {(it.value || admin) && (
+                      <div style={{ marginTop: 4 }}>
+                        {admin ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Nilai:</span>
+                            <EditableText value={it.value || ""} admin onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.goldLight, textDecoration: "line-through" }} />
+                          </span>
+                        ) : it.value ? (
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.goldLight, textDecoration: "line-through" }}>Senilai {it.value}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                  {admin && bonusItems.length > 0 && (
+                    <button onClick={() => removeBonusItem(idx)} title="Hapus bonus ini" style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={14} color={C.mutedDark} /></button>
+                  )}
+                </div>
+              </Card>
+            ))}
+            {bonusItems.length === 0 && admin && (
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, fontStyle: "italic", textAlign: "center" }}>Belum ada bonus. Tambahkan lewat tombol di bawah.</p>
+            )}
+            {admin && (
+              <div style={{ textAlign: "center" }}><GhostBtn small onClick={addBonusItem} icon={Plus}>Tambah Bonus</GhostBtn></div>
+            )}
+          </div>
+          {bonusValueTotal > 0 && (
+            <div style={{ marginTop: 18, textAlign: "center" }}>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Total nilai bonus: </span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }}>{rp(bonusValueTotal)}</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}> — GRATIS kalau kamu ikut sekarang</span>
             </div>
-            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }}>{p.bonus}</span>
-          </Card>
+          )}
         </div>
       ) : null}
 
