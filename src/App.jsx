@@ -3853,64 +3853,79 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
     return list;
   })();
 
+  const iconBtnStyle = { background: "none", border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", padding: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark }}>{totalVideoCount} video{hasSections ? ` · ${outline.filter((it) => it.type === "section").length} judul materi` : ""}</div>
-      </div>
-      <Card style={{ padding: 6, maxHeight: 640, overflowY: "auto" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 4 }}>
+      <div style={{ marginBottom: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark }}>{totalVideoCount} video{hasSections ? ` · ${outline.filter((it) => it.type === "section").length} judul materi` : ""}</div>
+      <Card style={{ padding: 8, maxHeight: 720, overflowY: "auto" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 4 }}>
           {groups.map((group) => {
             const collapsed = collapsedSections.has(group.key);
             return (
               <div key={group.key}>
                 {!group.isRoot && (
-                  <div style={{ padding: "8px 8px", borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 6, alignItems: "center" }}>
-                    <button onClick={() => toggleSection(group.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
-                      {collapsed ? <ChevronDown size={14} color={C.goldLight} /> : <ChevronUp size={14} color={C.goldLight} />}
-                    </button>
-                    <EditableText value={group.headerItem.title} admin onSave={(v) => updateItem(group.headerIdx, "title", v)} tag="span" style={{ flex: 1, minWidth: 0, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12, color: C.goldLight }} />
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.goldLight, flexShrink: 0 }}>{group.rows.length}</span>
-                    <button onClick={() => insertVideoAfter(group.headerIdx)} title="Tambah video di kelompok ini" style={{ background: "none", border: `1px solid ${C.gold}55`, borderRadius: 6, cursor: "pointer", padding: 3, flexShrink: 0, display: "flex" }}><Plus size={12} color={C.goldLight} /></button>
-                    <button onClick={() => removeItem(group.headerIdx)} title="Hapus judul (video di dalamnya tetap ada)" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={12} color={C.mutedDark} /></button>
+                  <div style={{ padding: "12px 12px", borderRadius: 10, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button onClick={() => toggleSection(group.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+                        {collapsed ? <ChevronDown size={17} color={C.goldLight} /> : <ChevronUp size={17} color={C.goldLight} />}
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
+                        <EditableText value={group.headerItem.title} admin onSave={(v) => updateItem(group.headerIdx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.goldLight }}>{group.rows.length} video</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => insertVideoAfter(group.headerIdx)} title="Tambah video di kelompok ini" style={{ ...iconBtnStyle, border: `1px solid ${C.gold}55` }}><Plus size={15} color={C.goldLight} /></button>
+                        <button onClick={() => removeItem(group.headerIdx)} title="Hapus judul (video di dalamnya tetap ada)" style={iconBtnStyle}><Trash2 size={15} color={C.mutedDark} /></button>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {!collapsed && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: group.isRoot ? 0 : 5, paddingLeft: group.isRoot ? 0 : 6 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: group.isRoot ? 0 : 10, paddingLeft: group.isRoot ? 0 : 10 }}>
                     {group.rows.map(({ item: it, idx, videoNumber }) => {
                       const expanded = expandedVideoIdx.has(idx);
                       const active = videoNumber === curIdx;
                       return (
                         <div key={idx}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 6px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: active ? C.surface2 : "transparent", border: `1px solid ${active ? C.border : "transparent"}` }}>
-                            <button onClick={() => onSelect(videoNumber)} title="Pilih video ini" style={{ width: 20, height: 20, borderRadius: "50%", border: `1px solid ${C.border}`, background: "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
-                              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: C.muted }}>{videoNumber + 1}</span>
-                            </button>
-                            <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                              <button onClick={() => moveItem(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 0, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={10} color={C.muted} /></button>
-                              <button onClick={() => moveItem(idx, "down")} disabled={idx === outline.length - 1} style={{ background: "none", border: "none", cursor: idx === outline.length - 1 ? "default" : "pointer", padding: 0, opacity: idx === outline.length - 1 ? 0.3 : 1 }}><ChevronDown size={10} color={C.muted} /></button>
+                          <div style={{ padding: "12px 12px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: active ? C.surface2 : C.bg, border: `1px solid ${active ? C.gold : C.border}`, display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <button onClick={() => onSelect(videoNumber)} title="Pilih video ini" style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${C.border}`, background: "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
+                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>{videoNumber + 1}</span>
+                              </button>
+                              <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                                <button onClick={() => moveItem(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 3, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={13} color={C.muted} /></button>
+                                <button onClick={() => moveItem(idx, "down")} disabled={idx === outline.length - 1} style={{ background: "none", border: "none", cursor: idx === outline.length - 1 ? "default" : "pointer", padding: 3, opacity: idx === outline.length - 1 ? 0.3 : 1 }}><ChevronDown size={13} color={C.muted} /></button>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
+                                <EditableText value={it.title} admin onSave={(v) => updateItem(idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }} />
+                              </div>
+                              {!it.url && <span title="Link video belum diisi" style={{ width: 7, height: 7, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
                             </div>
-                            <EditableText value={it.title} admin onSave={(v) => updateItem(idx, "title", v)} tag="span" style={{ flex: 1, minWidth: 0, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.text }} />
-                            {!it.url && <span title="Link video belum diisi" style={{ width: 6, height: 6, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
-                            <button onClick={() => toggleVideoExpand(idx)} title="Link, deskripsi & durasi" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 3, flexShrink: 0, display: "flex" }}>
-                              {expanded ? <ChevronUp size={11} color={C.muted} /> : <ChevronDown size={11} color={C.muted} />}
-                            </button>
-                            <button onClick={() => insertVideoAfter(idx)} title="Sisipkan video setelah ini" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Plus size={12} color={C.mutedDark} /></button>
-                            <button onClick={() => removeItem(idx)} title="Hapus video" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={12} color={C.mutedDark} /></button>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+                              <button onClick={() => toggleVideoExpand(idx)} title="Link, deskripsi & durasi" style={{ ...iconBtnStyle, flex: "0 1 auto", gap: 6, paddingLeft: 10, paddingRight: 10, width: "auto" }}>
+                                {expanded ? <ChevronUp size={13} color={C.muted} /> : <ChevronDown size={13} color={C.muted} />}
+                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Detail</span>
+                              </button>
+                              <button onClick={() => insertVideoAfter(idx)} title="Sisipkan video setelah ini" style={iconBtnStyle}><Plus size={14} color={C.mutedDark} /></button>
+                              <button onClick={() => removeItem(idx)} title="Hapus video" style={iconBtnStyle}><Trash2 size={14} color={C.mutedDark} /></button>
+                            </div>
                           </div>
                           {expanded && (
-                            <div style={{ padding: "7px 8px 8px", borderRadius: "0 0 8px 8px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 6 }}>
-                              <div>
-                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Link video (YouTube/Vimeo/dll)</span>
-                                <EditableText value={it.url || ""} admin onSave={(v) => updateItem(idx, "url", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: it.url ? C.text : C.mutedDark }} />
+                            <div style={{ padding: "14px 12px", borderRadius: "0 0 10px 10px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 14 }}>
+                              <div style={{ position: "relative", paddingRight: 26 }}>
+                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Link video (YouTube/Vimeo/dll)</span>
+                                <EditableText value={it.url || ""} admin onSave={(v) => updateItem(idx, "url", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.url ? C.text : C.mutedDark, wordBreak: "break-all" }} />
                               </div>
-                              <div>
-                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Deskripsi singkat</span>
-                                <EditableText value={it.desc || ""} admin onSave={(v) => updateItem(idx, "desc", v)} tag="div" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: it.desc ? C.text : C.mutedDark }} />
+                              <div style={{ position: "relative", paddingRight: 26 }}>
+                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Deskripsi singkat</span>
+                                <EditableText value={it.desc || ""} admin onSave={(v) => updateItem(idx, "desc", v)} tag="div" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.desc ? C.text : C.mutedDark }} />
                               </div>
-                              <div>
-                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, color: C.mutedDark }}>Durasi (mis. 12:30)</span>
-                                <EditableText value={it.duration || ""} admin onSave={(v) => updateItem(idx, "duration", v)} tag="div" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: it.duration ? C.text : C.mutedDark }} />
+                              <div style={{ position: "relative", paddingRight: 26, maxWidth: 160 }}>
+                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Durasi (mis. 12:30)</span>
+                                <EditableText value={it.duration || ""} admin onSave={(v) => updateItem(idx, "duration", v)} tag="div" block style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: it.duration ? C.text : C.mutedDark }} />
                               </div>
                             </div>
                           )}
@@ -3918,7 +3933,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                       );
                     })}
                     {!group.isRoot && (
-                      <button onClick={() => insertVideoAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 11 }}><Plus size={11} />Video di kelompok ini</button>
+                      <button onClick={() => insertVideoAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: `1px dashed ${C.border}`, borderRadius: 8, padding: "9px 12px", cursor: "pointer", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}><Plus size={13} />Video di kelompok ini</button>
                     )}
                   </div>
                 )}
@@ -3930,10 +3945,11 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
           )}
         </div>
       </Card>
-      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
         <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Kelas / Materi</GhostBtn>
       </div>
+
     </div>
   );
 }
