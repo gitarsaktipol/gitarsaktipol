@@ -2651,12 +2651,13 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                             <Badge tone={lp.status === "published" ? "gold" : "muted"}>{lp.status === "published" ? "Aktif" : "Draft"}</Badge>
                           </div>
                           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: "4px 0 0" }}>Produk: {prod ? prod.name : "(produk tidak ditemukan)"}</p>
-                          <div style={{ marginTop: 10 }}>
-                            <GhostBtn small onClick={() => openLandingPage(lp.slug)} icon={ArrowRight}>{lp.name}</GhostBtn>
+                          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <PrimaryBtn small onClick={() => openLandingPage(lp.slug, true)} icon={Pencil}>Edit di Halaman</PrimaryBtn>
+                            <GhostBtn small onClick={() => openLandingPage(lp.slug, false)} icon={Eye}>Lihat</GhostBtn>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={() => { setEditingLp(lp); setShowLpForm(true); }} title="Edit" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Pencil size={15} color={C.muted} /></button>
+                          <button onClick={() => { setEditingLp(lp); setShowLpForm(true); }} title="Nama, produk & status" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Settings size={15} color={C.muted} /></button>
                           <button onClick={() => setDeleteLpTarget(lp)} title="Hapus" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}><Trash2 size={15} color={C.emberLight} /></button>
                         </div>
                       </div>
@@ -2958,11 +2959,19 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           products={products}
           initialLp={editingLp}
           onClose={() => { setShowLpForm(false); setEditingLp(null); }}
-          onSubmit={(form) => {
-            if (editingLp) updateLandingPage(editingLp.id, form);
-            else addLandingPage(form);
-            setShowLpForm(false);
-            setEditingLp(null);
+          onSubmit={async (form) => {
+            if (editingLp) {
+              await updateLandingPage(editingLp.id, form);
+              setShowLpForm(false);
+              setEditingLp(null);
+            } else {
+              const result = await addLandingPage(form);
+              setShowLpForm(false);
+              setEditingLp(null);
+              // Langsung lompat ke halaman aslinya dalam mode edit, biar admin bisa langsung
+              // isi judul/video/teks lain lewat pensil tanpa harus cari-cari lagi di daftar.
+              if (result.ok && result.slug) openLandingPage(result.slug, true);
+            }
           }}
         />
       )}
@@ -3441,12 +3450,12 @@ function CouponFormModal({ onClose, onSubmit }) {
 
 /* ---------------- FORM TAMBAH/EDIT LANDING PAGE ---------------- */
 function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
+  // Headline, sub-judul, video, dan badge sekarang diedit langsung di halamannya (tombol
+  // "Edit di Halaman" -> klik ikon pensil di teks/video yang mau diubah). Modal ini cuma
+  // ngurus hal yang memang harus diatur di luar halaman: nama internal, produk yang dipromosikan,
+  // dan status aktif/draft.
   const [name, setName] = useState(initialLp?.name || "");
   const [productId, setProductId] = useState(initialLp?.productId || products[0]?.id || "");
-  const [headline, setHeadline] = useState(initialLp?.headline || "");
-  const [subheadline, setSubheadline] = useState(initialLp?.subheadline || "");
-  const [videoUrl, setVideoUrl] = useState(initialLp?.videoUrl || "");
-  const [badgeText, setBadgeText] = useState(initialLp?.badgeText || "");
   const [status, setStatus] = useState(initialLp?.status || "published");
   const [error, setError] = useState("");
 
@@ -3454,17 +3463,19 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
     if (!name.trim()) { setError("Nama landing page wajib diisi."); return; }
     if (!productId) { setError("Pilih produk untuk landing page ini."); return; }
     setError("");
-    onSubmit({ name: name.trim(), productId: Number(productId), headline: headline.trim(), subheadline: subheadline.trim(), videoUrl: videoUrl.trim(), badgeText: badgeText.trim(), status });
+    onSubmit({ name: name.trim(), productId: Number(productId), status });
   };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
-      <Card style={{ width: "100%", maxWidth: 480, padding: 24 }}>
+      <Card style={{ width: "100%", maxWidth: 440, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "EDIT LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "PENGATURAN LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>Cukup isi Nama & pilih Produk — bagian lain opsional dan otomatis pakai data produk kalau dikosongkan.</p>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>
+          {initialLp ? "Judul, video, dan teks lainnya diedit langsung di halamannya lewat tombol \"Edit di Halaman\"." : "Setelah dibuat, klik \"Edit di Halaman\" untuk mengisi judul, video, dan teks lainnya langsung di tampilan aslinya."}
+        </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
@@ -3477,26 +3488,6 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
             <select value={productId} onChange={(e) => setProductId(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }}>
               {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-          </div>
-
-          <div>
-            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Judul Utama / Headline (opsional — kosongkan untuk pakai nama produk)</label>
-            <textarea value={headline} onChange={(e) => setHeadline(e.target.value)} rows={2} placeholder="Contoh: Kuasai Gitar Dalam 30 Hari, Dijamin!" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
-          </div>
-
-          <div>
-            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Sub-judul (opsional — kosongkan untuk pakai deskripsi produk)</label>
-            <textarea value={subheadline} onChange={(e) => setSubheadline(e.target.value)} rows={2} placeholder="Kalimat pendukung di bawah judul utama" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
-          </div>
-
-          <div>
-            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Video YouTube (opsional)</label>
-            <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
-          </div>
-
-          <div>
-            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Teks Badge Kecil di Atas Judul (opsional)</label>
-            <input value={badgeText} onChange={(e) => setBadgeText(e.target.value)} placeholder="Contoh: Promo Spesial Kemerdekaan" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
           </div>
 
           <div>
@@ -3777,8 +3768,130 @@ const LP_GENERIC_FAQ = [
   { q: "Kalau saya belum ngerti materinya gimana?", a: "Kamu bisa ulang-ulang video sampai benar-benar paham, materinya tidak akan hilang." },
 ];
 
+// Semua teks "marketing copy" landing page yang dulunya generik/hardcode, sekarang bisa ditimpa
+// per-halaman lewat kolom extra (jsonb) -- ini nilai baku kalau belum pernah diedit.
+const LP_EXTRA_DEFAULTS = {
+  ctaText: "Ya, Saya Mau Belajar Sekarang",
+  heroNote: "Akses langsung setelah pembayaran",
+  problemTitle: "Belajar Sendiri Itu ||Sering Bikin Stuck?",
+  problemSubtitle: "Mari kita jujur sama diri sendiri...",
+  problems: LP_GENERIC_PROBLEMS,
+  quoteText: "\u201CKamu latihan KERAS, tapi bukan latihan dengan CARA yang benar.\u201D",
+  comparisonHighlight: "Cara Lain",
+  testimonialTitle: "Kata Mereka yang Sudah ||Merasakan Manfaatnya",
+  bonusHeading: "Nilai Lebih yang Kamu Dapatkan",
+  faqTitle: "Masih Ragu? ||Ini Jawabannya",
+  faq: LP_GENERIC_FAQ,
+  closingTitle: "Masih Mau ||Belajar Sendirian Tanpa Arah?",
+  closingSubtitle: "Atau kamu mau mulai belajar dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?",
+  closingCtaText: "Ya, Saya Mau Mulai Sekarang",
+  closingFooterNote: "Bergabung dengan pelajar gitar lainnya di Gitar Sakti",
+};
+
+// Judul dua-warna (mis. "Belajar Sendiri Itu SERING BIKIN STUCK?") disimpan sebagai 1 string
+// dengan pemisah "||" -- bagian setelah "||" otomatis ditampilkan warna emas. Dibuat terpisah
+// dari EditableText biasa karena butuh tampilan baca yang custom (dua warna), bukan teks polos.
+function LpTwoToneText({ value, onSave, admin, tag = "h2", style }) {
+  const Tag = tag;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+
+  const renderTwoTone = (text) => {
+    const parts = String(text || "").split("||");
+    return <>{parts[0]}{parts[1] ? <span style={{ color: C.goldLight }}>{parts[1]}</span> : null}</>;
+  };
+
+  if (!admin) return <Tag style={style}>{renderTwoTone(value)}</Tag>;
+
+  if (editing) {
+    return (
+      <span style={{ display: "block", margin: "2px 0", maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Teks judul || bagian ini jadi warna emas"
+          style={{ width: "100%", background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6, padding: "7px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box", textAlign: "center" }}
+        />
+        <span style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center" }}>
+          <button onClick={() => { onSave(draft); setEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
+          <button onClick={() => { setDraft(value); setEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
+        </span>
+        <span style={{ display: "block", textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, marginTop: 4 }}>Tulis "||" sebelum bagian yang mau ditampilkan warna emas.</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="gs-editable" style={{ position: "relative", display: "block" }}>
+      <Tag style={style}>{renderTwoTone(value)}</Tag>
+      <button onClick={() => setEditing(true)} className="gs-edit-pencil" title="Edit judul ini" style={{ position: "absolute", bottom: -8, right: "calc(50% - 60px)", width: 22, height: 22, borderRadius: 6, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.45)", zIndex: 5 }}>
+        <Pencil size={11} color="#161019" />
+      </button>
+    </span>
+  );
+}
+
+// Overlay pensil buat ganti link video preview langsung di tempat -- tidak pakai EditableText
+// biasa karena isinya bukan teks tapi player video (iframe/thumbnail).
+function LpVideoEditable({ url, onSave, admin, children }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(url);
+  useEffect(() => { if (!editing) setDraft(url); }, [url, editing]);
+  if (!admin) return children;
+  return (
+    <div>
+      <div className="gs-editable" style={{ position: "relative" }}>
+        {children}
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="gs-edit-pencil" title="Ganti link video" style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: 8, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", zIndex: 6, opacity: 1 }}>
+            <Pencil size={14} color="#161019" />
+          </button>
+        )}
+      </div>
+      {editing && (
+        <div style={{ marginTop: 10, marginBottom: 20, padding: 12, borderRadius: 10, background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ flex: 1, minWidth: 200, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+          <button onClick={() => { onSave(draft); setEditing(false); }} style={{ background: C.gold, border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12, color: "#161019" }}><Check size={13} />Simpan</button>
+          <button onClick={() => { setDraft(url); setEditing(false); }} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12, color: C.muted }}><X size={13} />Batal</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Label tombol (CTA) juga bisa diedit langsung, tapi kontrol editnya sengaja diletakkan DI LUAR
+// elemen <button> aslinya (bukan di-nest di dalamnya) supaya tetap HTML yang valid dan supaya
+// klik pensil/simpan/batal tidak ikut memicu aksi tombolnya (mis. scroll ke harga).
+function LpEditableButtonLabel({ value, onSave, admin, children }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+  if (!admin) return children;
+  return (
+    <span style={{ display: "inline-block" }}>
+      <span className="gs-editable" style={{ position: "relative", display: "inline-block" }}>
+        {children}
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="gs-edit-pencil" title="Edit teks tombol" style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 6, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.45)", zIndex: 5 }}>
+            <Pencil size={11} color="#161019" />
+          </button>
+        )}
+      </span>
+      {editing && (
+        <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+          <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} style={{ background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6, padding: "6px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box", minWidth: 180 }} />
+          <button onClick={() => { onSave(draft); setEditing(false); }} style={{ background: C.gold, border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
+          <button onClick={() => { setDraft(value); setEditing(false); }} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
+        </div>
+      )}
+    </span>
+  );
+}
+
 /* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
-function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds }) {
+function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
   const p = products.find((x) => x.id === lp?.productId);
 
   if (!lp || !p) {
@@ -3798,6 +3911,23 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const subheadline = lp.subheadline || p.desc;
   const badgeText = lp.badgeText || "Metode Latihan Yang Sudah Teruji";
   const videoUrl = lp.videoUrl || "";
+
+  // Mode edit langsung di halaman: cuma aktif buat admin yang memang menyalakan "Mode Edit"
+  // (lewat tombol di bar atas). Pengunjung biasa dan admin yang lagi "Lihat" saja tidak pernah
+  // melihat ikon pensil ini -- tampilannya identik dengan yang dilihat calon pembeli.
+  const admin = role === "admin" && !!lpEditMode;
+  const extra = lp.extra || {};
+  const getExtra = (key) => (extra[key] !== undefined && extra[key] !== null ? extra[key] : LP_EXTRA_DEFAULTS[key]);
+  const saveCore = (field) => (value) => onSaveLp && onSaveLp(lp.id, { [field]: value });
+  const saveExtra = (field) => (value) => onSaveLp && onSaveLp(lp.id, { extra: { ...extra, [field]: value } });
+  const problemItems = getExtra("problems") || [];
+  const updateProblemItem = (idx, patch) => saveExtra("problems")(problemItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addProblemItem = () => saveExtra("problems")([...problemItems, { title: "Masalah Baru", desc: "Jelaskan masalah yang sering dialami calon pembeli di sini." }]);
+  const removeProblemItem = (idx) => saveExtra("problems")(problemItems.filter((_, i) => i !== idx));
+  const faqItems = getExtra("faq") || [];
+  const updateFaqItem = (idx, patch) => saveExtra("faq")(faqItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addFaqItem = () => saveExtra("faq")([...faqItems, { q: "Pertanyaan baru?", a: "Jawaban untuk pertanyaan ini." }]);
+  const removeFaqItem = (idx) => saveExtra("faq")(faqItems.filter((_, i) => i !== idx));
 
   useEffect(() => {
     // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
@@ -3879,6 +4009,26 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
   return (
     <div style={{ background: C.bg, minHeight: "100%" }}>
+      {/* Bar mode-edit -- cuma admin yang lihat, tidak pernah tampil ke calon pembeli */}
+      {role === "admin" && (
+        <div style={{ position: "sticky", top: 0, zIndex: 60, background: "#1a1420", borderBottom: `1px solid ${admin ? C.gold : C.borderSoft}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={goToAdmin} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+            <ArrowLeft size={14} />Kembali ke Admin <span style={{ color: C.mutedDark }}>· {lp.name}</span>
+          </button>
+          <button
+            onClick={() => setLpEditMode && setLpEditMode(!lpEditMode)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: admin ? C.gold : "none", border: `1px solid ${admin ? C.gold : C.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: admin ? "#161019" : C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5 }}
+          >
+            <Pencil size={13} />{admin ? "Mode Edit: ON" : "Mode Edit"}
+          </button>
+        </div>
+      )}
+      {admin && (
+        <div style={{ background: `${C.gold}14`, borderBottom: `1px solid ${C.gold}33`, padding: "8px 16px", textAlign: "center" }}>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.goldLight }}>Arahkan kursor ke teks/video mana pun lalu klik ikon pensil ✎ untuk edit langsung di tempat.</span>
+        </div>
+      )}
+
       {/* top bar minimal, tanpa menu navigasi supaya fokus konversi */}
       <div style={{ borderBottom: `1px solid ${C.borderSoft}`, padding: "14px 20px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -3893,53 +4043,76 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px 8px" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: C.surface2, border: `1px solid ${C.gold}55`, color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
-            <Sparkles size={14} /> {badgeText}
+            <Sparkles size={14} />
+            <EditableText value={badgeText} admin={admin} onSave={saveCore("badgeText")} tag="span" />
           </span>
         </div>
 
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, lineHeight: 1.12, letterSpacing: 0.3, color: C.text, textAlign: "center", margin: "0 0 14px" }}>
-          {headline}
-        </h1>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, color: C.muted, textAlign: "center", maxWidth: 480, margin: "0 auto 26px", lineHeight: 1.65 }}>
-          {subheadline}
-        </p>
+        <EditableText
+          value={headline}
+          admin={admin}
+          onSave={saveCore("headline")}
+          tag="h1"
+          block
+          style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, lineHeight: 1.12, letterSpacing: 0.3, color: C.text, textAlign: "center", margin: "0 0 14px" }}
+        />
+        <EditableText
+          value={subheadline}
+          admin={admin}
+          onSave={saveCore("subheadline")}
+          tag="p"
+          area
+          block
+          style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, color: C.muted, textAlign: "center", maxWidth: 480, margin: "0 auto 26px", lineHeight: 1.65 }}
+        />
 
-        {videoUrl ? (
-          toEmbedUrl(videoUrl) ? (
-            <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})` }}>
-              <iframe
-                key={videoUrl}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                src={toAutoplayEmbedUrl(videoUrl)}
-                title={`Video preview ${p.name}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-          ) : (
-            // URL yang dimasukkan bukan link YouTube/Vimeo yang dikenali -> tetap tampilkan
-            // sebagai link keluar biasa daripada iframe kosong yang tidak akan pernah autoplay.
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
-            >
-              <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                  <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
-                  </div>
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview ↗</span>
-                </div>
+        <LpVideoEditable url={videoUrl} admin={admin} onSave={saveCore("videoUrl")}>
+          {videoUrl ? (
+            toEmbedUrl(videoUrl) ? (
+              <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})` }}>
+                <iframe
+                  key={videoUrl}
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                  src={toAutoplayEmbedUrl(videoUrl)}
+                  title={`Video preview ${p.name}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
               </div>
-            </a>
-          )
-        ) : null}
+            ) : (
+              // URL yang dimasukkan bukan link YouTube/Vimeo yang dikenali -> tetap tampilkan
+              // sebagai link keluar biasa daripada iframe kosong yang tidak akan pernah autoplay.
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24 }}
+              >
+                <div style={{ position: "relative", paddingTop: "56.25%", background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex" }}>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                    <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${C.goldLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <PlayCircle size={30} color={C.goldLight} strokeWidth={1.2} />
+                    </div>
+                    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>Tonton video preview ↗</span>
+                  </div>
+                </div>
+              </a>
+            )
+          ) : admin ? (
+            <div style={{ borderRadius: 16, border: `1px dashed ${C.border}`, marginBottom: 24, padding: "36px 20px", textAlign: "center", background: C.surface2 }}>
+              <PlayCircle size={26} color={C.mutedDark} style={{ marginBottom: 8 }} />
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: 0 }}>Belum ada video preview — klik ikon pensil di kanan atas untuk menambahkan link YouTube/Vimeo.</p>
+            </div>
+          ) : null}
+        </LpVideoEditable>
 
         <div style={{ textAlign: "center" }}>
-          <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Mau Belajar Sekarang</PrimaryBtn>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 10 }}>Akses langsung setelah pembayaran</p>
+          <LpEditableButtonLabel value={getExtra("ctaText")} admin={admin} onSave={saveExtra("ctaText")}>
+            <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>{getExtra("ctaText")}</PrimaryBtn>
+          </LpEditableButtonLabel>
+          <div style={{ marginTop: 10 }}>
+            <EditableText value={getExtra("heroNote")} admin={admin} onSave={saveExtra("heroNote")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, margin: 0 }} />
+          </div>
         </div>
       </div>
 
@@ -3947,30 +4120,42 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 30 }}>
-            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }}>
-              Belajar Sendiri Itu <span style={{ color: C.goldLight }}>Sering Bikin Stuck?</span>
-            </h2>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 8 }}>Mari kita jujur sama diri sendiri...</p>
+            <LpTwoToneText value={getExtra("problemTitle")} admin={admin} onSave={saveExtra("problemTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }} />
+            <div style={{ marginTop: 8 }}>
+              <EditableText value={getExtra("problemSubtitle")} admin={admin} onSave={saveExtra("problemSubtitle")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0 }} />
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {LP_GENERIC_PROBLEMS.map((item) => (
-              <Card key={item.title} style={{ padding: 18 }}>
+            {problemItems.map((item, idx) => (
+              <Card key={idx} style={{ padding: 18, position: "relative" }}>
                 <div style={{ display: "flex", gap: 14 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.ember}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <X size={17} color={C.emberLight} />
                   </div>
-                  <div>
-                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14.5, color: C.text, margin: "0 0 4px" }}>{item.title}</h3>
-                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.55 }}>{item.desc}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <EditableText value={item.title} admin={admin} onSave={(v) => updateProblemItem(idx, { title: v })} tag="h3" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14.5, color: C.text, margin: "0 0 4px" }} />
+                    <EditableText value={item.desc} admin={admin} onSave={(v) => updateProblemItem(idx, { desc: v })} tag="p" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.55 }} />
                   </div>
+                  {admin && problemItems.length > 1 && (
+                    <button onClick={() => removeProblemItem(idx)} title="Hapus poin ini" style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={14} color={C.mutedDark} /></button>
+                  )}
                 </div>
               </Card>
             ))}
+            {admin && (
+              <div><GhostBtn small onClick={addProblemItem} icon={Plus}>Tambah Poin Masalah</GhostBtn></div>
+            )}
           </div>
           <div style={{ marginTop: 26, padding: 18, borderRadius: 12, background: `${C.gold}12`, borderLeft: `2px solid ${C.gold}` }}>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, color: C.text, fontStyle: "italic", margin: 0 }}>
-              "Kamu latihan KERAS, tapi bukan latihan dengan CARA yang benar."
-            </p>
+            <EditableText
+              value={getExtra("quoteText")}
+              admin={admin}
+              onSave={saveExtra("quoteText")}
+              tag="p"
+              area
+              block
+              style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, color: C.text, fontStyle: "italic", margin: 0 }}
+            />
           </div>
         </div>
       </div>
@@ -4011,9 +4196,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
       {/* TESTIMONI — ulasan asli dari pembeli yang sudah memiliki produk ini */}
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", marginBottom: 26 }}>
-          Kata Mereka yang Sudah <span style={{ color: C.goldLight }}>Merasakan Manfaatnya</span>
-        </h2>
+        <div style={{ marginBottom: 26 }}>
+          <LpTwoToneText value={getExtra("testimonialTitle")} admin={admin} onSave={saveExtra("testimonialTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+        </div>
         <TestimonialSection
           productId={p.id}
           owned={owned}
@@ -4026,9 +4211,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* PERBANDINGAN */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", marginBottom: 24 }}>
-            {p.name} vs <span style={{ color: C.goldLight }}>Cara Lain</span>
-          </h2>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text }}>{p.name} vs </span>
+            <EditableText value={getExtra("comparisonHighlight")} admin={admin} onSave={saveExtra("comparisonHighlight")} tag="span" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.goldLight }} />
+          </div>
           <Card style={{ overflow: "auto", padding: 0 }}>
             <table style={{ width: "100%", minWidth: 420, borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
               <thead>
@@ -4065,7 +4251,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <Badge tone="gold">BONUS SPESIAL</Badge>
-            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "12px 0 0" }}>Nilai Lebih yang Kamu Dapatkan</h2>
+            <div style={{ marginTop: 12 }}>
+              <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }} />
+            </div>
           </div>
           <Card style={{ padding: 18, display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -4138,24 +4326,41 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
       {/* FAQ */}
       <div style={{ maxWidth: 620, margin: "0 auto", padding: "44px 20px" }}>
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", marginBottom: 22 }}>
-          Masih Ragu? <span style={{ color: C.goldLight }}>Ini Jawabannya</span>
-        </h2>
+        <div style={{ marginBottom: 22 }}>
+          <LpTwoToneText value={getExtra("faqTitle")} admin={admin} onSave={saveExtra("faqTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {LP_GENERIC_FAQ.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)}
+          {admin ? (
+            faqItems.map((f, i) => (
+              <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", position: "relative", background: C.surface }}>
+                <EditableText value={f.q} admin onSave={(v) => updateFaqItem(i, { q: v })} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 6, paddingRight: 24 }} />
+                <EditableText value={f.a} admin onSave={(v) => updateFaqItem(i, { a: v })} tag="p" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: 0, paddingRight: 24 }} />
+                {faqItems.length > 1 && (
+                  <button onClick={() => removeFaqItem(i)} title="Hapus pertanyaan ini" style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={14} color={C.mutedDark} /></button>
+                )}
+              </div>
+            ))
+          ) : (
+            faqItems.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)
+          )}
+          {admin && (
+            <div><GhostBtn small onClick={addFaqItem} icon={Plus}>Tambah Pertanyaan</GhostBtn></div>
+          )}
         </div>
       </div>
 
       {/* CTA PENUTUP */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface, padding: "44px 20px 20px", textAlign: "center" }}>
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "0 0 12px" }}>
-          Masih Mau <span style={{ color: C.goldLight }}>Belajar Sendirian Tanpa Arah?</span>
-        </h2>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 380, margin: "0 auto 22px", lineHeight: 1.6 }}>
-          Atau kamu mau mulai belajar dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?
-        </p>
-        <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>Ya, Saya Mau Mulai Sekarang</PrimaryBtn>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 14 }}>Bergabung dengan pelajar gitar lainnya di Gitar Sakti</p>
+        <LpTwoToneText value={getExtra("closingTitle")} admin={admin} onSave={saveExtra("closingTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "0 0 12px" }} />
+        <div style={{ maxWidth: 380, margin: "0 auto 22px" }}>
+          <EditableText value={getExtra("closingSubtitle")} admin={admin} onSave={saveExtra("closingSubtitle")} tag="p" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: 0 }} />
+        </div>
+        <LpEditableButtonLabel value={getExtra("closingCtaText")} admin={admin} onSave={saveExtra("closingCtaText")}>
+          <PrimaryBtn onClick={scrollToPricing} icon={ArrowRight}>{getExtra("closingCtaText")}</PrimaryBtn>
+        </LpEditableButtonLabel>
+        <div style={{ marginTop: 14 }}>
+          <EditableText value={getExtra("closingFooterNote")} admin={admin} onSave={saveExtra("closingFooterNote")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, margin: 0 }} />
+        </div>
       </div>
 
       <div style={{ padding: "20px 20px 40px", textAlign: "center" }}>
@@ -4236,6 +4441,9 @@ export default function App() {
     return "home";
   });
   const [lpSlug, setLpSlug] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("halaman") : null));
+  // Mode edit khusus landing page: begitu admin klik "Edit di Halaman", halaman ini dibuka apa
+  // adanya (sama persis dengan yang dilihat pengunjung) tapi tiap teks/video dikasih ikon pensil.
+  const [lpEditMode, setLpEditMode] = useState(false);
   const [landingPages, setLandingPages] = useState([]);
   const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
@@ -4370,6 +4578,11 @@ export default function App() {
         id: l.id, slug: l.slug, name: l.name, productId: l.product_id,
         headline: l.headline, subheadline: l.subheadline, videoUrl: l.video_url,
         badgeText: l.badge_text, status: l.status, visits: l.visits || 0, orderClicks: l.order_clicks || 0,
+        // Kolom "extra" (jsonb) nampung semua teks tambahan yang bisa diedit langsung di halaman
+        // (judul & isi section masalah, quote, FAQ, penutup, dst). Kalau kolomnya belum ada di
+        // database (migrasi belum dijalankan), l.extra bakal undefined -> jatuh ke {} dengan aman,
+        // dan LandingPageTemplate akan pakai teks generik bawaan.
+        extra: l.extra || {},
       })));
     }
   };
@@ -4588,8 +4801,9 @@ export default function App() {
   // Buka landing page tertentu lewat slug-nya. URL address bar ikut berubah jadi ?halaman=slug
   // supaya link ini bisa dipakai langsung di iklan (Instagram/Facebook Ads dll) dan tetap
   // terbuka ke landing page yang benar meski halaman di-refresh atau dibuka di tab baru.
-  const openLandingPage = (slug) => {
+  const openLandingPage = (slug, editMode) => {
     setLpSlug(slug);
+    setLpEditMode(!!editMode);
     setView("lp");
     setMobileOpen(false);
     window.scrollTo?.({ top: 0, behavior: "instant" });
@@ -4869,19 +5083,26 @@ export default function App() {
       slug, name: form.name, product_id: form.productId,
       headline: form.headline || "", subheadline: form.subheadline || "",
       video_url: form.videoUrl || "", badge_text: form.badgeText || "",
-      status: "published",
+      status: form.status || "published",
     });
     fetchLandingPages();
     return { ok: !error, error: error?.message, slug };
   };
   const updateLandingPage = async (id, form) => {
-    await supabase.from("landing_pages").update({
-      name: form.name, product_id: form.productId,
-      headline: form.headline || "", subheadline: form.subheadline || "",
-      video_url: form.videoUrl || "", badge_text: form.badgeText || "",
-      status: form.status || "published",
-    }).eq("id", id);
+    // Kolom biasa (headline/subheadline/dst) dan patch parsial dari edit-inline di halaman
+    // (mis. cuma { extra: {...} } saja waktu isi 1 field lewat pensil) sama-sama lewat sini.
+    const payload = {};
+    if (form.name !== undefined) payload.name = form.name;
+    if (form.productId !== undefined) payload.product_id = form.productId;
+    if (form.status !== undefined) payload.status = form.status;
+    if (form.headline !== undefined) payload.headline = form.headline || "";
+    if (form.subheadline !== undefined) payload.subheadline = form.subheadline || "";
+    if (form.videoUrl !== undefined) payload.video_url = form.videoUrl || "";
+    if (form.badgeText !== undefined) payload.badge_text = form.badgeText || "";
+    if (form.extra !== undefined) payload.extra = form.extra;
+    const { error } = await supabase.from("landing_pages").update(payload).eq("id", id);
     fetchLandingPages();
+    return { ok: !error, error: error?.message };
   };
   const deleteLandingPage = async (id) => {
     await supabase.from("landing_pages").delete().eq("id", id);
@@ -4966,7 +5187,7 @@ export default function App() {
       {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} goToCustomerOverview={goToCustomerOverview} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onBack={onBack} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} />}
+      {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
