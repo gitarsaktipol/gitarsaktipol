@@ -3961,6 +3961,45 @@ function LpEditableButtonLabel({ value, onSave, admin, children }) {
   );
 }
 
+// Badge status promo (mis. "Harga Spesial Pendiri — sisa 99 dari 100 slot") -- yang tampil ke
+// pengunjung sudah otomatis diisi angka aslinya (displayValue), tapi yang diedit adalah kalimat
+// MENTAH dengan placeholder {sisa}/{total} (rawValue) supaya tetap otomatis setelah disimpan.
+function LpTemplateBadge({ displayValue, rawValue, onSave, admin, style }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(rawValue);
+  useEffect(() => { if (!editing) setDraft(rawValue); }, [rawValue, editing]);
+  if (!admin) return <span style={style}>{displayValue}</span>;
+
+  if (editing) {
+    return (
+      <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 6, maxWidth: 420 }}>
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          style={{ width: "100%", background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 8, padding: "8px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box", textAlign: "center" }}
+        />
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark }}>
+          Pakai <b>{"{sisa}"}</b> & <b>{"{total}"}</b> supaya jumlah slot tetap otomatis update.
+        </span>
+        <span style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => { onSave(draft); setEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
+          <button onClick={() => { setDraft(rawValue); setEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="gs-editable" style={{ position: "relative", display: "inline-block" }}>
+      <span style={style}>{displayValue}</span>
+      <button onClick={() => setEditing(true)} className="gs-edit-pencil" title="Edit kalimat ini" style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 6, background: C.gold, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.45)", zIndex: 5 }}>
+        <Pencil size={11} color="#161019" />
+      </button>
+    </span>
+  );
+}
+
 /* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
 function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
   const p = products.find((x) => x.id === lp?.productId);
@@ -4065,7 +4104,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   // harga lain. Slot dihitung dari p.sold ASLI (bertambah tiap transaksi sukses beneran, dari
   // seluruh landing page produk ini), jadi begitu 100 orang checkout, slotnya beneran habis untuk
   // semua orang, bukan cuma berkurang tampilan di layar.
-  let currentPrice, anchorPrice, disc, tierNote, expired, founderSlotsLeft, timeLeft, hh, mm, ss;
+  let currentPrice, anchorPrice, disc, tierNote, tierNoteKey, expired, founderSlotsLeft, promoActive, timeLeft, hh, mm, ss;
   if (hasTiers) {
     expired = deadline !== null && now >= deadline;
     timeLeft = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
@@ -4073,21 +4112,28 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
     ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
     founderSlotsLeft = Math.max(0, (promo.founderSlots || 0) - (p.sold || 0));
-    const promoActive = !expired && founderSlotsLeft > 0;
+    // Promo aktif HANYA kalau slot masih ada DAN waktunya belum habis -- dua-duanya. Begitu
+    // salah satu habis duluan, promoActive langsung false, jadi countdown-nya ikut disembunyikan
+    // (bukan cuma teksnya yang berubah tapi timer-nya tetap jalan seolah masih ada promo).
+    promoActive = !expired && founderSlotsLeft > 0;
     if (promoActive) {
       currentPrice = promo.founderPrice;
+      tierNoteKey = "promoActiveNote";
       tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", promo.founderSlots);
     } else {
       currentPrice = p.price;
-      tierNote = expired ? getExtra("promoExpiredTimeNote") : getExtra("promoExpiredSlotNote");
+      tierNoteKey = expired ? "promoExpiredTimeNote" : "promoExpiredSlotNote";
+      tierNote = getExtra(tierNoteKey);
     }
     anchorPrice = p.price;
     disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
   } else {
     expired = true; // tanpa promo, langsung tampil harga apa adanya
+    promoActive = false;
     currentPrice = p.price;
     anchorPrice = p.oldPrice && p.oldPrice > p.price ? p.oldPrice : p.price;
     disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
+    tierNoteKey = "promoOffNote";
     tierNote = getExtra("promoOffNote");
   }
 
@@ -4404,13 +4450,23 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div id="lp-pricing" style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
-              {tierNote}
-            </span>
+            {admin ? (
+              <LpTemplateBadge
+                displayValue={tierNote}
+                rawValue={getExtra(tierNoteKey)}
+                onSave={saveExtra(tierNoteKey)}
+                admin={admin}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}
+              />
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+                {tierNote}
+              </span>
+            )}
             {admin && (
               <div style={{ marginTop: 8 }}>
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, fontStyle: "italic" }}>
-                  Teks di atas otomatis berganti tergantung status promo — edit kalimatnya lewat "Edit Promo" di Pengaturan Landing Page.
+                  Klik pensil di atas untuk edit kalimat ini — kata "Pendiri" cuma istilah pemasaran untuk "pembeli pertama", boleh diganti bebas. Pakai {"{sisa}"} & {"{total}"} kalau mau tetap otomatis menampilkan sisa slot.
                 </span>
               </div>
             )}
@@ -4418,7 +4474,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "26px 24px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
-              {hasTiers && !expired ? (
+              {hasTiers && promoActive ? (
                 <>
                   <div style={{ marginBottom: 8 }}>
                     <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }} />
@@ -4431,9 +4487,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                 </div>
               ) : null}
               <EditableText
-                value={getExtra(hasTiers && expired ? "promoNormalPriceLabel" : "promoActivePriceLabel")}
+                value={getExtra(promoActive ? "promoActivePriceLabel" : "promoNormalPriceLabel")}
                 admin={admin}
-                onSave={saveExtra(hasTiers && expired ? "promoNormalPriceLabel" : "promoActivePriceLabel")}
+                onSave={saveExtra(promoActive ? "promoActivePriceLabel" : "promoNormalPriceLabel")}
                 tag="span"
                 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text }}
               />
