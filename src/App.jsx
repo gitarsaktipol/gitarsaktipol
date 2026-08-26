@@ -3048,20 +3048,37 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const [learn, setLearn] = useState(initialProduct?.learn && initialProduct.learn.length > 0 ? initialProduct.learn : [""]);
   const [benefits, setBenefits] = useState(initialProduct?.benefits && initialProduct.benefits.length > 0 ? initialProduct.benefits : [""]);
   const [bonus, setBonus] = useState(initialProduct?.bonus || "");
-  const [items, setItems] = useState(
+  // Tiap baris materi dikasih id stabil (bukan cuma index) supaya status buka/tutup kelompok
+  // dan status expand detail video tidak berantakan waktu urutan diubah/disisipi baris baru.
+  const idCounterRef = useRef(0);
+  const genId = () => `it${Date.now()}_${idCounterRef.current++}`;
+  const [items, setItems] = useState(() =>
     initialItems && initialItems.length > 0
       ? initialItems.map((it) => it.type === "section"
-          ? { type: "section", title: it.title || "" }
-          : { type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
-      : [{ type: "video", title: "", desc: "", url: "", duration: "" }]
+          ? { id: genId(), type: "section", title: it.title || "" }
+          : { id: genId(), type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
+      : [{ id: genId(), type: "video", title: "", desc: "", url: "", duration: "" }]
   );
   const [error, setError] = useState("");
+
+  // Materi dikelompokkan per Judul Materi (accordion) supaya kursus dengan puluhan video
+  // tidak bikin halaman ini memanjang tanpa batas. Default: kelompok otomatis ditutup kalau
+  // videonya sudah cukup banyak (>8), biar yang kebuka cuma yang lagi dikerjakan.
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    if (items.filter((it) => it.type === "video").length <= 8) return new Set();
+    const s = new Set();
+    items.forEach((it) => { if (it.type === "section") s.add(it.id); });
+    return s;
+  });
+  // Detail tiap video (link/deskripsi/durasi) disembunyikan by default -- ini yang paling
+  // makan tempat -- dan baru muncul saat baris videonya dibuka.
+  const [expandedVideoIds, setExpandedVideoIds] = useState(() => new Set());
 
   const updateVideo = (idx, field, value) => {
     setItems((list) => list.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
   };
-  const addVideoRow = () => setItems((list) => [...list, { type: "video", title: "", desc: "", url: "", duration: "" }]);
-  const addSectionRow = () => setItems((list) => [...list, { type: "section", title: "" }]);
+  const addVideoRow = () => setItems((list) => [...list, { id: genId(), type: "video", title: "", desc: "", url: "", duration: "" }]);
+  const addSectionRow = () => setItems((list) => [...list, { id: genId(), type: "section", title: "" }]);
   const removeItemRow = (idx) => setItems((list) => list.filter((_, i) => i !== idx));
   const moveItemRow = (idx, direction) => setItems((list) => {
     const newIdx = direction === "up" ? idx - 1 : idx + 1;
@@ -3070,6 +3087,56 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
     [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
     return copy;
   });
+  const insertItemAt = (idx, newItem) => setItems((list) => {
+    const copy = list.slice();
+    copy.splice(idx, 0, newItem);
+    return copy;
+  });
+  // Tombol "+" di samping tiap baris/kelompok -- cara cepat nyisipin video/judul baru persis
+  // di posisi itu, tanpa harus scroll ke bawah lalu urutkan ulang manual.
+  const insertVideoAfter = (idx, sectionKey) => {
+    const newItem = { id: genId(), type: "video", title: "", desc: "", url: "", duration: "" };
+    insertItemAt(idx + 1, newItem);
+    setExpandedVideoIds((prev) => new Set(prev).add(newItem.id));
+    if (sectionKey && sectionKey !== "__root__") {
+      setCollapsedSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
+    }
+  };
+  const insertSectionAfter = (idx) => insertItemAt(idx + 1, { id: genId(), type: "section", title: "" });
+  const toggleSection = (key) => setCollapsedSections((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const toggleVideoExpand = (id) => setExpandedVideoIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const totalVideoCount = items.filter((it) => it.type === "video").length;
+  const totalSectionCount = items.filter((it) => it.type === "section").length;
+  const hasSections = totalSectionCount > 0;
+  // Kelompokkan items flat jadi grup per Judul Materi buat dirender sebagai accordion.
+  // Video yang belum punya judul materi di atasnya (di awal daftar) masuk grup "__root__"
+  // yang selalu tampil terbuka, tanpa header, supaya bentuknya tetap sama seperti sebelumnya.
+  const itemGroups = (() => {
+    const groups = [];
+    let current = null;
+    items.forEach((it, idx) => {
+      if (it.type === "section") {
+        current = { key: it.id, isRoot: false, headerIdx: idx, headerItem: it, rows: [] };
+        groups.push(current);
+      } else {
+        if (!current) {
+          current = { key: "__root__", isRoot: true, headerIdx: -1, headerItem: null, rows: [] };
+          groups.push(current);
+        }
+        current.rows.push({ item: it, idx });
+      }
+    });
+    return groups;
+  })();
 
   const updateListItem = (setter) => (idx, value) => setter((list) => list.map((item, i) => (i === idx ? value : item)));
   const addListItem = (setter) => () => setter((list) => [...list, ""]);
@@ -3099,7 +3166,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
-      <Card style={{ width: "100%", maxWidth: 560, padding: 24 }}>
+      <Card style={{ width: "100%", maxWidth: 620, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT PRODUK" : "TAMBAH PRODUK BARU"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
@@ -3184,48 +3251,91 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
           </div>
 
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Video Materi</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <GhostBtn small onClick={addSectionRow} icon={Plus}>Tambah Judul Materi Baru</GhostBtn>
-                <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Video</GhostBtn>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+              <div>
+                <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Video Materi</label>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.mutedDark, marginTop: 2 }}>
+                  {totalVideoCount} video{hasSections ? ` · ${totalSectionCount} judul materi` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {hasSections && (
+                  <GhostBtn small onClick={() => setCollapsedSections(collapsedSections.size > 0 ? new Set() : new Set(itemGroups.filter((g) => !g.isRoot).map((g) => g.key)))}>
+                    {collapsedSections.size > 0 ? "Buka Semua" : "Tutup Semua"}
+                  </GhostBtn>
+                )}
+                <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
+                <GhostBtn small onClick={addVideoRow} icon={Plus}>Video</GhostBtn>
               </div>
             </div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: -6, marginBottom: 10 }}>Masukkan link video (YouTube/Vimeo/dll) — upload file langsung belum didukung di prototipe ini. Pakai "Tambah Judul Materi Baru" untuk mengelompokkan video di bawah judul tertentu (mis. "Pendahuluan", "Bonus 1 Partitur") — urutan di sini akan sama persis dengan yang tampil ke pembeli.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 0, marginBottom: 10 }}>Klik judul video buat edit langsung. Klik ikon panah di baris video buat buka link/deskripsi/durasi. Tombol "+" di samping baris/kelompok nyisipin video atau judul baru persis di posisi itu. Pakai "Judul Materi" buat mengelompokkan video (mis. "Pendahuluan") — kelompok bisa ditutup biar daftar panjang tetap rapi.</p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {items.map((it, idx) => it.type === "section" ? (
-                <div key={idx} style={{ padding: 12, borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 8, alignItems: "center" }}>
-                  <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                    <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 2, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.goldLight} /></button>
-                    <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 2, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.goldLight} /></button>
-                  </div>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, flexShrink: 0 }}>Judul</span>
-                  <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder={`Contoh: Pendahuluan`} style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, boxSizing: "border-box" }} />
-                  <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} color={C.mutedDark} /></button>
-                </div>
-              ) : (
-                <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>Video</span>
-                      <div style={{ display: "flex", gap: 2 }}>
-                        <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 2, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.muted} /></button>
-                        <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 2, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.muted} /></button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 460, overflowY: "auto", paddingRight: 4 }}>
+              {itemGroups.map((group) => {
+                const collapsed = collapsedSections.has(group.key);
+                return (
+                  <div key={group.key}>
+                    {!group.isRoot && (
+                      <div style={{ padding: "9px 10px", borderRadius: 8, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", gap: 6, alignItems: "center" }}>
+                        <button onClick={() => toggleSection(group.key)} title={collapsed ? "Buka kelompok" : "Tutup kelompok"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
+                          {collapsed ? <ChevronDown size={15} color={C.goldLight} /> : <ChevronUp size={15} color={C.goldLight} />}
+                        </button>
+                        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                          <button onClick={() => moveItemRow(group.headerIdx, "up")} disabled={group.headerIdx === 0} style={{ background: "none", border: "none", cursor: group.headerIdx === 0 ? "default" : "pointer", padding: 1, opacity: group.headerIdx === 0 ? 0.3 : 1 }}><ChevronUp size={11} color={C.goldLight} /></button>
+                          <button onClick={() => moveItemRow(group.headerIdx, "down")} disabled={group.headerIdx === items.length - 1} style={{ background: "none", border: "none", cursor: group.headerIdx === items.length - 1 ? "default" : "pointer", padding: 1, opacity: group.headerIdx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={11} color={C.goldLight} /></button>
+                        </div>
+                        <input value={group.headerItem.title} onChange={(e) => updateVideo(group.headerIdx, "title", e.target.value)} placeholder="Contoh: Pendahuluan" style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 10px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, boxSizing: "border-box" }} />
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.goldLight, flexShrink: 0, whiteSpace: "nowrap" }}>{group.rows.length} video</span>
+                        <button onClick={() => insertVideoAfter(group.headerIdx, group.key)} title="Tambah video di kelompok ini" style={{ background: "none", border: `1px solid ${C.gold}55`, borderRadius: 6, cursor: "pointer", padding: 4, flexShrink: 0, display: "flex" }}><Plus size={13} color={C.goldLight} /></button>
+                        <button onClick={() => removeItemRow(group.headerIdx)} title="Hapus judul ini (videonya tetap ada, jadi tanpa kelompok)" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={13} color={C.mutedDark} /></button>
                       </div>
-                    </div>
-                    <button onClick={() => removeItemRow(idx)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>
+                    )}
+                    {!collapsed && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: group.isRoot ? 0 : 6, paddingLeft: group.isRoot ? 0 : 8 }}>
+                        {group.rows.map(({ item: it, idx }) => {
+                          const expanded = expandedVideoIds.has(it.id);
+                          return (
+                            <div key={it.id}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderRadius: expanded ? "8px 8px 0 0" : 8, background: C.surface2, border: `1px solid ${C.border}` }}>
+                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: C.mutedDark, width: 18, textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                                <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                                  <button onClick={() => moveItemRow(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 1, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={11} color={C.muted} /></button>
+                                  <button onClick={() => moveItemRow(idx, "down")} disabled={idx === items.length - 1} style={{ background: "none", border: "none", cursor: idx === items.length - 1 ? "default" : "pointer", padding: 1, opacity: idx === items.length - 1 ? 0.3 : 1 }}><ChevronDown size={11} color={C.muted} /></button>
+                                </div>
+                                <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder="Judul video" style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
+                                {!it.url && <span title="Link video belum diisi" style={{ width: 6, height: 6, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
+                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.mutedDark, flexShrink: 0, minWidth: 32, textAlign: "right" }}>{it.duration || "—"}</span>
+                                <button onClick={() => toggleVideoExpand(it.id)} title="Link, deskripsi & durasi" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 4, flexShrink: 0, display: "flex" }}>
+                                  {expanded ? <ChevronUp size={12} color={C.muted} /> : <ChevronDown size={12} color={C.muted} />}
+                                </button>
+                                <button onClick={() => insertVideoAfter(idx, group.key)} title="Sisipkan video baru setelah ini" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Plus size={13} color={C.mutedDark} /></button>
+                                <button onClick={() => removeItemRow(idx)} title="Hapus video" style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, display: "flex" }}><Trash2 size={13} color={C.mutedDark} /></button>
+                              </div>
+                              {expanded && (
+                                <div style={{ padding: "8px 9px 9px", borderRadius: "0 0 8px 8px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 7 }}>
+                                  <input value={it.desc} onChange={(e) => updateVideo(idx, "desc", e.target.value)} placeholder="Deskripsi singkat video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12, boxSizing: "border-box" }} />
+                                  <div style={{ display: "flex", gap: 7 }}>
+                                    <input value={it.url} onChange={(e) => updateVideo(idx, "url", e.target.value)} placeholder="Link video (https://...)" style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12, boxSizing: "border-box" }} />
+                                    <input value={it.duration} onChange={(e) => updateVideo(idx, "duration", e.target.value)} placeholder="Durasi (mis. 12:30)" style={{ width: 104, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 9px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, boxSizing: "border-box" }} />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {group.rows.length === 0 && (
+                          <div style={{ padding: "8px 10px", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, fontStyle: "italic" }}>Belum ada video di kelompok ini.</div>
+                        )}
+                        {!group.isRoot && (
+                          <div>
+                            <GhostBtn small onClick={() => insertSectionAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} icon={Plus}>Judul Materi Baru di Sini</GhostBtn>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <input value={it.title} onChange={(e) => updateVideo(idx, "title", e.target.value)} placeholder="Judul video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                    <input value={it.desc} onChange={(e) => updateVideo(idx, "desc", e.target.value)} placeholder="Deskripsi singkat video" style={{ width: "100%", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input value={it.url} onChange={(e) => updateVideo(idx, "url", e.target.value)} placeholder="Link video (https://...)" style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, boxSizing: "border-box" }} />
-                      <input value={it.duration} onChange={(e) => updateVideo(idx, "duration", e.target.value)} placeholder="Durasi (mis. 12:30)" style={{ width: 110, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, boxSizing: "border-box" }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
