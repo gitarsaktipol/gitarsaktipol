@@ -3958,6 +3958,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Detail</span>
                               </button>
                               <button onClick={() => insertVideoAfter(idx)} title="Sisipkan video setelah ini" style={iconBtnStyle}><Plus size={14} color={C.mutedDark} /></button>
+                              <button onClick={() => insertSectionAfter(idx)} title="Sisipkan judul materi baru setelah video ini" style={iconBtnStyle}><Type size={14} color={C.mutedDark} /></button>
                               <button onClick={() => removeItem(idx)} title="Hapus video" style={iconBtnStyle}><Trash2 size={14} color={C.mutedDark} /></button>
                             </div>
                           </div>
