@@ -988,7 +988,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
   return (
     <div>
-      <div style={{ position: "relative", borderBottom: `1px solid ${C.borderSoft}`, backgroundImage: `linear-gradient(100deg, rgba(10,10,14,0.90) 0%, rgba(10,10,14,0.72) 45%, rgba(10,10,14,0.45) 100%), radial-gradient(1100px 500px at 80% -10%, ${C.ember}33, transparent), url(${HERO_BG_URL})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+      <div className="gs-hero-bg-fixed" style={{ position: "relative", borderBottom: `1px solid ${C.borderSoft}`, backgroundImage: `linear-gradient(100deg, rgba(10,10,14,0.90) 0%, rgba(10,10,14,0.72) 45%, rgba(10,10,14,0.45) 100%), radial-gradient(1100px 500px at 80% -10%, ${C.ember}33, transparent), url(${HERO_BG_URL})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundAttachment: "fixed" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 20px 40px", display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 40, alignItems: "center" }} className="gs-hero-grid">
           <div className="gs-anim-in">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
@@ -5683,6 +5683,7 @@ export default function App() {
           .gs-sidebar button { flex-shrink: 0; white-space: nowrap; }
           .gs-hero-title { font-size: 38px !important; line-height: 1.08 !important; }
           .gs-scroll-hint { display: flex !important; }
+          .gs-hero-bg-fixed { background-attachment: scroll !important; }
         }
         @media (max-width: 560px) {
           .gs-grid-2, .gs-grid-3, .gs-grid-4 { grid-template-columns: 1fr !important; }
