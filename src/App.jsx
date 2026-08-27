@@ -36,6 +36,10 @@ const C = {
   mutedDark: "#86868B",
 };
 
+// Aset brand — taruh file gambar ini di folder "public" project (public/), path di bawah akan otomatis ketemu.
+const LOGO_URL = "/gitar-sakti-logo.png";
+const HERO_BG_URL = "/gitar-sakti-bg.jpg";
+
 const rp = (n) => "Rp" + n.toLocaleString("id-ID");
 
 const toEmbedUrl = (url) => {
@@ -743,9 +747,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
     <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.78)", backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Music size={17} color="#fff" strokeWidth={2} />
-          </div>
+          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
           {admin ? (
             <EditableText value={h.brandName} admin onSave={(v) => onSaveHeader({ brandName: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }} />
           ) : (
@@ -834,7 +836,10 @@ function Footer({ go, content, admin, onSave }) {
     <div style={{ borderTop: `1px solid ${C.borderSoft}`, marginTop: 60, padding: "40px 20px 24px" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }} className="gs-footer-grid">
         <div>
-          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
+          </div>
           {admin ? (
             <EditableText value={f.description} admin onSave={(v) => onSave({ description: v })} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }} />
           ) : (
@@ -983,17 +988,17 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
   return (
     <div>
-      <div style={{ borderBottom: `1px solid ${C.borderSoft}`, background: `radial-gradient(1100px 500px at 80% -10%, ${C.ember}22, transparent)` }}>
+      <div style={{ position: "relative", borderBottom: `1px solid ${C.borderSoft}`, backgroundImage: `linear-gradient(100deg, rgba(10,10,14,0.90) 0%, rgba(10,10,14,0.72) 45%, rgba(10,10,14,0.45) 100%), radial-gradient(1100px 500px at 80% -10%, ${C.ember}33, transparent), url(${HERO_BG_URL})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 20px 40px", display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 40, alignItems: "center" }} className="gs-hero-grid">
           <div className="gs-anim-in">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
               <Sparkles size={14} color={C.gold} />
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.muted }}>{T("heroBadge")}</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.82)" }}>{T("heroBadge")}</span>
             </div>
-            <h1 className="gs-hero-title" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 56, lineHeight: 1.02, letterSpacing: 0.5, color: C.text, margin: 0 }}>
-              {T("heroTitleLine")} <span style={{ color: C.goldLight }}>{T("heroTitleHighlight")}</span> {T("heroTitleEnd")}
+            <h1 className="gs-hero-title" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 56, lineHeight: 1.02, letterSpacing: 0.5, color: "#fff", margin: 0 }}>
+              {T("heroTitleLine")} <span style={{ color: "#E0B24A" }}>{T("heroTitleHighlight")}</span> {T("heroTitleEnd")}
             </h1>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15.5, color: C.muted, marginTop: 20, maxWidth: 480, lineHeight: 1.65 }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15.5, color: "rgba(255,255,255,0.75)", marginTop: 20, maxWidth: 480, lineHeight: 1.65 }}>
               {T("heroSubtitle", true)}
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
@@ -1004,13 +1009,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
             <div style={{ display: "flex", gap: 28, marginTop: 18, flexWrap: "wrap" }}>
               {[["stat1Num", "stat1Label"], ["stat2Num", "stat2Label"], ["stat3Num", "stat3Label"]].map(([nk, lk]) => (
                 <div key={lk}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.goldLight }}>{T(nk)}</div>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{T(lk)}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: "#E0B24A" }}>{T(nk)}</div>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{T(lk)}</div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="gs-anim-in gs-anim-in-2" style={{ position: "relative", height: 380, borderRadius: 16, background: `linear-gradient(160deg, ${C.surface2}, ${C.bg})`, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="gs-anim-in gs-anim-in-2" style={{ position: "relative", height: 380, borderRadius: 16, background: "rgba(20,18,26,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {home.heroVideoUrl && toEmbedUrl(home.heroVideoUrl) ? (
               <iframe
                 key={home.heroVideoUrl}
@@ -1022,13 +1027,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
               />
             ) : (
               <>
-                <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(90deg, ${C.border} 0, ${C.border} 1px, transparent 1px, transparent 46px)` }} />
+                <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 46px)` }} />
                 {[70, 130, 190, 250, 310].map((top) => (
                   <div key={top} style={{ position: "absolute", left: 0, right: 0, top, height: 1.3, background: `linear-gradient(90deg, transparent, ${C.gold}88, transparent)` }} />
                 ))}
                 <div style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
-                  <Music size={64} color={C.goldLight} strokeWidth={1} />
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginTop: 12 }}>Video course + tab interaktif</p>
+                  <Music size={64} color="#E0B24A" strokeWidth={1} />
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.7)", marginTop: 12 }}>Video course + tab interaktif</p>
                 </div>
               </>
             )}
@@ -4414,9 +4419,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* top bar minimal, tanpa menu navigasi supaya fokus konversi */}
       <div style={{ borderBottom: `1px solid ${C.borderSoft}`, padding: "14px 20px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 7, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Music size={16} color="#161019" strokeWidth={2} />
-          </div>
+          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 30, height: 30, borderRadius: 7, objectFit: "cover", flexShrink: 0 }} />
           <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
         </div>
       </div>
