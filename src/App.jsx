@@ -20,20 +20,20 @@ const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-/* ---------------- design tokens ---------------- */
+/* ---------------- design tokens (gaya iOS: putih bersih, aksen emas & terracotta) ---------------- */
 const C = {
-  bg: "#0B0A0F",
-  surface: "#14111A",
-  surface2: "#1C1723",
-  border: "#2B2431",
-  borderSoft: "#221D28",
-  gold: "#C9A24B",
-  goldLight: "#E7C57D",
-  ember: "#B8432A",
-  emberLight: "#D9613F",
-  text: "#F3EEE3",
-  muted: "#9A9184",
-  mutedDark: "#6F6A62",
+  bg: "#FFFFFF",
+  surface: "#FFFFFF",
+  surface2: "#F5F5F7",
+  border: "#E5E5EA",
+  borderSoft: "#EFEFF2",
+  gold: "#B8892E",
+  goldLight: "#8A6416",
+  ember: "#C1442A",
+  emberLight: "#A83A24",
+  text: "#1D1D1F",
+  muted: "#6E6E73",
+  mutedDark: "#86868B",
 };
 
 const rp = (n) => "Rp" + n.toLocaleString("id-ID");
@@ -398,9 +398,9 @@ function TestimonialSection({ productId, owned, reviews, onSubmit, emptyLabel })
 
 function Badge({ children, tone = "gold" }) {
   const bg = tone === "gold" ? C.gold : tone === "ember" ? C.ember : C.surface2;
-  const fg = tone === "muted" ? C.muted : "#141019";
+  const fg = tone === "muted" ? C.muted : "#FFFFFF";
   return (
-    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "4px 10px", borderRadius: 999, background: bg, color: tone === "muted" ? C.muted : fg, border: tone === "muted" ? `1px solid ${C.border}` : "none" }}>
+    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", padding: "4px 11px", borderRadius: 999, background: bg, color: fg, border: "none" }}>
       {children}
     </span>
   );
@@ -529,12 +529,12 @@ function RichTextEditor({ value, onChange, placeholder, rows = 6 }) {
 
 function PrimaryBtn({ children, onClick, full, small, icon: Icon }) {
   return (
-    <button onClick={onClick} style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-      background: `linear-gradient(180deg, ${C.goldLight}, ${C.gold})`, color: "#1A140A",
-      border: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 800,
-      fontSize: small ? 13 : 14, padding: small ? "9px 16px" : "13px 24px",
-      borderRadius: 8, cursor: "pointer", width: full ? "100%" : "auto", letterSpacing: 0.2,
+    <button onClick={onClick} className="gs-btn gs-btn-primary" style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+      background: C.text, color: "#fff",
+      border: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 700,
+      fontSize: small ? 13.5 : 15, padding: small ? "9px 18px" : "13px 26px",
+      borderRadius: 980, cursor: "pointer", width: full ? "100%" : "auto", letterSpacing: 0,
     }}>
       {children}{Icon && <Icon size={16} />}
     </button>
@@ -543,11 +543,11 @@ function PrimaryBtn({ children, onClick, full, small, icon: Icon }) {
 
 function GhostBtn({ children, onClick, full, small, icon: Icon }) {
   return (
-    <button onClick={onClick} style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-      background: "transparent", color: C.text, border: `1px solid ${C.border}`,
-      fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: small ? 13 : 14,
-      padding: small ? "9px 16px" : "13px 24px", borderRadius: 8, cursor: "pointer",
+    <button onClick={onClick} className="gs-btn gs-btn-ghost" style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+      background: C.surface2, color: C.text, border: "none",
+      fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: small ? 13.5 : 15,
+      padding: small ? "9px 18px" : "13px 26px", borderRadius: 980, cursor: "pointer",
       width: full ? "100%" : "auto",
     }}>
       {children}{Icon && <Icon size={16} />}
@@ -556,7 +556,11 @@ function GhostBtn({ children, onClick, full, small, icon: Icon }) {
 }
 
 function Card({ children, style, onClick }) {
-  return <div onClick={onClick} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, ...style }}>{children}</div>;
+  return (
+    <div onClick={onClick} className={onClick ? "gs-card gs-card-hover" : "gs-card"} style={{ background: C.surface, border: `1px solid ${C.borderSoft}`, borderRadius: 18, ...style }}>
+      {children}
+    </div>
+  );
 }
 
 /* ---------------- inline editable text (admin mode) ---------------- */
@@ -736,16 +740,16 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
     )
   );
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(11,10,15,0.92)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${C.borderSoft}` }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+    <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.78)", backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
-          <div style={{ width: 34, height: 34, borderRadius: 8, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Music size={18} color="#161019" strokeWidth={2} />
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Music size={17} color="#fff" strokeWidth={2} />
           </div>
           {admin ? (
-            <EditableText value={h.brandName} admin onSave={(v) => onSaveHeader({ brandName: v })} tag="span" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }} />
+            <EditableText value={h.brandName} admin onSave={(v) => onSaveHeader({ brandName: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }} />
           ) : (
-            <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }}>{h.brandName}</span>
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }}>{h.brandName}</span>
           )}
         </div>
 
@@ -768,10 +772,11 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
             <button
               onClick={() => setEditMode((v) => !v)}
               title="Mode Edit"
+              className="gs-icon-btn"
               style={{
-                display: "flex", alignItems: "center", gap: 6, background: editMode ? C.gold : "none",
-                border: `1px solid ${editMode ? C.gold : C.border}`, borderRadius: 8, padding: "7px 10px",
-                cursor: "pointer", color: editMode ? "#161019" : C.text, fontFamily: "'Manrope',sans-serif",
+                display: "flex", alignItems: "center", gap: 6, background: editMode ? C.gold : C.surface2,
+                border: "none", borderRadius: 980, padding: "8px 12px",
+                cursor: "pointer", color: editMode ? "#fff" : C.text, fontFamily: "'Manrope',sans-serif",
                 fontSize: 12.5, fontWeight: 700,
               }}
             >
@@ -780,14 +785,14 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
             </button>
           )}
           {role !== "admin" && (
-            <button onClick={() => goOrAuth("cart")} style={{ position: "relative", background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }}>
-              <ShoppingCart size={17} color={C.text} />
-              {cartCount > 0 && <span style={{ position: "absolute", top: -6, right: -6, background: C.ember, color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace" }}>{cartCount}</span>}
+            <button onClick={() => goOrAuth("cart")} className="gs-icon-btn" style={{ position: "relative", background: C.surface2, border: "none", borderRadius: 980, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <ShoppingCart size={16} color={C.text} />
+              {cartCount > 0 && <span className="gs-cart-badge" style={{ position: "absolute", top: -4, right: -4, background: C.ember, color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 999, minWidth: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Manrope',sans-serif" }}>{cartCount}</span>}
             </button>
           )}
           {role ? (
-            <button onClick={() => go(role === "admin" ? "admin" : "customer")} style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer" }}>
-              <User size={15} color={C.goldLight} />
+            <button onClick={() => go(role === "admin" ? "admin" : "customer")} className="gs-icon-btn" style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface2, border: "none", borderRadius: 980, padding: "7px 14px 7px 8px", cursor: "pointer" }}>
+              <span style={{ width: 22, height: 22, borderRadius: "50%", background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><User size={12} color="#fff" /></span>
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }} className="gs-desktop-nav">{role === "admin" ? "Admin" : accountName}</span>
             </button>
           ) : (
@@ -796,13 +801,13 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
               <PrimaryBtn small onClick={goToAuth}>Daftar</PrimaryBtn>
             </div>
           )}
-          <button onClick={() => setMobileOpen(!mobileOpen)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, cursor: "pointer" }} title="Menu halaman">
-            {mobileOpen ? <X size={17} color={C.text} /> : <Menu size={17} color={C.text} />}
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="gs-icon-btn" style={{ background: C.surface2, border: "none", borderRadius: 980, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} title="Menu halaman">
+            {mobileOpen ? <X size={16} color={C.text} /> : <Menu size={16} color={C.text} />}
           </button>
         </div>
       </div>
       {mobileOpen && (
-        <div style={{ borderTop: `1px solid ${C.borderSoft}`, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="gs-mobile-menu" style={{ borderTop: `1px solid ${C.borderSoft}`, padding: "12px 20px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div className="gs-mobile-toggle" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {navItem(h.navBeranda, "home", "navBeranda")}
             {navItem(h.navProduk, "shop", "navProduk")}
@@ -829,7 +834,7 @@ function Footer({ go, content, admin, onSave }) {
     <div style={{ borderTop: `1px solid ${C.borderSoft}`, marginTop: 60, padding: "40px 20px 24px" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }} className="gs-footer-grid">
         <div>
-          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
           {admin ? (
             <EditableText value={f.description} admin onSave={(v) => onSave({ description: v })} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }} />
           ) : (
@@ -910,7 +915,7 @@ function LegalPage({ slug, go }) {
       <button onClick={() => go("home")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
         <ArrowLeft size={15} /> Kembali
       </button>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "0 0 20px" }}>{page.title}</h1>
+      <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "0 0 20px" }}>{page.title}</h1>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {page.body.map((p, i) => (
           <p key={i} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, margin: 0 }}>{p}</p>
@@ -924,11 +929,44 @@ function LegalPage({ slug, go }) {
 function Section({ eyebrow, title, sub, children, id }) {
   return (
     <div id={id} style={{ maxWidth: 1180, margin: "0 auto", padding: "56px 20px" }}>
-      <div style={{ maxWidth: 620, marginBottom: 32 }}>
-        {eyebrow && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>{eyebrow}</span>}
-        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, letterSpacing: 0.5, color: C.text, margin: "8px 0 0" }}>{title}</h2>
-        {sub && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, marginTop: 10, lineHeight: 1.6 }}>{sub}</p>}
-      </div>
+      <Reveal>
+        <div style={{ maxWidth: 620, marginBottom: 32 }}>
+          {eyebrow && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>{eyebrow}</span>}
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, letterSpacing: 0.5, color: C.text, margin: "8px 0 0" }}>{title}</h2>
+          {sub && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, marginTop: 10, lineHeight: 1.6 }}>{sub}</p>}
+        </div>
+      </Reveal>
+      {children}
+    </div>
+  );
+}
+
+// Elemen ini "muncul" dengan animasi geser + fade begitu user scroll sampai melihatnya —
+// efek reveal ala halaman produk Apple. Animasi hanya main sekali per elemen (sekali muncul, tetap).
+function Reveal({ children, delay = 0, className, style }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(20px)",
+        transition: `opacity .7s var(--gs-ease) ${delay}s, transform .7s var(--gs-ease) ${delay}s`,
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
@@ -947,12 +985,12 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
     <div>
       <div style={{ borderBottom: `1px solid ${C.borderSoft}`, background: `radial-gradient(1100px 500px at 80% -10%, ${C.ember}22, transparent)` }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 20px 40px", display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 40, alignItems: "center" }} className="gs-hero-grid">
-          <div>
+          <div className="gs-anim-in">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
               <Sparkles size={14} color={C.gold} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.muted }}>{T("heroBadge")}</span>
             </div>
-            <h1 className="gs-hero-title" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 56, lineHeight: 1.02, letterSpacing: 0.5, color: C.text, margin: 0 }}>
+            <h1 className="gs-hero-title" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 56, lineHeight: 1.02, letterSpacing: 0.5, color: C.text, margin: 0 }}>
               {T("heroTitleLine")} <span style={{ color: C.goldLight }}>{T("heroTitleHighlight")}</span> {T("heroTitleEnd")}
             </h1>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15.5, color: C.muted, marginTop: 20, maxWidth: 480, lineHeight: 1.65 }}>
@@ -972,7 +1010,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
               ))}
             </div>
           </div>
-          <div style={{ position: "relative", height: 380, borderRadius: 16, background: `linear-gradient(160deg, ${C.surface2}, ${C.bg})`, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="gs-anim-in gs-anim-in-2" style={{ position: "relative", height: 380, borderRadius: 16, background: `linear-gradient(160deg, ${C.surface2}, ${C.bg})`, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {home.heroVideoUrl && toEmbedUrl(home.heroVideoUrl) ? (
               <iframe
                 key={home.heroVideoUrl}
@@ -1022,7 +1060,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
       <Section eyebrow={T("featuredEyebrow")} title={T("featuredTitle")} sub={T("featuredSub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-          {featured.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
+          {featured.map((p, i) => <Reveal key={p.id} delay={i * 0.08}><ProductCard p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} /></Reveal>)}
         </div>
         <div style={{ textAlign: "center", marginTop: 32 }}>
           <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Jelajahi Produk</PrimaryBtn>
@@ -1032,11 +1070,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <Section eyebrow={T("categoryEyebrow")} title={T("categoryTitle")} sub={T("categorySub", true)}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
-            {CATEGORIES.map((c) => (
-              <div key={c} onClick={() => go("shop")} style={{ cursor: "pointer", padding: "18px 16px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{c}</span>
-                <ChevronRight size={15} color={C.gold} />
-              </div>
+            {CATEGORIES.map((c, i) => (
+              <Reveal key={c} delay={i * 0.04}>
+                <div className="gs-card gs-card-hover" onClick={() => go("shop")} style={{ cursor: "pointer", padding: "18px 16px", borderRadius: 14, border: `1px solid ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{c}</span>
+                  <ChevronRight size={15} color={C.gold} />
+                </div>
+              </Reveal>
             ))}
           </div>
         </Section>
@@ -1047,7 +1087,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           {home.whyItems.map((item, idx) => {
             const saveItem = (field, v) => onSaveHome({ whyItems: home.whyItems.map((it, i) => (i === idx ? { ...it, [field]: v } : it)) });
             return (
-              <div key={idx} style={{ display: "flex", gap: 12 }}>
+              <Reveal key={idx} delay={idx * 0.06} style={{ display: "flex", gap: 12 }}>
                 <FretDot />
                 <div>
                   {admin ? (
@@ -1061,7 +1101,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
                     <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.6 }}>{item.desc}</p>
                   )}
                 </div>
-              </div>
+              </Reveal>
             );
           })}
         </div>
@@ -1070,15 +1110,17 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <Section eyebrow={T("testimonialEyebrow")} title={T("testimonialTitle")}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }} className="gs-grid-3">
-            {TESTIMONIALS.map((t) => (
-              <Card key={t.name} style={{ padding: 20 }}>
-                <StarRow rating={t.rating} />
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.text, marginTop: 12, lineHeight: 1.6 }}>"{t.quote}"</p>
-                <div style={{ marginTop: 16, fontFamily: "'Manrope',sans-serif" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
-                </div>
-              </Card>
+            {TESTIMONIALS.map((t, i) => (
+              <Reveal key={t.name} delay={i * 0.08}>
+                <Card style={{ padding: 20 }}>
+                  <StarRow rating={t.rating} />
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.text, marginTop: 12, lineHeight: 1.6 }}>"{t.quote}"</p>
+                  <div style={{ marginTop: 16, fontFamily: "'Manrope',sans-serif" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
+                  </div>
+                </Card>
+              </Reveal>
             ))}
           </div>
         </Section>
@@ -1092,7 +1134,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
       <div style={{ borderTop: `1px solid ${C.borderSoft}` }}>
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "56px 20px", textAlign: "center" }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: 0 }}>{T("ctaTitle")}</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 32, color: C.text, margin: 0 }}>{T("ctaTitle")}</h2>
           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 10 }}>{T("ctaSub", true)}</p>
           <div style={{ marginTop: 20 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>{T("ctaButton")}</PrimaryBtn></div>
         </div>
@@ -1105,13 +1147,20 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
 function FaqItem({ q, a }) {
   const [open, setOpen] = useState(false);
+  const innerRef = useRef(null);
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    if (innerRef.current) setH(open ? innerRef.current.scrollHeight : 0);
+  }, [open, a]);
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+    <div className="gs-card" style={{ border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
       <button onClick={() => setOpen(!open)} style={{ width: "100%", background: C.surface, border: "none", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
         <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, textAlign: "left" }}>{q}</span>
-        <ChevronDown size={16} color={C.gold} style={{ transform: open ? "rotate(180deg)" : "none", flexShrink: 0, marginLeft: 12 }} />
+        <ChevronDown size={16} color={C.gold} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .35s var(--gs-spring)", flexShrink: 0, marginLeft: 12 }} />
       </button>
-      {open && <div style={{ padding: "0 16px 16px" }}><p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: 0 }}>{a}</p></div>}
+      <div style={{ height: h, overflow: "hidden", transition: "height .32s var(--gs-ease)" }}>
+        <div ref={innerRef} style={{ padding: "0 16px 16px" }}><p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: 0 }}>{a}</p></div>
+      </div>
     </div>
   );
 }
@@ -1136,21 +1185,21 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "36px 20px 60px" }}>
-      <div style={{ marginBottom: 24 }}>
+      <div className="gs-anim-in" style={{ marginBottom: 24 }}>
         <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>{content.shop.eyebrow}</span>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, color: C.text, margin: "6px 0 0" }}>{content.shop.title}</h1>
+        <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, color: C.text, margin: "6px 0 0" }}>{content.shop.title}</h1>
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 220, display: "flex", alignItems: "center", gap: 8, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px" }}>
+      <div className="gs-anim-in gs-anim-in-1" style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 220, display: "flex", alignItems: "center", gap: 8, background: C.surface2, border: "none", borderRadius: 980, padding: "10px 16px" }}>
           <Search size={15} color={C.muted} />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk..." style={{ background: "transparent", border: "none", outline: "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, width: "100%" }} />
         </div>
-        <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
+        <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ background: C.surface2, border: "none", borderRadius: 980, padding: "10px 16px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
           <option>Semua</option>
           {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
-        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
+        <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ background: C.surface2, border: "none", borderRadius: 980, padding: "10px 16px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
           {["Terbaru", "Terlaris", "Harga Terendah", "Harga Tertinggi", "Rating"].map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
@@ -1158,7 +1207,7 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 16 }}>{filtered.length} produk ditemukan</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
-        {filtered.map((p) => <ProductCard key={p.id} p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} />)}
+        {filtered.map((p, i) => <Reveal key={p.id} delay={Math.min(i, 5) * 0.05}><ProductCard p={p} onOpen={openProduct} onAdd={addToCart} inCart={cart.includes(p.id)} owned={ownedIds.includes(p.id)} pending={pendingIds?.includes(p.id)} onAccess={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={onToggleStatus} /></Reveal>)}
       </div>
       {filtered.length === 0 && <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted, textAlign: "center", padding: 40 }}>Tidak ada produk yang cocok dengan pencarianmu.</p>}
     </div>
@@ -1189,7 +1238,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
         <span style={{ color: C.text }}>{p.name}</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.9fr", gap: 32 }} className="gs-hero-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.9fr", gap: 32 }} className="gs-hero-grid gs-anim-in">
         <div>
           {(() => {
             const embedUrl = toEmbedUrl(p.previewVideo);
@@ -1230,7 +1279,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
 
           <div style={{ marginTop: 22 }}>
             {p.badge && <Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge>}
-            <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "10px 0 8px" }}>{p.name.toUpperCase()}</h1>
+            <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "10px 0 8px" }}>{p.name.toUpperCase()}</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <StarRow rating={liveRating} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{liveReviewCount > 0 ? `${liveRating.toFixed(1)} · ${liveReviewCount} ulasan · ` : ""}{p.sold} terjual</span>
@@ -1284,8 +1333,8 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
           )}
         </div>
 
-        <div>
-          <Card style={{ padding: 20, position: "sticky", top: 90 }}>
+        <div className="gs-anim-in gs-anim-in-2">
+          <Card style={{ padding: 22, position: "sticky", top: 90, boxShadow: "0 20px 40px rgba(0,0,0,0.06)" }}>
             {isAdmin && previewBuyer && (
               <button onClick={() => setPreviewBuyer(false)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 14 }}>
                 <ArrowLeft size={13} color={C.gold} />
@@ -1411,8 +1460,8 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 20px 60px" }}>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: "0 0 24px" }}>KERANJANG BELANJA</h1>
+    <div className="gs-anim-in" style={{ maxWidth: 900, margin: "0 auto", padding: "36px 20px 60px" }}>
+      <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 32, color: C.text, margin: "0 0 24px" }}>KERANJANG BELANJA</h1>
       {cartProducts.length === 0 ? (
         <Card style={{ padding: 40, textAlign: "center" }}>
           <ShoppingCart size={32} color={C.muted} style={{ margin: "0 auto" }} />
@@ -1422,18 +1471,20 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 24 }} className="gs-hero-grid">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {cartProducts.map((p) => (
-              <Card key={p.id} style={{ padding: 14, display: "flex", gap: 14, alignItems: "center" }}>
-                <div style={{ width: 64, height: 64, borderRadius: 8, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Music size={22} color={p.hue} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{p.category} · Qty 1 (produk digital)</div>
-                </div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 14 }}>{rp(p.price)}</div>
-                <button onClick={() => removeFromCart(p.id)} style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={C.muted} /></button>
-              </Card>
+            {cartProducts.map((p, i) => (
+              <Reveal key={p.id} delay={i * 0.05}>
+                <Card style={{ padding: 14, display: "flex", gap: 14, alignItems: "center" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 14, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Music size={22} color={p.hue} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
+                    <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{p.category} · Qty 1 (produk digital)</div>
+                  </div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 14 }}>{rp(p.price)}</div>
+                  <button onClick={() => removeFromCart(p.id)} className="gs-icon-btn" style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={C.muted} /></button>
+                </Card>
+              </Reveal>
             ))}
           </div>
           <div>
@@ -1510,7 +1561,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "36px 20px 60px" }}>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: "0 0 24px" }}>CHECKOUT</h1>
+      <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 32, color: C.text, margin: "0 0 24px" }}>CHECKOUT</h1>
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }} className="gs-hero-grid">
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <Card style={{ padding: 18 }}>
@@ -1776,7 +1827,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
         <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
           <Check size={26} color={C.gold} />
         </div>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, marginTop: 20 }}>BUKTI PEMBAYARAN TERKIRIM</h1>
+        <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, marginTop: 20 }}>BUKTI PEMBAYARAN TERKIRIM</h1>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>
           Pesanan <b style={{ color: C.text }}>{order.id}</b> sedang menunggu verifikasi admin. Produk akan otomatis muncul di dashboard begitu pembayaran dikonfirmasi.
         </p>
@@ -1795,7 +1846,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "36px 20px 60px" }}>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: C.text, margin: "0 0 6px" }}>KONFIRMASI PEMBAYARAN</h1>
+      <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "0 0 6px" }}>KONFIRMASI PEMBAYARAN</h1>
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginBottom: 22 }}>Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah dibuat. Silakan transfer ke rekening berikut, lalu unggah bukti pembayarannya.</p>
 
       <Card style={{ padding: 20 }}>
@@ -1857,7 +1908,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
   // tidak akan pernah lihat opsi ini.
   const isAdminAccessAllowed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1";
 
-  const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
+  const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: "1px solid transparent", borderRadius: 12, padding: "12px 14px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 14, boxSizing: "border-box" };
 
   const submitCustomer = async () => {
     setSubmitting(true);
@@ -1873,25 +1924,25 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
   };
 
   return (
-    <div style={{ maxWidth: 420, margin: "0 auto", padding: "60px 20px" }}>
-      <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+    <div className="gs-anim-in" style={{ maxWidth: 420, margin: "0 auto", padding: "60px 20px" }}>
+      <button onClick={onBack} className="gs-icon-btn" style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
         <ArrowLeft size={15} /> Kembali
       </button>
-      <Card style={{ padding: 28 }}>
+      <Card style={{ padding: 28, boxShadow: "0 20px 44px rgba(0,0,0,0.07)" }}>
         {isAdminAccessAllowed && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          <button onClick={() => { setTab("customer"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "customer" ? C.gold : C.border}`, background: tab === "customer" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Customer</button>
-          <button onClick={() => { setTab("admin"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: `1px solid ${tab === "admin" ? C.gold : C.border}`, background: tab === "admin" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Admin</button>
+        <div style={{ display: "flex", gap: 4, marginBottom: 20, background: C.surface2, borderRadius: 12, padding: 4 }}>
+          <button onClick={() => { setTab("customer"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: tab === "customer" ? C.surface : "transparent", boxShadow: tab === "customer" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Customer</button>
+          <button onClick={() => { setTab("admin"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: tab === "admin" ? C.surface : "transparent", boxShadow: tab === "admin" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Admin</button>
         </div>
         )}
 
         {tab === "customer" ? (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              <button onClick={() => { setMode("login"); setError(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${mode === "login" ? C.gold : C.border}`, background: mode === "login" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Masuk</button>
-              <button onClick={() => { setMode("register"); setError(""); }} style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${mode === "register" ? C.gold : C.border}`, background: mode === "register" ? C.surface2 : "transparent", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Daftar</button>
+            <div style={{ display: "flex", gap: 4, marginBottom: 20, background: C.surface2, borderRadius: 12, padding: 4 }}>
+              <button onClick={() => { setMode("login"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "7px 0", borderRadius: 9, border: "none", background: mode === "login" ? C.surface : "transparent", boxShadow: mode === "login" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Masuk</button>
+              <button onClick={() => { setMode("register"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "7px 0", borderRadius: 9, border: "none", background: mode === "register" ? C.surface : "transparent", boxShadow: mode === "register" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Daftar</button>
             </div>
-            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>{mode === "login" ? "MASUK KE AKUN" : "BUAT AKUN BARU"}</h2>
+            <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>{mode === "login" ? "MASUK KE AKUN" : "BUAT AKUN BARU"}</h2>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masuk atau daftar diperlukan sebelum menambahkan produk ke keranjang.</p>
             {mode === "register" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" style={inputStyle} />}
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={inputStyle} />
@@ -1902,7 +1953,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
           </>
         ) : (
           <>
-            <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
+            <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Gunakan akun yang sudah diberi akses admin. Kata sandi bisa diganti lewat Pengaturan → Keamanan setelah masuk.</p>
             <input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Email admin" type="email" style={inputStyle} />
             <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
@@ -1919,10 +1970,10 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
 function DashSidebar({ items, active, onSelect, footer }) {
   return (
     <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }} className="gs-sidebar-wrap">
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }} className="gs-sidebar">
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, background: C.surface2, borderRadius: 16, padding: 6 }} className="gs-sidebar">
         {items.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => onSelect(key)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, border: "none", cursor: "pointer", background: active === key ? C.surface2 : "transparent", color: active === key ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, textAlign: "left" }}>
-            <Icon size={16} />{label}
+          <button key={key} onClick={() => onSelect(key)} className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: "none", cursor: "pointer", background: active === key ? C.surface : "transparent", boxShadow: active === key ? "0 2px 10px rgba(0,0,0,0.07)" : "none", color: active === key ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, textAlign: "left" }}>
+            <Icon size={16} color={active === key ? C.gold : C.muted} />{label}
           </button>
         ))}
       </div>
@@ -1933,12 +1984,12 @@ function DashSidebar({ items, active, onSelect, footer }) {
 
 function StatCard({ label, value, icon: Icon }) {
   return (
-    <Card style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+    <Card className="gs-card-hover" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{label}</span>
-        <Icon size={15} color={C.gold} />
+        <span style={{ width: 28, height: 28, borderRadius: 9, background: `${C.gold}17`, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={14} color={C.gold} /></span>
       </div>
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.text }}>{value}</span>
+      <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.text }}>{value}</span>
     </Card>
   );
 }
@@ -1997,7 +2048,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
         </button>
       } />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "0 0 20px" }}>
+        <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: "0 0 20px" }}>
           {{ overview: "RINGKASAN AKUN", products: "PRODUK SAYA", orders: "PESANAN SAYA", profile: "PROFIL" }[sub]}
         </h1>
 
@@ -2142,7 +2193,7 @@ function BookCover({ title, tag, hue, size = 56 }) {
         <div style={{ position: "absolute", right: -size * 0.3, top: -size * 0.3, width: size * 0.8, height: size * 0.8, borderRadius: "50%", background: "rgba(255,255,255,0.10)" }} />
         <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: size * 0.13, fontWeight: 800, letterSpacing: 0.5, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", position: "relative", textAlign: "center", width: "100%" }}>{tag}</span>
         <GuitarIcon size={size * 0.34} color="rgba(255,255,255,0.92)" />
-        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: size * 0.19, lineHeight: 1.05, color: "#fff", position: "relative", textAlign: "center", width: "100%" }}>{title}</span>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: size * 0.19, lineHeight: 1.05, color: "#fff", position: "relative", textAlign: "center", width: "100%" }}>{title}</span>
       </div>
     </div>
   );
@@ -2438,7 +2489,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         </button>
       } />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "0 0 20px" }}>
+        <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: "0 0 20px" }}>
           {sub === "tampilan"
             ? { menu: "TAMPILAN", beranda: "EDIT BERANDA", produk: "EDIT SEMUA PRODUK", halaman: "KELOLA HALAMAN" }[tampilanSub] || "TAMPILAN"
             : { overview: "RINGKASAN ADMIN", products: "MANAJEMEN PRODUK", orders: "MANAJEMEN PESANAN", customers: "MANAJEMEN PELANGGAN", coupons: "KUPON & PROMO", analytics: "ANALITIK", landingpages: "LANDING PAGE", settings: "PENGATURAN" }[sub]}
@@ -2709,11 +2760,11 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                       </div>
                       <div style={{ display: "flex", gap: 24, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
                         <div>
-                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: C.text }}>{lp.visits}</div>
+                          <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: C.text }}>{lp.visits}</div>
                           <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Total Kunjungan</div>
                         </div>
                         <div>
-                          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: C.goldLight }}>{lp.orderClicks}</div>
+                          <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: C.goldLight }}>{lp.orderClicks}</div>
                           <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Total Klik Order</div>
                         </div>
                       </div>
@@ -3130,7 +3181,7 @@ function QuickProductFormModal({ onClose, onSubmit }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 420, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>TAMBAH PRODUK</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>TAMBAH PRODUK</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: 0, marginBottom: 18 }}>
@@ -3220,7 +3271,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 620, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT PRODUK" : "TAMBAH PRODUK BARU"}</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT PRODUK" : "TAMBAH PRODUK BARU"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
 
@@ -3359,7 +3410,7 @@ function CouponFormModal({ onClose, onSubmit }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 440, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>BUAT KODE DISKON</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>BUAT KODE DISKON</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>Kode ini bisa kamu bagikan (misal lewat WhatsApp/email) — hanya orang yang tahu kodenya yang bisa pakai, kode tidak ditampilkan otomatis ke pengunjung lain.</p>
@@ -3457,7 +3508,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 460, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "PENGATURAN LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "PENGATURAN LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -10, marginBottom: 16 }}>
@@ -3564,7 +3615,7 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 640, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT HALAMAN" : "TAMBAH HALAMAN BARU"}</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT HALAMAN" : "TAMBAH HALAMAN BARU"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
         </div>
 
@@ -3724,7 +3775,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
           onSave={(v) => onSaveProduct && onSaveProduct(product.id, { ...product, name: v }, outline)}
           tag="h1"
           block
-          style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: 0, textTransform: "uppercase" }}
+          style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: 0, textTransform: "uppercase" }}
         />
         {curriculum.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
@@ -4366,7 +4417,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           <div style={{ width: 30, height: 30, borderRadius: 7, background: `linear-gradient(160deg, ${C.goldLight}, ${C.ember})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Music size={16} color="#161019" strokeWidth={2} />
           </div>
-          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 19, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
         </div>
       </div>
 
@@ -4385,7 +4436,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           onSave={saveCore("headline")}
           tag="h1"
           block
-          style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 34, lineHeight: 1.12, letterSpacing: 0.3, color: C.text, textAlign: "center", margin: "0 0 14px" }}
+          style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, lineHeight: 1.12, letterSpacing: 0.3, color: C.text, textAlign: "center", margin: "0 0 14px" }}
         />
         <EditableText
           value={subheadline}
@@ -4451,7 +4502,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 30 }}>
-            <LpTwoToneText value={getExtra("problemTitle")} admin={admin} onSave={saveExtra("problemTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }} />
+            <LpTwoToneText value={getExtra("problemTitle")} admin={admin} onSave={saveExtra("problemTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, margin: 0 }} />
             <div style={{ marginTop: 8 }}>
               <EditableText value={getExtra("problemSubtitle")} admin={admin} onSave={saveExtra("problemSubtitle")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0 }} />
             </div>
@@ -4495,7 +4546,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Perkenalkan</span>
-          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
           <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -4517,7 +4568,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
             {[[`${p.sold || 0}+`, "Pembeli"], [String(p.rating || "5.0"), "Rating Rata-rata"], [p.duration || "-", "Materi"]].map(([n, l]) => (
               <div key={l} style={{ textAlign: "center" }}>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.goldLight }}>{n}</div>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.goldLight }}>{n}</div>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
               </div>
             ))}
@@ -4528,7 +4579,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* TESTIMONI — ulasan asli dari pembeli yang sudah memiliki produk ini */}
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ marginBottom: 26 }}>
-          <LpTwoToneText value={getExtra("testimonialTitle")} admin={admin} onSave={saveExtra("testimonialTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+          <LpTwoToneText value={getExtra("testimonialTitle")} admin={admin} onSave={saveExtra("testimonialTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
         </div>
         <TestimonialSection
           productId={p.id}
@@ -4543,8 +4594,8 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text }}>{p.name} vs </span>
-            <EditableText value={getExtra("comparisonHighlight")} admin={admin} onSave={saveExtra("comparisonHighlight")} tag="span" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.goldLight }} />
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text }}>{p.name} vs </span>
+            <EditableText value={getExtra("comparisonHighlight")} admin={admin} onSave={saveExtra("comparisonHighlight")} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.goldLight }} />
           </div>
           <Card style={{ overflow: "auto", padding: 0 }}>
             <table style={{ width: "100%", minWidth: 420, borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
@@ -4584,7 +4635,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <Badge tone="gold">BONUS SPESIAL</Badge>
             <div style={{ marginTop: 12 }}>
-              <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: 0 }} />
+              <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, margin: 0 }} />
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -4694,7 +4745,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>{rp(anchorPrice)}</span>
                 </div>
               )}
-              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 42, color: C.goldLight, margin: "6px 0" }}>{rp(currentPrice)}</div>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, color: C.goldLight, margin: "6px 0" }}>{rp(currentPrice)}</div>
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
@@ -4736,7 +4787,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* FAQ */}
       <div style={{ maxWidth: 620, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ marginBottom: 22 }}>
-          <LpTwoToneText value={getExtra("faqTitle")} admin={admin} onSave={saveExtra("faqTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+          <LpTwoToneText value={getExtra("faqTitle")} admin={admin} onSave={saveExtra("faqTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {admin ? (
@@ -4760,7 +4811,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
       {/* CTA PENUTUP */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface, padding: "44px 20px 20px", textAlign: "center" }}>
-        <LpTwoToneText value={getExtra("closingTitle")} admin={admin} onSave={saveExtra("closingTitle")} tag="h2" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: C.text, margin: "0 0 12px" }} />
+        <LpTwoToneText value={getExtra("closingTitle")} admin={admin} onSave={saveExtra("closingTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, margin: "0 0 12px" }} />
         <div style={{ maxWidth: 380, margin: "0 auto 22px" }}>
           <EditableText value={getExtra("closingSubtitle")} admin={admin} onSave={saveExtra("closingSubtitle")} tag="p" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: 0 }} />
         </div>
@@ -4793,7 +4844,7 @@ function CustomPageView({ slug, customPages, products, go, openProduct, addToCar
   }
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 60px" }}>
-      <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: C.text, margin: "0 0 24px" }}>{page.title.toUpperCase()}</h1>
+      <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 32, color: C.text, margin: "0 0 24px" }}>{page.title.toUpperCase()}</h1>
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
         {page.blocks.map((block, i) => {
           if (block.type === "text") {
@@ -5562,16 +5613,62 @@ export default function App() {
   return (
     <div style={{ background: C.bg, minHeight: "100%", color: C.text }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        :root {
+          --gs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+          --gs-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
         * { box-sizing: border-box; }
         html, body, #root { margin: 0; min-height: 100%; background: ${C.bg}; }
-        input:focus, select:focus { outline: 1px solid ${C.gold}; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Manrope', sans-serif; -webkit-font-smoothing: antialiased; }
+        a { text-decoration: none; }
+        input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 4px ${C.gold}26; border-color: ${C.gold} !important; }
+        input, select, textarea, button { transition: box-shadow .25s var(--gs-ease), border-color .25s var(--gs-ease), background-color .2s var(--gs-ease), transform .18s var(--gs-spring), opacity .2s ease; }
         ::placeholder { color: ${C.mutedDark}; }
         table td, table th { white-space: nowrap; }
         table { min-width: 560px; }
         .gs-scroll-hint { display: none; }
-        .gs-edit-pencil { opacity: 0.55; transition: opacity .15s; }
+        .gs-edit-pencil { opacity: 0.55; transition: opacity .15s, transform .18s var(--gs-spring); }
         .gs-editable:hover .gs-edit-pencil { opacity: 1; }
+        .gs-edit-pencil:hover { transform: scale(1.12); }
+        .gs-edit-pencil:active { transform: scale(0.92); }
+
+        /* ---- gerakan ala iOS: transisi lembut & pantulan halus (spring) ---- */
+        @keyframes gsFadeInUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes gsFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes gsPopIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+        @keyframes gsSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes gsPulseRing { 0% { box-shadow: 0 0 0 0 ${C.gold}55; } 70% { box-shadow: 0 0 0 10px ${C.gold}00; } 100% { box-shadow: 0 0 0 0 ${C.gold}00; } }
+
+        .gs-anim-in { animation: gsFadeInUp .6s var(--gs-ease) both; }
+        .gs-anim-in-1 { animation-delay: .05s; }
+        .gs-anim-in-2 { animation-delay: .12s; }
+        .gs-anim-in-3 { animation-delay: .19s; }
+        .gs-anim-in-4 { animation-delay: .26s; }
+
+        .gs-header { transition: background-color .3s var(--gs-ease); }
+
+        .gs-btn { transition: transform .22s var(--gs-spring), opacity .18s ease, box-shadow .25s var(--gs-ease), background-color .2s ease; will-change: transform; }
+        .gs-btn:hover { transform: translateY(-1px); }
+        .gs-btn:active { transform: scale(0.96) translateY(0); }
+        .gs-btn-primary:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+        .gs-btn-ghost:hover { background: ${C.border} !important; }
+
+        .gs-icon-btn { transition: transform .22s var(--gs-spring), background-color .2s ease; }
+        .gs-icon-btn:hover { transform: translateY(-1px) scale(1.04); }
+        .gs-icon-btn:active { transform: scale(0.92); }
+        .gs-cart-badge { animation: gsPopIn .35s var(--gs-spring) both; }
+
+        .gs-card { transition: transform .3s var(--gs-spring), box-shadow .3s var(--gs-ease), border-color .3s ease; }
+        .gs-card-hover:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); border-color: ${C.border} !important; }
+        .gs-card-hover:active { transform: translateY(-1px) scale(0.995); }
+
+        .gs-mobile-menu { animation: gsSlideDown .32s var(--gs-ease) both; transform-origin: top center; }
+        .gs-page-enter { animation: gsFadeIn .45s var(--gs-ease) both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+        }
         @media (max-width: 860px) {
           .gs-desktop-nav { display: none !important; }
           .gs-hero-grid { grid-template-columns: 1fr !important; }
@@ -5594,6 +5691,7 @@ export default function App() {
 
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
 
+      <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} />}
@@ -5642,6 +5740,7 @@ export default function App() {
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
       {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      </div>
     </div>
   );
 }
