@@ -6,7 +6,7 @@ import {
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
-  Image as ImageIcon, Bold, Italic, Type, List
+  Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -1516,15 +1516,17 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account }) {
+function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
   const [form, setForm] = useState({ name: account.name, phone: account.phone });
-  const [method, setMethod] = useState("bank");
+  const activeMethods = (paymentMethods || []).filter((m) => m.enabled);
+  const [methodId, setMethodId] = useState(null);
+  useEffect(() => { if (!methodId && activeMethods.length > 0) setMethodId(activeMethods[0].id); }, [activeMethods.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const iconForMethod = (icon) => ({ bank: Landmark, qris: QrCode, ewallet: Wallet, card: CreditCard }[icon] || CreditCard);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const methodLabel = { qris: "QRIS", bank: "Transfer Bank", ewallet: "E-Wallet" };
   const [couponInput, setCouponInput] = useState(coupon || "");
   const [couponMsg, setCouponMsg] = useState("");
 
@@ -1543,16 +1545,17 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
   const placeOrder = async () => {
     if (!form.name.trim() || !form.phone.trim()) { setError("Lengkapi nama dan nomor WhatsApp terlebih dahulu."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
+    if (!methodId) { setError("Pilih metode pembayaran terlebih dahulu."); return; }
     setError("");
     setSubmitting(true);
+    const chosenMethod = activeMethods.find((m) => m.id === methodId);
     const result = await addOrder({
       cartProducts,
       total,
       discount,
       couponCode: coupon || null,
-      // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
-      // oleh admin setelah customer mengunggah bukti transfer.
-      method: methodLabel[method],
+      method: chosenMethod?.label || "-",
+      paymentMethodId: methodId,
       customerName: form.name.trim(),
       // Email dikunci ke akun yang sedang login (bukan input bebas) supaya pesanan selalu
       // tercatat ke akun yang benar dan tidak bisa dipalsukan ke email orang lain.
@@ -1586,15 +1589,22 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
 
           <Card style={{ padding: 18 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Metode Pembayaran</h3>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -4 }}>Saat ini pembayaran diverifikasi manual oleh admin via transfer bank. Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi untuk melihat rekening tujuan dan mengunggah bukti transfer.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -4 }}>Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi untuk melihat instruksi pembayaran sesuai metode yang dipilih.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-              {[["qris", "QRIS", QrCode], ["bank", "Transfer Bank", CreditCard], ["ewallet", "E-Wallet", Wallet]].map(([id, label, Icon]) => (
-                <div key={id} onClick={() => setMethod(id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1px solid ${method === id ? C.gold : C.border}`, background: method === id ? C.surface2 : "transparent", cursor: "pointer" }}>
-                  <Icon size={17} color={method === id ? C.goldLight : C.muted} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, fontWeight: method === id ? 700 : 500 }}>{label}</span>
-                  {method === id && <Check size={15} color={C.gold} style={{ marginLeft: "auto" }} />}
-                </div>
-              ))}
+              {activeMethods.length === 0 && (
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, padding: "10px 0" }}>Belum ada metode pembayaran aktif. Hubungi admin toko.</p>
+              )}
+              {activeMethods.map((m) => {
+                const Icon = iconForMethod(m.icon);
+                return (
+                  <div key={m.id} onClick={() => setMethodId(m.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1px solid ${methodId === m.id ? C.gold : C.border}`, background: methodId === m.id ? C.surface2 : "transparent", cursor: "pointer" }}>
+                    <Icon size={17} color={methodId === m.id ? C.goldLight : C.muted} />
+                    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, fontWeight: methodId === m.id ? 700 : 500 }}>{m.label}</span>
+                    {m.type === "midtrans" && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, fontWeight: 700, color: C.gold, background: `${C.gold}18`, padding: "2px 7px", borderRadius: 999 }}>OTOMATIS</span>}
+                    {methodId === m.id && <Check size={15} color={C.gold} style={{ marginLeft: "auto" }} />}
+                  </div>
+                );
+              })}
             </div>
           </Card>
         </div>
@@ -1708,6 +1718,181 @@ function BankInfoForm({ bankInfo, onSave }) {
   );
 }
 
+// Editor 1 metode pembayaran — dipakai untuk tambah baru maupun edit yang sudah ada.
+// PENTING soal Midtrans: Server Key TIDAK ada field-nya di sini sama sekali (disengaja).
+// Server Key cuma boleh disimpan sebagai secret di Edge Function (lihat panduan terpisah),
+// karena kalau disimpan di tabel biasa, siapa pun yang bisa akses browser/API publik berpotensi
+// membacanya. Client Key aman disimpan di sini karena memang didesain untuk dipakai di browser.
+function PaymentMethodEditor({ initial, onSave, onCancel }) {
+  const [type, setType] = useState(initial?.type || "manual");
+  const [label, setLabel] = useState(initial?.label || "");
+  const [icon, setIcon] = useState(initial?.icon || "bank");
+  const [bankName, setBankName] = useState(initial?.bankName || "");
+  const [accountNumber, setAccountNumber] = useState(initial?.accountNumber || "");
+  const [accountHolder, setAccountHolder] = useState(initial?.accountHolder || "");
+  const [qrisImageUrl, setQrisImageUrl] = useState(initial?.qrisImageUrl || "");
+  const [instructions, setInstructions] = useState(initial?.instructions || "");
+  const [midtransClientKey, setMidtransClientKey] = useState(initial?.midtransClientKey || "");
+  const [midtransEnv, setMidtransEnv] = useState(initial?.midtransEnv || "sandbox");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fieldStyle = { width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
+  const labelStyle = { fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted };
+
+  const handleSave = async () => {
+    if (!label.trim()) { setError("Nama metode wajib diisi."); return; }
+    setError(""); setSaving(true);
+    const result = await onSave({ type, label: label.trim(), icon, bankName, accountNumber, accountHolder, qrisImageUrl, instructions, midtransClientKey, midtransEnv });
+    setSaving(false);
+    if (!result.ok) { setError(result.error || "Gagal menyimpan."); return; }
+  };
+
+  return (
+    <Card style={{ padding: 18, border: `1px solid ${C.gold}` }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 14, background: C.surface2, borderRadius: 10, padding: 4 }}>
+        <button onClick={() => setType("manual")} style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: type === "manual" ? C.surface : "transparent", boxShadow: type === "manual" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Manual</button>
+        <button onClick={() => setType("midtrans")} style={{ flex: 1, padding: "8px 0", borderRadius: 7, border: "none", background: type === "midtrans" ? C.surface : "transparent", boxShadow: type === "midtrans" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Otomatis (Midtrans)</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div>
+          <label style={labelStyle}>Nama Metode (tampil ke customer)</label>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={type === "midtrans" ? "Contoh: Kartu Kredit / Bayar Otomatis" : "Contoh: Transfer BCA, QRIS, DANA"} style={fieldStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Ikon</label>
+          <select value={icon} onChange={(e) => setIcon(e.target.value)} style={fieldStyle}>
+            <option value="bank">Bank / Transfer</option>
+            <option value="qris">QRIS</option>
+            <option value="ewallet">E-Wallet</option>
+            <option value="card">Kartu</option>
+          </select>
+        </div>
+
+        {type === "manual" ? (
+          <>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: 0 }}>Isi kolom yang relevan saja. Untuk QRIS, cukup tempel link gambar QRIS-nya. Untuk e-wallet (DANA/OVO/GoPay dll), pakai "Nomor Rekening" untuk nomor tujuan dan "Atas Nama" untuk nama pemilik.</p>
+            <div>
+              <label style={labelStyle}>Nama Bank / Penyedia (opsional)</label>
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Contoh: Bank BCA, DANA" style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Nomor Rekening / Nomor Tujuan (opsional)</label>
+              <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Contoh: 1234567890" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono',monospace" }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Atas Nama (opsional)</label>
+              <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Contoh: Nama Pemilik" style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Link Gambar QRIS (opsional)</label>
+              <input value={qrisImageUrl} onChange={(e) => setQrisImageUrl(e.target.value)} placeholder="https://..." style={fieldStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Instruksi Tambahan (opsional)</label>
+              <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={2} placeholder="Contoh: Setelah transfer, screenshot bukti lalu unggah di halaman ini." style={{ ...fieldStyle, resize: "vertical" }} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ background: `${C.gold}12`, border: `1px solid ${C.gold}44`, borderRadius: 8, padding: 12, display: "flex", gap: 8 }}>
+              <ShieldCheck size={16} color={C.gold} style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: 0, lineHeight: 1.6 }}>Demi keamanan, <b style={{ color: C.text }}>Server Key Midtrans tidak diisi di sini</b> — itu harus disetel lewat Supabase Edge Function secrets (bukan tabel database), supaya tidak bisa dibaca dari browser. Lihat file panduan yang saya siapkan terpisah untuk langkah lengkapnya. Metode ini baru benar-benar berfungsi otomatis setelah Edge Function-nya di-deploy.</p>
+            </div>
+            <div>
+              <label style={labelStyle}>Midtrans Client Key (aman ditaruh di sini)</label>
+              <input value={midtransClientKey} onChange={(e) => setMidtransClientKey(e.target.value)} placeholder="SB-Mid-client-..." style={{ ...fieldStyle, fontFamily: "'JetBrains Mono',monospace" }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Environment</label>
+              <select value={midtransEnv} onChange={(e) => setMidtransEnv(e.target.value)} style={fieldStyle}>
+                <option value="sandbox">Sandbox (uji coba)</option>
+                <option value="production">Production (transaksi asli)</option>
+              </select>
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 12 }}>{error}</p>}
+      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+        <GhostBtn onClick={onCancel}>Batal</GhostBtn>
+        <PrimaryBtn onClick={handleSave} icon={Check}>{saving ? "Menyimpan..." : "Simpan Metode"}</PrimaryBtn>
+      </div>
+    </Card>
+  );
+}
+
+// Daftar + kelola metode pembayaran. Ini yang bikin metode pembayaran bisa ditambah/diedit/
+// dihapus/diaktif-nonaktifkan sendiri oleh admin tanpa perlu ubah kode sama sekali.
+function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelete, onMove }) {
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const iconLabel = { bank: "Bank / Transfer", qris: "QRIS", ewallet: "E-Wallet", card: "Kartu" };
+  const IconFor = (icon) => ({ bank: Landmark, qris: QrCode, ewallet: Wallet, card: CreditCard }[icon] || CreditCard);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 560 }}>
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: 0, lineHeight: 1.6 }}>Metode di sini yang tampil sebagai pilihan pembayaran di halaman Checkout. Aktifkan/nonaktifkan kapan pun, urutkan sesuai prioritas, tanpa perlu minta bantuan siapa pun.</p>
+
+      {paymentMethods.length === 0 && !adding && (
+        <Card style={{ padding: 24, textAlign: "center" }}>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada metode pembayaran. Tambahkan minimal 1 supaya customer bisa checkout.</p>
+        </Card>
+      )}
+
+      {paymentMethods.map((m, idx) => {
+        const Icon = IconFor(m.icon);
+        if (editingId === m.id) {
+          return (
+            <PaymentMethodEditor
+              key={m.id}
+              initial={m}
+              onCancel={() => setEditingId(null)}
+              onSave={async (data) => { const r = await onUpdate(m.id, data); if (r.ok) setEditingId(null); return r; }}
+            />
+          );
+        }
+        return (
+          <Card key={m.id} style={{ padding: 14, opacity: m.enabled ? 1 : 0.55 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={16} color={C.gold} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{m.label}</span>
+                  {m.type === "midtrans" && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, fontWeight: 700, color: C.gold, background: `${C.gold}18`, padding: "2px 7px", borderRadius: 999 }}>OTOMATIS</span>}
+                </div>
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>{iconLabel[m.icon] || m.icon}{m.type === "manual" && m.accountNumber ? ` • ${m.accountNumber}` : ""}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                <button onClick={() => onMove(m.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, padding: 5 }}><ChevronUp size={15} color={C.muted} /></button>
+                <button onClick={() => onMove(m.id, "down")} disabled={idx === paymentMethods.length - 1} style={{ background: "none", border: "none", cursor: idx === paymentMethods.length - 1 ? "default" : "pointer", opacity: idx === paymentMethods.length - 1 ? 0.3 : 1, padding: 5 }}><ChevronDown size={15} color={C.muted} /></button>
+                <button onClick={() => onToggle(m.id, !m.enabled)} title={m.enabled ? "Nonaktifkan" : "Aktifkan"} style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}>
+                  {m.enabled ? <ToggleRight size={20} color={C.gold} /> : <ToggleLeft size={20} color={C.muted} />}
+                </button>
+                <button onClick={() => setEditingId(m.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}><Pencil size={14} color={C.muted} /></button>
+                <button onClick={() => { if (window.confirm(`Hapus metode "${m.label}"?`)) onDelete(m.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}><Trash2 size={14} color={C.emberLight} /></button>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+
+      {adding ? (
+        <PaymentMethodEditor
+          onCancel={() => setAdding(false)}
+          onSave={async (data) => { const r = await onAdd(data); if (r.ok) setAdding(false); return r; }}
+        />
+      ) : (
+        <GhostBtn onClick={() => setAdding(true)} icon={Plus}>Tambah Metode Pembayaran</GhostBtn>
+      )}
+    </div>
+  );
+}
+
 // Form ganti kata sandi admin. Perlu memasukkan kata sandi lama sebelum bisa mengganti ke yang baru.
 function AdminPasswordForm({ onChangePassword }) {
   const [current, setCurrent] = useState("");
@@ -1786,7 +1971,7 @@ function ProofImage({ path, alt, style }) {
   return <img src={url} alt={alt || "Bukti transfer"} style={style} />;
 }
 
-function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goToCustomerOverview }) {
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview }) {
   const [note, setNote] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -1804,6 +1989,8 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
   }
 
   const alreadySubmitted = !!order.proofImage;
+  const chosenMethod = (paymentMethods || []).find((m) => m.id === order.paymentMethodId) || null;
+  const isMidtrans = chosenMethod?.type === "midtrans";
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -1858,13 +2045,29 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
       <Card style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <Landmark size={16} color={C.gold} />
-          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Transfer ke Rekening Ini</h3>
+          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>{chosenMethod ? chosenMethod.label : "Transfer ke Rekening Ini"}</h3>
         </div>
-        <CopyableField label="Bank" value={bankInfo.bankName} />
-        <CopyableField label="Nomor Rekening" value={bankInfo.accountNumber} />
-        <CopyableField label="Atas Nama" value={bankInfo.accountHolder} />
-        <CopyableField label="Jumlah Transfer" value={rp(order.total)} />
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 10 }}>Transfer sesuai nominal di atas ya, supaya admin lebih mudah mencocokkan dengan pesanan <b>{order.id}</b>.</p>
+        {isMidtrans ? (
+          <div style={{ padding: "14px 0" }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, lineHeight: 1.6 }}>Pembayaran otomatis lewat Midtrans untuk metode ini belum sepenuhnya aktif. Silakan hubungi admin untuk menyelesaikan pembayaran, atau kembali ke keranjang dan pilih metode manual.</p>
+          </div>
+        ) : (
+          <>
+            <CopyableField label="Bank" value={chosenMethod?.bankName || bankInfo.bankName} />
+            <CopyableField label="Nomor Rekening" value={chosenMethod?.accountNumber || bankInfo.accountNumber} />
+            <CopyableField label="Atas Nama" value={chosenMethod?.accountHolder || bankInfo.accountHolder} />
+            <CopyableField label="Jumlah Transfer" value={rp(order.total)} />
+            {chosenMethod?.qrisImageUrl && (
+              <div style={{ marginTop: 10, textAlign: "center" }}>
+                <img src={chosenMethod.qrisImageUrl} alt={chosenMethod.label} style={{ maxWidth: 220, borderRadius: 10, border: `1px solid ${C.border}` }} />
+              </div>
+            )}
+            {chosenMethod?.instructions && (
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 10, whiteSpace: "pre-line" }}>{chosenMethod.instructions}</p>
+            )}
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 10 }}>Transfer sesuai nominal di atas ya, supaya admin lebih mudah mencocokkan dengan pesanan <b>{order.id}</b>.</p>
+          </>
+        )}
       </Card>
 
       <Card style={{ padding: 20, marginTop: 16 }}>
@@ -1898,9 +2101,9 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, goTo
 }
 
 /* ---------------- AUTH ---------------- */
-function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBack }) {
+function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onForgotPassword, onBack }) {
   const [tab, setTab] = useState("customer"); // "customer" | "admin"
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -1909,6 +2112,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   // Tombol tab "Admin" cuma muncul kalau buka halaman ini dengan tambahan
   // ?admin=1 di URL (mis. https://situskamu.com/?admin=1). Pengunjung biasa
   // tidak akan pernah lihat opsi ini.
@@ -1928,6 +2132,14 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
     setSubmitting(false);
     if (!result.ok) setError(result.error);
   };
+  const submitForgot = async () => {
+    setSubmitting(true);
+    const result = await onForgotPassword(email);
+    setSubmitting(false);
+    if (!result.ok) { setError(result.error); return; }
+    setError("");
+    setForgotSent(true);
+  };
 
   return (
     <div className="gs-anim-in" style={{ maxWidth: 420, margin: "0 auto", padding: "60px 20px" }}>
@@ -1943,6 +2155,27 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
         )}
 
         {tab === "customer" ? (
+          mode === "forgot" ? (
+            forgotSent ? (
+              <>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <Check size={22} color={C.gold} />
+                </div>
+                <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: C.text, margin: "0 0 8px", textAlign: "center" }}>CEK EMAIL KAMU</h2>
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18, textAlign: "center", lineHeight: 1.6 }}>Kalau <b style={{ color: C.text }}>{email}</b> terdaftar, link untuk buat kata sandi baru sudah kami kirim. Cek juga folder Spam/Promosi kalau belum muncul.</p>
+                <GhostBtn full onClick={() => { setMode("login"); setForgotSent(false); setError(""); }}>Kembali ke Masuk</GhostBtn>
+              </>
+            ) : (
+              <>
+                <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>LUPA KATA SANDI</h2>
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan email akun kamu, nanti kami kirim link untuk buat kata sandi baru.</p>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitForgot()} />
+                {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+                <PrimaryBtn full onClick={submitForgot}>{submitting ? "Mengirim..." : "Kirim Link Reset"}</PrimaryBtn>
+                <button onClick={() => { setMode("login"); setError(""); }} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 600 }}>Kembali ke Masuk</button>
+              </>
+            )
+          ) : (
           <>
             <div style={{ display: "flex", gap: 4, marginBottom: 20, background: C.surface2, borderRadius: 12, padding: 4 }}>
               <button onClick={() => { setMode("login"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "7px 0", borderRadius: 9, border: "none", background: mode === "login" ? C.surface : "transparent", boxShadow: mode === "login" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Masuk</button>
@@ -1953,10 +2186,14 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
             {mode === "register" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" style={inputStyle} />}
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={inputStyle} />
             {mode === "register" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Nomor WhatsApp" style={inputStyle} />}
-            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} />
-            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: 6 }} />
+            {mode === "login" && (
+              <button onClick={() => { setMode("forgot"); setError(""); }} style={{ display: "block", marginBottom: 12, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 600, padding: 0 }}>Lupa kata sandi?</button>
+            )}
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14, marginTop: mode === "login" ? 0 : 8 }}>{error}</p>}
             <PrimaryBtn full onClick={submitCustomer}>{submitting ? "Memproses..." : mode === "login" ? "Masuk" : "Daftar & Masuk"}</PrimaryBtn>
           </>
+          )
         ) : (
           <>
             <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
@@ -1967,6 +2204,52 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onBac
             <PrimaryBtn full onClick={submitAdmin}>{submitting ? "Memproses..." : "Masuk sebagai Admin"}</PrimaryBtn>
           </>
         )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- LUPA / RESET KATA SANDI ---------------- */
+function ResetPasswordPage({ go, onSubmit }) {
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: "1px solid transparent", borderRadius: 12, padding: "12px 14px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 14, boxSizing: "border-box" };
+
+  const handleSubmit = async () => {
+    if (pw !== confirm) { setError("Konfirmasi kata sandi tidak cocok."); return; }
+    setSubmitting(true);
+    const result = await onSubmit(pw);
+    setSubmitting(false);
+    if (!result.ok) { setError(result.error); return; }
+    setError("");
+    setDone(true);
+  };
+
+  if (done) {
+    return (
+      <div className="gs-anim-in" style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+        <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+          <Check size={26} color={C.gold} />
+        </div>
+        <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.text, marginTop: 18 }}>KATA SANDI DIPERBARUI</h2>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 8 }}>Kata sandi kamu sudah berhasil diganti. Silakan lanjut ke dashboard.</p>
+        <div style={{ marginTop: 20 }}><PrimaryBtn onClick={() => go("customer")}>Lanjutkan</PrimaryBtn></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gs-anim-in" style={{ maxWidth: 420, margin: "0 auto", padding: "60px 20px" }}>
+      <Card style={{ padding: 28, boxShadow: "0 20px 44px rgba(0,0,0,0.07)" }}>
+        <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>BUAT KATA SANDI BARU</h2>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan kata sandi baru untuk akun kamu.</p>
+        <input value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Kata sandi baru" type="password" style={inputStyle} />
+        <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Konfirmasi kata sandi baru" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
+        {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+        <PrimaryBtn full onClick={handleSubmit}>{submitting ? "Menyimpan..." : "Simpan Kata Sandi Baru"}</PrimaryBtn>
       </Card>
     </div>
   );
@@ -2452,7 +2735,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
@@ -2881,8 +3164,8 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Landmark size={18} color={C.gold} />
                   <div>
-                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Rekening</h3>
-                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Rekening tujuan transfer yang tampil di halaman konfirmasi pembayaran customer.</p>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Metode Pembayaran</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Kelola rekening, QRIS, e-wallet, dan pembayaran otomatis yang tampil di checkout.</p>
                   </div>
                 </div>
                 <ChevronRight size={16} color={C.muted} />
@@ -2958,7 +3241,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         {sub === "settings" && settingsSub === "rekening" && (
           <div>
             <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
-            <BankInfoForm bankInfo={bankInfo} onSave={updateBankInfo} />
+            <PaymentMethodsForm paymentMethods={paymentMethods} onAdd={addPaymentMethod} onUpdate={updatePaymentMethod} onToggle={togglePaymentMethod} onDelete={deletePaymentMethod} onMove={movePaymentMethod} />
           </div>
         )}
 
@@ -4901,7 +5184,11 @@ export default function App() {
   // Kalau situs dibuka dengan tambahan ?halaman=nama-slug di URL (link dari iklan), langsung
   // arahkan ke landing page itu sejak render pertama — supaya tidak sempat "kelip" ke Beranda dulu.
   const [view, setView] = useState(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("halaman")) return "lp";
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("resetpw") === "1") return "resetpassword";
+      if (params.get("halaman")) return "lp";
+    }
     return "home";
   });
   const [lpSlug, setLpSlug] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("halaman") : null));
@@ -4935,6 +5222,7 @@ export default function App() {
   const [customPageSlug, setCustomPageSlug] = useState(null);
   const [testimonials, setTestimonials] = useState(INITIAL_TESTIMONIALS);
   const [bankInfo, setBankInfo] = useState(DEFAULT_BANK_INFO);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [totalVisits, setTotalVisits] = useState(0);
 
   /* ---------------- MAPPER: baris database (snake_case) <-> bentuk data yang dipakai di seluruh app (camelCase) ---------------- */
@@ -4967,6 +5255,13 @@ export default function App() {
     proofImage: row.proof_image_url,
     proofNote: row.proof_note,
     proofSubmittedAt: row.proof_submitted_at ? formatDateID(new Date(row.proof_submitted_at)) : null,
+    paymentMethodId: row.payment_method_id || null,
+  });
+  const mapPaymentMethodRow = (row) => ({
+    id: row.id, type: row.type, label: row.label, icon: row.icon, enabled: row.enabled, sortOrder: row.sort_order,
+    bankName: row.bank_name, accountNumber: row.account_number, accountHolder: row.account_holder,
+    qrisImageUrl: row.qris_image_url, instructions: row.instructions,
+    midtransClientKey: row.midtrans_client_key, midtransEnv: row.midtrans_env || "sandbox",
   });
 
   /* ---------------- FETCH DATA DARI SUPABASE ---------------- */
@@ -5058,6 +5353,12 @@ export default function App() {
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
     if (!error && data) setOrders(data.map(mapOrderRow));
   };
+  const fetchPaymentMethods = async () => {
+    // enabled=true kelihatan oleh semua orang (perlu tampil di checkout publik), admin juga
+    // lihat yang nonaktif lewat RLS admin — lihat kebijakan di payment_methods.sql.
+    const { data, error } = await supabase.from("payment_methods").select("*").order("sort_order");
+    if (!error && data) setPaymentMethods(data.map(mapPaymentMethodRow));
+  };
 
   // Catat 1 kunjungan setiap kali situs dibuka (dipanggil sekali saat app pertama kali dimuat).
   // Siapa saja (belum login pun) boleh insert baris ini — lihat kebijakan di site_visits.sql.
@@ -5081,6 +5382,7 @@ export default function App() {
     fetchSiteContent();
     fetchCustomPages();
     fetchLandingPages();
+    fetchPaymentMethods();
     logVisit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -5098,6 +5400,70 @@ export default function App() {
     await supabase.from("bank_info").update({
       bank_name: data.bankName, account_number: data.accountNumber, account_holder: data.accountHolder,
     }).eq("id", 1);
+  };
+
+  /* ---------------- METODE PEMBAYARAN (bisa ditambah/diedit sendiri lewat Pengaturan → Metode Pembayaran,
+     tanpa perlu edit kode). "manual" = rekening/QRIS/e-wallet yang diverifikasi admin secara manual.
+     "midtrans" = pembayaran otomatis lewat Midtrans Snap. PENTING: Midtrans Server Key TIDAK PERNAH
+     disimpan di tabel ini (bisa dibaca browser) — server key cuma boleh hidup sebagai secret di Edge
+     Function. Yang disimpan di sini cuma Client Key, yang memang didesain aman untuk publik. ---------------- */
+  const addPaymentMethod = async (m) => {
+    const maxOrder = paymentMethods.reduce((max, p) => Math.max(max, p.sortOrder ?? -1), -1);
+    const { error } = await supabase.from("payment_methods").insert({
+      type: m.type, label: m.label, icon: m.icon, enabled: true, sort_order: maxOrder + 1,
+      bank_name: m.bankName || null, account_number: m.accountNumber || null, account_holder: m.accountHolder || null,
+      qris_image_url: m.qrisImageUrl || null, instructions: m.instructions || null,
+      midtrans_client_key: m.midtransClientKey || null, midtrans_env: m.midtransEnv || "sandbox",
+    });
+    if (error) return { ok: false, error: error.message };
+    fetchPaymentMethods();
+    return { ok: true };
+  };
+  const updatePaymentMethod = async (id, m) => {
+    const { error } = await supabase.from("payment_methods").update({
+      type: m.type, label: m.label, icon: m.icon,
+      bank_name: m.bankName || null, account_number: m.accountNumber || null, account_holder: m.accountHolder || null,
+      qris_image_url: m.qrisImageUrl || null, instructions: m.instructions || null,
+      midtrans_client_key: m.midtransClientKey || null, midtrans_env: m.midtransEnv || "sandbox",
+    }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    fetchPaymentMethods();
+    return { ok: true };
+  };
+  const togglePaymentMethod = async (id, enabled) => {
+    setPaymentMethods((prev) => prev.map((p) => (p.id === id ? { ...p, enabled } : p))); // optimistic
+    await supabase.from("payment_methods").update({ enabled }).eq("id", id);
+  };
+  const deletePaymentMethod = async (id) => {
+    await supabase.from("payment_methods").delete().eq("id", id);
+    fetchPaymentMethods();
+  };
+  const movePaymentMethod = async (id, direction) => {
+    const idx = paymentMethods.findIndex((p) => p.id === id);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= paymentMethods.length) return;
+    const a = paymentMethods[idx], b = paymentMethods[swapIdx];
+    setPaymentMethods((prev) => { // optimistic swap biar kerasa instan
+      const next = [...prev]; [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]; return next;
+    });
+    await supabase.from("payment_methods").update({ sort_order: b.sortOrder }).eq("id", a.id);
+    await supabase.from("payment_methods").update({ sort_order: a.sortOrder }).eq("id", b.id);
+    fetchPaymentMethods();
+  };
+
+  /* ---------------- EMAIL KONFIRMASI PESANAN ----------------
+     Dikirim lewat Supabase Edge Function "send-order-email" (pakai Resend), BUKAN dari sini
+     langsung — supaya API key pengirim email tidak pernah nongol di browser. Kalau Edge
+     Function belum di-deploy, panggilan ini gagal diam-diam (tidak mengganggu alur checkout/
+     verifikasi pembayaran yang tetap harus jalan meski emailnya gagal terkirim). */
+  const sendOrderEmail = async (payload) => {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-order-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) { /* non-blocking */ }
   };
 
   /* ---------------- AKUN & SESI (Supabase Auth) ---------------- */
@@ -5121,6 +5487,9 @@ export default function App() {
       setSession(s);
       if (s) await fetchProfile(s.user.id);
       else setProfile(null);
+      // Link reset password dari email membawa token khusus yang memicu event ini otomatis —
+      // begitu terdeteksi, arahkan ke halaman buat kata sandi baru.
+      if (_event === "PASSWORD_RECOVERY") setView("resetpassword");
     });
     return () => listener.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5204,6 +5573,28 @@ export default function App() {
     if (newPw.length < 6) return { ok: false, error: "Kata sandi baru minimal 6 karakter." };
     const { error: reauthError } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPw });
     if (reauthError) return { ok: false, error: "Kata sandi saat ini salah." };
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  };
+  // Lupa kata sandi: Supabase mengirim email berisi link reset. Link itu membawa balik ke situs
+  // ini dengan token khusus di URL, yang otomatis memicu event "PASSWORD_RECOVERY" (ditangani di
+  // listener onAuthStateChange di atas) dan mengarahkan ke halaman ResetPasswordPage.
+  // CATATAN: kalau email ini tidak sampai ke inbox customer, kemungkinan besar penyebabnya bukan
+  // di kode, tapi karena Supabase Auth bawaan (gratis) sangat dibatasi jumlah kirimnya per jam dan
+  // sering nyangkut di folder Spam. Solusinya: pasang custom SMTP (mis. lewat Resend/Brevo) di
+  // Supabase Dashboard → Authentication → Emails → SMTP Settings.
+  const forgotPassword = async (email) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return { ok: false, error: "Masukkan email kamu terlebih dahulu." };
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?resetpw=1` : undefined,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  };
+  const resetPasswordConfirm = async (newPw) => {
+    if (newPw.length < 6) return { ok: false, error: "Kata sandi minimal 6 karakter." };
     const { error } = await supabase.auth.updateUser({ password: newPw });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -5358,7 +5749,7 @@ export default function App() {
   const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
   const clearCart = () => { setCart([]); setCoupon(null); };
 
-  const addOrder = async ({ cartProducts, total, discount, couponCode, method, customerName, customerEmail, customerPhone }) => {
+  const addOrder = async ({ cartProducts, total, discount, couponCode, method, paymentMethodId, customerName, customerEmail, customerPhone }) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan, silakan masuk ulang." };
     const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price }));
     const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
@@ -5368,12 +5759,15 @@ export default function App() {
       customer_email: customerEmail,
       customer_phone: customerPhone,
       items, subtotal, discount, coupon_code: couponCode, total,
-      // Midtrans belum terhubung — semua pesanan masuk sebagai Pending dan diverifikasi manual
-      // oleh admin setelah customer mengunggah bukti transfer.
-      payment: "Pending", status: "Menunggu Pembayaran", method,
+      payment: "Pending", status: "Menunggu Pembayaran", method, payment_method_id: paymentMethodId || null,
     }).select().single();
     if (error) return { ok: false, error: error.message };
     fetchOrders();
+    sendOrderEmail({
+      orderId: data.id, kind: "created", customerEmail, customerName,
+      items: cartProducts.map((p) => ({ name: p.name, price: p.price })),
+      total, discount, status: "Menunggu Pembayaran",
+    });
     return { ok: true, orderId: data.id };
   };
   // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
@@ -5388,6 +5782,10 @@ export default function App() {
   const updateOrderStatus = async (id, payment, status) => {
     const { error } = await supabase.rpc("admin_update_order_status", { p_order_id: id, p_payment: payment, p_status: status });
     if (error) { alert("Gagal mengubah status pesanan: " + error.message); return; }
+    if (payment === "PAID") {
+      const ord = orders.find((o) => o.id === id);
+      if (ord) sendOrderEmail({ orderId: id, kind: "paid", customerEmail: ord.customerEmail, customerName: ord.customerName, total: ord.total, discount: ord.discount, status });
+    }
     fetchOrders();
     fetchProducts();
     fetchCoupons();
@@ -5702,7 +6100,7 @@ export default function App() {
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
-          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} />
+          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} paymentMethods={paymentMethods} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
@@ -5710,8 +6108,9 @@ export default function App() {
           </div>
         )
       )}
-      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} goToCustomerOverview={goToCustomerOverview} />}
-      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onBack={onBack} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
+      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
+      {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
@@ -5743,7 +6142,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );
