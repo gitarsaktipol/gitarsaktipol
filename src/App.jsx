@@ -5857,6 +5857,8 @@ export default function App() {
     if (uploadError) return { ok: false, error: uploadError.message };
     const { error: rpcError } = await supabase.rpc("attach_payment_proof", { p_order_id: orderId, p_proof_url: path, p_note: note });
     if (rpcError) return { ok: false, error: rpcError.message };
+    const ord = orders.find((o) => o.id === orderId);
+    if (ord) sendOrderEmail({ orderId, kind: "proof_uploaded", customerEmail: ord.customerEmail, customerName: ord.customerName, total: ord.total, discount: ord.discount, status: "Menunggu Verifikasi" });
     fetchOrders();
     return { ok: true };
   };
