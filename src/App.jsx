@@ -2172,7 +2172,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
   };
   const submitForgot = async () => {
     setSubmitting(true);
-    const result = await onForgotPassword(email);
+    const result = await onForgotPassword(tab === "admin" ? adminEmail : email);
     setSubmitting(false);
     if (!result.ok) { setError(result.error); return; }
     setError("");
@@ -2192,28 +2192,27 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
         </div>
         )}
 
-        {tab === "customer" ? (
-          mode === "forgot" ? (
-            forgotSent ? (
-              <>
-                <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                  <Check size={22} color={C.gold} />
-                </div>
-                <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: C.text, margin: "0 0 8px", textAlign: "center" }}>CEK EMAIL KAMU</h2>
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18, textAlign: "center", lineHeight: 1.6 }}>Kalau <b style={{ color: C.text }}>{email}</b> terdaftar, link untuk buat kata sandi baru sudah kami kirim. Cek juga folder Spam/Promosi kalau belum muncul.</p>
-                <GhostBtn full onClick={() => { setMode("login"); setForgotSent(false); setError(""); }}>Kembali ke Masuk</GhostBtn>
-              </>
-            ) : (
-              <>
-                <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>LUPA KATA SANDI</h2>
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan email akun kamu, nanti kami kirim link untuk buat kata sandi baru.</p>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitForgot()} />
-                {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
-                <PrimaryBtn full onClick={submitForgot}>{submitting ? "Mengirim..." : "Kirim Link Reset"}</PrimaryBtn>
-                <button onClick={() => { setMode("login"); setError(""); }} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 600 }}>Kembali ke Masuk</button>
-              </>
-            )
+        {mode === "forgot" ? (
+          forgotSent ? (
+            <>
+              <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Check size={22} color={C.gold} />
+              </div>
+              <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: C.text, margin: "0 0 8px", textAlign: "center" }}>CEK EMAIL KAMU</h2>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18, textAlign: "center", lineHeight: 1.6 }}>Kalau <b style={{ color: C.text }}>{tab === "admin" ? adminEmail : email}</b> terdaftar, link untuk buat kata sandi baru sudah kami kirim. Cek juga folder Spam/Promosi kalau belum muncul.</p>
+              <GhostBtn full onClick={() => { setMode("login"); setForgotSent(false); setError(""); }}>Kembali ke Masuk</GhostBtn>
+            </>
           ) : (
+            <>
+              <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>LUPA KATA SANDI</h2>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masukkan email akun kamu, nanti kami kirim link untuk buat kata sandi baru.</p>
+              <input value={tab === "admin" ? adminEmail : email} onChange={(e) => tab === "admin" ? setAdminEmail(e.target.value) : setEmail(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitForgot()} />
+              {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
+              <PrimaryBtn full onClick={submitForgot}>{submitting ? "Mengirim..." : "Kirim Link Reset"}</PrimaryBtn>
+              <button onClick={() => { setMode("login"); setError(""); }} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 600 }}>Kembali ke Masuk</button>
+            </>
+          )
+        ) : tab === "customer" ? (
           <>
             <div style={{ display: "flex", gap: 4, marginBottom: 20, background: C.surface2, borderRadius: 12, padding: 4 }}>
               <button onClick={() => { setMode("login"); setError(""); }} className="gs-btn" style={{ flex: 1, padding: "7px 0", borderRadius: 9, border: "none", background: mode === "login" ? C.surface : "transparent", boxShadow: mode === "login" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Masuk</button>
@@ -2231,13 +2230,13 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14, marginTop: mode === "login" ? 0 : 8 }}>{error}</p>}
             <PrimaryBtn full onClick={submitCustomer}>{submitting ? "Memproses..." : mode === "login" ? "Masuk" : "Daftar & Masuk"}</PrimaryBtn>
           </>
-          )
         ) : (
           <>
             <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>MASUK SEBAGAI ADMIN</h2>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Gunakan akun yang sudah diberi akses admin. Kata sandi bisa diganti lewat Pengaturan → Keamanan setelah masuk.</p>
             <input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Email admin" type="email" style={inputStyle} />
-            <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: error ? 8 : 18 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
+            <input value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Kata sandi" type="password" style={{ ...inputStyle, marginBottom: 6 }} onKeyDown={(e) => e.key === "Enter" && submitAdmin()} />
+            <button onClick={() => { setMode("forgot"); setError(""); }} style={{ display: "block", marginBottom: 12, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 600, padding: 0 }}>Lupa kata sandi?</button>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginBottom: 14 }}>{error}</p>}
             <PrimaryBtn full onClick={submitAdmin}>{submitting ? "Memproses..." : "Masuk sebagai Admin"}</PrimaryBtn>
           </>
