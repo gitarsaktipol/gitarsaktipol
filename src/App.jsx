@@ -6,7 +6,7 @@ import {
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
-  Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight
+  Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -21,7 +21,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 /* ---------------- design tokens (gaya iOS: putih bersih, aksen emas & terracotta) ---------------- */
-const C = {
+const LIGHT_THEME = {
   bg: "#FFFFFF",
   surface: "#FFFFFF",
   surface2: "#F5F5F7",
@@ -34,7 +34,38 @@ const C = {
   text: "#1D1D1F",
   muted: "#6E6E73",
   mutedDark: "#86868B",
+  btnPrimaryBg: "#1D1D1F",
+  btnPrimaryText: "#FFFFFF",
+  headerBg: "rgba(255,255,255,0.78)",
 };
+const DARK_THEME = {
+  bg: "#121214",
+  surface: "#1C1C1F",
+  surface2: "#26262A",
+  border: "#3A3A3F",
+  borderSoft: "#2C2C30",
+  gold: "#D4A94A",
+  goldLight: "#E8C670",
+  ember: "#E0553A",
+  emberLight: "#FF6B4A",
+  text: "#F2F2F3",
+  muted: "#A1A1A6",
+  mutedDark: "#8E8E93",
+  btnPrimaryBg: "#F2F2F3",
+  btnPrimaryText: "#1D1D1F",
+  headerBg: "rgba(18,18,20,0.78)",
+};
+// "themeState" itu objek biasa (bukan React state) yang isinya bisa berubah — dipakai supaya C.xxx
+// yang dipakai di ~800 tempat di seluruh file ini otomatis mengikuti tema aktif TANPA perlu ubah
+// satu-satu. Caranya: C dibuat lewat Proxy, jadi tiap kali kode nulis C.text / C.bg / dst, nilainya
+// selalu diambil live sesuai tema yang sedang aktif saat itu. Re-render dipicu oleh state React biasa
+// (lihat useTheme di dalam App()), jadi tampilan tetap ikut alur React yang normal.
+const themeState = { mode: "light" };
+const C = new Proxy({}, {
+  get(_target, key) {
+    return (themeState.mode === "dark" ? DARK_THEME : LIGHT_THEME)[key];
+  },
+});
 
 // Aset brand — taruh file gambar ini di folder "public" project (public/), path di bawah akan otomatis ketemu.
 const LOGO_URL = "/gitar-sakti-logo.png";
@@ -535,7 +566,7 @@ function PrimaryBtn({ children, onClick, full, small, icon: Icon }) {
   return (
     <button onClick={onClick} className="gs-btn gs-btn-primary" style={{
       display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-      background: C.text, color: "#fff",
+      background: C.btnPrimaryBg, color: C.btnPrimaryText,
       border: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 700,
       fontSize: small ? 13.5 : 15, padding: small ? "9px 18px" : "13px 26px",
       borderRadius: 980, cursor: "pointer", width: full ? "100%" : "auto", letterSpacing: 0,
@@ -731,7 +762,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
 }
 
 /* ---------------- header / footer ---------------- */
-function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage }) {
+function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage, theme, onToggleTheme }) {
   const h = content || DEFAULT_SITE_CONTENT.header;
   const admin = role === "admin" && editMode;
   const navItem = (label, target, saveKey) => (
@@ -744,7 +775,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
     )
   );
   return (
-    <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.78)", backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
+    <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: C.headerBg, backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
           <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
@@ -770,6 +801,9 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={onToggleTheme} className="gs-icon-btn" title={theme === "dark" ? "Mode terang" : "Mode gelap"} style={{ background: C.surface2, border: "none", borderRadius: 980, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            {theme === "dark" ? <Sun size={16} color={C.text} /> : <Moon size={16} color={C.text} />}
+          </button>
           {role === "admin" && (view === "home" || view === "about") && (
             <button
               onClick={() => setEditMode((v) => !v)}
@@ -824,6 +858,10 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
             )}
           </div>
           {!role && <div className="gs-mobile-toggle" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${C.borderSoft}` }}><GhostBtn full small onClick={goToAuth}>Masuk</GhostBtn><PrimaryBtn full small onClick={goToAuth}>Daftar</PrimaryBtn></div>}
+          <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "none", border: `1px solid ${C.border}`, borderRadius: 980, padding: "9px 0", marginTop: 4, color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+            {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            {theme === "dark" ? "Mode Terang" : "Mode Gelap"}
+          </button>
         </div>
       )}
     </div>
@@ -5183,6 +5221,26 @@ function AboutPage({ go, content, footerContent, role, editMode, updateSiteConte
 export default function App() {
   // Kalau situs dibuka dengan tambahan ?halaman=nama-slug di URL (link dari iklan), langsung
   // arahkan ke landing page itu sejak render pertama — supaya tidak sempat "kelip" ke Beranda dulu.
+  // Tema (terang/gelap): preferensi disimpan di localStorage browser supaya tetap kepilih
+  // walau situs ditutup dan dibuka lagi. themeState.mode di-sync tiap render supaya Proxy "C"
+  // di atas selalu baca nilai yang terbaru.
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("gs-theme");
+      if (saved === "dark" || saved === "light") return saved;
+      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+    }
+    return "light";
+  });
+  themeState.mode = theme;
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      if (typeof window !== "undefined") window.localStorage.setItem("gs-theme", next);
+      return next;
+    });
+  };
+
   const [view, setView] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -6091,7 +6149,7 @@ export default function App() {
         @media (min-width: 861px) { .gs-mobile-toggle { display: none !important; } }
       `}</style>
 
-      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} />}
+      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} />}
