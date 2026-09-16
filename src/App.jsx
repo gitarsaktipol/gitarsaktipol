@@ -4890,7 +4890,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px" }}>
           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Dipercaya oleh pelajar gitar di seluruh Indonesia</p>
           <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[[`${p.sold || 0}+`, "Pembeli"], [String(p.rating || "5.0"), "Rating Rata-rata"], [p.duration || "-", "Materi"]].map(([n, l]) => (
+            {[[`${p.sold || 0}+`, "Pembeli"], [p.rating > 0 ? String(p.rating) : "Baru", "Rating Rata-rata"], [p.duration || "-", "Materi"]].map(([n, l]) => (
               <div key={l} style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.goldLight }}>{n}</div>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
