@@ -1152,7 +1152,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }} className="gs-grid-3">
             {TESTIMONIALS.map((t, i) => (
               <Reveal key={t.name} delay={i * 0.08}>
-                <Card style={{ padding: 20 }}>
+                <Card style={{ padding: 20, background: C.surface2, border: `1px solid ${C.border}` }}>
                   <div style={{ marginBottom: 12, fontFamily: "'Manrope',sans-serif" }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
