@@ -2872,7 +2872,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
             <Card style={{ overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
                 <thead><tr style={{ background: C.surface2 }}>
-                  {["Urutan", "Produk", "Kategori", "Harga", "Video", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
+                  {["Urutan", "Produk", "Harga", "Video", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {products.map((p, idx) => {
@@ -2886,7 +2886,6 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                           </div>
                         </td>
                         <td style={{ padding: "10px 14px", color: C.text }}>{p.name}</td>
-                        <td style={{ padding: "10px 14px", color: C.muted }}>{p.category}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(p.price)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{curriculumData[p.id] ? `${curriculumData[p.id].length} video` : "—"}</td>
                         <td style={{ padding: "10px 14px" }}>
