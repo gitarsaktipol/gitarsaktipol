@@ -2758,7 +2758,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
@@ -3019,7 +3019,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
             <Card style={{ overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
                 <thead><tr style={{ background: C.surface2 }}>
-                  {["Kode", "Tipe", "Nilai", "Min. Belanja", "Terpakai", "Berlaku Sampai"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
+                  {["Kode", "Tipe", "Nilai", "Min. Belanja", "Terpakai", "Berlaku Sampai", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {coupons.map((c) => (
@@ -3030,6 +3030,11 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                       <td style={{ padding: "10px 14px", color: C.muted }}>{c.minPurchase ? rp(c.minPurchase) : "—"}</td>
                       <td style={{ padding: "10px 14px", color: C.muted }}>{c.used}/{c.limit}</td>
                       <td style={{ padding: "10px 14px", color: C.muted }}>{c.expiry}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <button onClick={() => { if (window.confirm(`Hapus kupon "${c.code}"? Kupon ini tidak bisa dipakai lagi setelah dihapus.`)) deleteCoupon(c.code); }} title="Hapus kupon" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Trash2 size={15} color={C.emberLight} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -6036,6 +6041,14 @@ export default function App() {
     });
     fetchCoupons();
   };
+  const deleteCoupon = async (code) => {
+    const { data, error } = await supabase.from("coupons").delete().eq("code", code).select();
+    if (error || !data || data.length === 0) {
+      alert("Kupon gagal dihapus. Coba muat ulang halaman dan pastikan kamu masih login sebagai admin.");
+    }
+    if (coupon === code) setCoupon(null);
+    fetchCoupons();
+  };
   // Dihitung di client dari daftar kupon yang sudah di-fetch — cukup untuk kebutuhan sekarang.
   // (Ada juga RPC validate_coupon di database untuk validasi sisi-server yang lebih ketat kalau
   // nanti dibutuhkan, tapi belum dipakai supaya alur tampilan harga tetap instan/sinkron.)
@@ -6187,7 +6200,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );
