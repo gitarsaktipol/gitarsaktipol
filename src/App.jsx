@@ -1153,12 +1153,12 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
             {TESTIMONIALS.map((t, i) => (
               <Reveal key={t.name} delay={i * 0.08}>
                 <Card style={{ padding: 20 }}>
-                  <StarRow rating={t.rating} />
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.text, marginTop: 12, lineHeight: 1.6 }}>"{t.quote}"</p>
-                  <div style={{ marginTop: 16, fontFamily: "'Manrope',sans-serif" }}>
+                  <div style={{ marginBottom: 12, fontFamily: "'Manrope',sans-serif" }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
                   </div>
+                  <StarRow rating={t.rating} />
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.text, marginTop: 12, marginBottom: 0, lineHeight: 1.6 }}>"{t.quote}"</p>
                 </Card>
               </Reveal>
             ))}
