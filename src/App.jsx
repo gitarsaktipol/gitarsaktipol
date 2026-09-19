@@ -773,7 +773,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
 }
 
 /* ---------------- header / footer ---------------- */
-function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage, theme, onToggleTheme }) {
+function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage, theme, onToggleTheme, onLogout }) {
   const h = content || DEFAULT_SITE_CONTENT.header;
   const admin = role === "admin" && editMode;
   const navItem = (label, target, saveKey) => (
@@ -873,6 +873,11 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
             {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
             {theme === "dark" ? "Mode Terang" : "Mode Gelap"}
           </button>
+          {role && onLogout && (
+            <button className="gs-mobile-toggle" onClick={() => { setMobileOpen(false); onLogout(); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: "none", border: `1px solid ${C.border}`, borderRadius: 980, padding: "9px 0", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+              <LogOut size={14} />Keluar
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2359,7 +2364,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
       <DashSidebar items={items} active={sub} onSelect={setSub} footer={
-        <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
+        <button className="gs-sidebar-logout" onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
       } />
@@ -2791,7 +2796,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
       <DashSidebar items={items} active={sub} onSelect={(k) => { setSub(k); setTampilanSub("menu"); setSettingsSub("menu"); }} footer={
-        <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
+        <button className="gs-sidebar-logout" onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
       } />
@@ -6113,6 +6118,7 @@ export default function App() {
         }
         @media (max-width: 860px) {
           .gs-desktop-nav { display: none !important; }
+          .gs-sidebar-logout { display: none !important; }
           .gs-hero-grid { grid-template-columns: 1fr !important; }
           .gs-grid-2, .gs-grid-3, .gs-grid-4 { grid-template-columns: 1fr 1fr !important; }
           .gs-footer-grid { grid-template-columns: 1fr 1fr !important; }
@@ -6131,7 +6137,7 @@ export default function App() {
         @media (min-width: 861px) { .gs-mobile-toggle { display: none !important; } }
       `}</style>
 
-      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} />}
+      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} />}
