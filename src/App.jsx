@@ -1111,21 +1111,6 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
         </div>
       </Section>
 
-      <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
-        <Section eyebrow={T("categoryEyebrow")} title={T("categoryTitle")} sub={T("categorySub", true)}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
-            {CATEGORIES.map((c, i) => (
-              <Reveal key={c} delay={i * 0.04}>
-                <div className="gs-card gs-card-hover" onClick={() => go("shop")} style={{ cursor: "pointer", padding: "18px 16px", borderRadius: 14, border: `1px solid ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{c}</span>
-                  <ChevronRight size={15} color={C.gold} />
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </Section>
-      </div>
-
       <Section eyebrow={T("whyEyebrow")} title={T("whyTitle")} sub={T("whySub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 22 }} className="gs-grid-2">
           {home.whyItems.map((item, idx) => {
@@ -1212,20 +1197,18 @@ function FaqItem({ q, a }) {
 /* ---------------- SHOP ---------------- */
 function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, onToggleStatus }) {
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState("Semua");
   const [sort, setSort] = useState("Terbaru");
   const isAdmin = role === "admin";
 
   const filtered = useMemo(() => {
     let list = isAdmin ? products.slice() : products.filter((p) => (p.status || "published") === "published");
     list = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
-    if (cat !== "Semua") list = list.filter((p) => p.category === cat);
     if (sort === "Harga Terendah") list = [...list].sort((a, b) => a.price - b.price);
     if (sort === "Harga Tertinggi") list = [...list].sort((a, b) => b.price - a.price);
     if (sort === "Terlaris") list = [...list].sort((a, b) => b.sold - a.sold);
     if (sort === "Rating") list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [q, cat, sort, products, isAdmin]);
+  }, [q, sort, products, isAdmin]);
 
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "36px 20px 60px" }}>
@@ -1239,10 +1222,6 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           <Search size={15} color={C.muted} />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk..." style={{ background: "transparent", border: "none", outline: "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, width: "100%" }} />
         </div>
-        <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ background: C.surface2, border: "none", borderRadius: 980, padding: "10px 16px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
-          <option>Semua</option>
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
         <select value={sort} onChange={(e) => setSort(e.target.value)} style={{ background: C.surface2, border: "none", borderRadius: 980, padding: "10px 16px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
           {["Terbaru", "Terlaris", "Harga Terendah", "Harga Tertinggi", "Rating"].map((s) => <option key={s}>{s}</option>)}
         </select>
@@ -2642,15 +2621,6 @@ function TampilanBerandaForm({ content, onSave, onBack }) {
           <FieldInput label="Label kecil (eyebrow)" value={form.featuredEyebrow} onChange={(v) => set("featuredEyebrow", v)} />
           <FieldInput label="Judul" value={form.featuredTitle} onChange={(v) => set("featuredTitle", v)} />
           <FieldInput label="Subjudul" value={form.featuredSub} onChange={(v) => set("featuredSub", v)} area />
-        </div>
-      </Card>
-
-      <Card style={{ padding: 20, marginBottom: 16 }}>
-        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Section "Kategori Belajar"</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FieldInput label="Label kecil (eyebrow)" value={form.categoryEyebrow} onChange={(v) => set("categoryEyebrow", v)} />
-          <FieldInput label="Judul" value={form.categoryTitle} onChange={(v) => set("categoryTitle", v)} />
-          <FieldInput label="Subjudul" value={form.categorySub} onChange={(v) => set("categorySub", v)} area />
         </div>
       </Card>
 
