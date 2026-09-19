@@ -3786,6 +3786,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
   const [name, setName] = useState(initialLp?.name || "");
   const [productId, setProductId] = useState(initialLp?.productId || products[0]?.id || "");
   const [status, setStatus] = useState(initialLp?.status || "published");
+  const [template, setTemplate] = useState(initialLp?.extra?.template || "gold");
   const [error, setError] = useState("");
 
   const selectedProduct = products.find((pr) => pr.id === Number(productId)) || products[0];
@@ -3805,10 +3806,11 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
     if (promoEnabled && (!founderSlots || Number(founderSlots) <= 0)) { setError("Jumlah slot promo harus lebih dari 0."); return; }
     if (promoEnabled && (!founderPrice || Number(founderPrice) <= 0)) { setError("Harga promo harus diisi."); return; }
     setError("");
-    const payload = { name: name.trim(), productId: Number(productId), status };
+    const payload = { name: name.trim(), productId: Number(productId), status, template };
     if (initialLp) {
       payload.extra = {
         ...(initialLp.extra || {}),
+        template,
         promo: {
           enabled: promoEnabled,
           founderSlots: Number(founderSlots) || 0,
@@ -3849,6 +3851,15 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
             <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
               <button onClick={() => setStatus("published")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "published" ? C.gold : C.border}`, background: status === "published" ? C.surface2 : "transparent", color: status === "published" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Aktif</button>
               <button onClick={() => setStatus("draft")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "draft" ? C.gold : C.border}`, background: status === "draft" ? C.surface2 : "transparent", color: status === "draft" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Draft (belum bisa dibuka)</button>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Tampilan (Template)</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 5 }}>
+              {LP_TEMPLATES.map((t) => (
+                <button key={t.key} onClick={() => setTemplate(t.key)} style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, border: `1px solid ${template === t.key ? C.gold : C.border}`, background: template === t.key ? C.surface2 : "transparent", color: template === t.key ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.label}</button>
+              ))}
             </div>
           </div>
 
@@ -4425,7 +4436,7 @@ const LP_EXTRA_DEFAULTS = {
 // Judul dua-warna (mis. "Belajar Sendiri Itu SERING BIKIN STUCK?") disimpan sebagai 1 string
 // dengan pemisah "||" -- bagian setelah "||" otomatis ditampilkan warna emas. Dibuat terpisah
 // dari EditableText biasa karena butuh tampilan baca yang custom (dua warna), bukan teks polos.
-function LpTwoToneText({ value, onSave, admin, tag = "h2", style }) {
+function LpTwoToneText({ value, onSave, admin, tag = "h2", style, accentStyle, accentClass, breakLine }) {
   const Tag = tag;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -4433,7 +4444,7 @@ function LpTwoToneText({ value, onSave, admin, tag = "h2", style }) {
 
   const renderTwoTone = (text) => {
     const parts = String(text || "").split("||");
-    return <>{parts[0]}{parts[1] ? <span style={{ color: C.goldLight }}>{parts[1]}</span> : null}</>;
+    return <>{parts[0]}{parts[1] ? <>{breakLine ? <br /> : null}<span className={accentClass} style={accentStyle || (accentClass ? undefined : { color: C.goldLight })}>{parts[1]}</span></> : null}</>;
   };
 
   if (!admin) return <Tag style={style}>{renderTwoTone(value)}</Tag>;
@@ -4445,14 +4456,14 @@ function LpTwoToneText({ value, onSave, admin, tag = "h2", style }) {
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Teks judul || bagian ini jadi warna emas"
+          placeholder="Teks judul || bagian ini jadi warna aksen"
           style={{ width: "100%", background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6, padding: "7px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box", textAlign: "center" }}
         />
         <span style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "center" }}>
           <button onClick={() => { onSave(draft); setEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
           <button onClick={() => { setDraft(value); setEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
         </span>
-        <span style={{ display: "block", textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, marginTop: 4 }}>Tulis "||" sebelum bagian yang mau ditampilkan warna emas.</span>
+        <span style={{ display: "block", textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, marginTop: 4 }}>Tulis "||" sebelum bagian yang mau ditampilkan warna aksen (emas/ungu sesuai template).</span>
       </span>
     );
   }
@@ -5142,6 +5153,830 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       </div>
     </div>
   );
+}
+
+
+/* ---------------- LANDING PAGE — TEMPLATE 2 "VIOLET" (gelap, gaya VSL, aksen ungu) ---------------- */
+// Dipilih per-landing-page lewat Pengaturan Landing Page > Tampilan (disimpan di extra.template).
+// Logika harga/promo/countdown SAMA dengan template klasik (jujur: slot dari penjualan asli,
+// countdown dari kunjungan pertama) -- yang beda hanya tampilan & beberapa bagian baru.
+const LP_TEMPLATES = [
+  { key: "gold", label: "Klasik — tema Gitar Sakti (emas)" },
+  { key: "violet", label: "Violet — gelap gaya VSL (ungu)" },
+];
+
+const V = { bg: "#0a0a0f", card: "#12121a", border: "#1f1f2e", muted: "#6b6b80", accent: "#a855f7", accentLight: "#c084fc", accentDark: "#7c3aed", green: "#4ade80", red: "#f87171" };
+const V_DISPLAY = "'Space Grotesk',sans-serif";
+const V_BODY = "'Inter',sans-serif";
+
+const V_PATH = {
+  bolt: "M13 10V3L4 14h7v7l9-11h-7z",
+  music: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3",
+  flask: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z",
+  x: "M6 18L18 6M6 6l12 12",
+  check: "M5 13l4 4L19 7",
+  warn: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+  shield: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  chevron: "M19 9l-7 7-7-7",
+};
+const V_STAR = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
+const V_FEATURE_ICONS = [V_PATH.bolt, V_PATH.music, V_PATH.flask];
+
+const V_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+.lp2-root { background-color:#0a0a0f; background-image: radial-gradient(circle at 20% 50%, rgba(168,85,247,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(168,85,247,0.05) 0%, transparent 40%), radial-gradient(circle at 40% 80%, rgba(192,132,252,0.05) 0%, transparent 40%); color:#fff; font-family:'Inter',sans-serif; overflow-x:hidden; min-height:100%; -webkit-font-smoothing:antialiased; }
+.lp2-root *, .lp2-root *::before, .lp2-root *::after { box-sizing:border-box; }
+.lp2-gradient-text { background: linear-gradient(135deg,#a855f7 0%,#e879f9 50%,#a855f7 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.lp2-glow-violet { box-shadow: 0 0 60px rgba(168,85,247,.3), 0 0 100px rgba(168,85,247,.1); }
+.lp2-glow-btn { box-shadow: 0 4px 30px rgba(168,85,247,.4), 0 0 60px rgba(168,85,247,.2); }
+.lp2-card-glow { box-shadow: 0 4px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05); }
+.lp2-video { background: linear-gradient(145deg,#12121a 0%,#0a0a0f 100%); border:1px solid rgba(168,85,247,.2); }
+.lp2-lines { background-image: repeating-linear-gradient(90deg, rgba(168,85,247,.03) 0px, rgba(168,85,247,.03) 1px, transparent 1px, transparent 60px); }
+.lp2-btn { background: linear-gradient(135deg,#a855f7 0%,#9333ea 100%); color:#fff; border:none; cursor:pointer; text-decoration:none; transition: transform .2s ease, box-shadow .2s ease; }
+.lp2-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(168,85,247,.5); }
+.lp2-btn:active { transform: translateY(0); }
+.lp2-strike { position:relative; display:inline-block; }
+.lp2-strike::after { content:''; position:absolute; left:0; top:50%; width:100%; height:2px; background:#ef4444; transform:rotate(-8deg); }
+.lp2-fade { opacity:0; transform: translateY(30px); transition: opacity .6s ease, transform .6s ease; }
+.lp2-fade.lp2-in { opacity:1; transform:none; }
+.lp2-pulse { animation: lp2Pulse 3s ease-in-out infinite; }
+@keyframes lp2Pulse { 0%,100% { opacity:1; } 50% { opacity:.7; } }
+.lp2-bonus { background:#12121a; border:1px solid #1f1f2e; border-left:2px solid transparent; border-radius:12px; overflow:hidden; position:relative; transition: border-color .3s ease, background .3s ease, transform .3s ease; }
+.lp2-bonus:hover { border-left-color:#a855f7; background: rgba(168,85,247,.05); transform: translateX(4px); }
+.lp2-bonus-img { transition: transform .3s ease; }
+.lp2-bonus:hover .lp2-bonus-img { transform: scale(1.05); }
+.lp2-bonus-flex { display:flex; flex-direction:column; }
+.lp2-bonus-thumb { width:100%; height:160px; flex-shrink:0; overflow:hidden; }
+.lp2-sep { display:none; width:1px; height:48px; background:#1f1f2e; }
+@media (min-width:640px) {
+  .lp2-bonus-flex { flex-direction:row; }
+  .lp2-bonus-thumb { width:128px; height:96px; }
+  .lp2-sep { display:block; }
+}
+.lp2-root button:focus-visible, .lp2-root a:focus-visible { outline:2px solid #a855f7; outline-offset:2px; }
+@media (prefers-reduced-motion: reduce) {
+  .lp2-fade { opacity:1; transform:none; transition:none; }
+  .lp2-pulse { animation:none; }
+  .lp2-btn { transition:none; }
+  .lp2-bonus, .lp2-bonus-img { transition:none; }
+}
+`;
+
+function Lp2Icon({ d, size = 20, color = "currentColor", sw = 2, style }) {
+  return (
+    <svg width={size} height={size} fill="none" stroke={color} viewBox="0 0 24 24" style={{ flexShrink: 0, ...style }} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={sw} d={d} />
+    </svg>
+  );
+}
+function Lp2Stars({ rating = 5, size = 20 }) {
+  const n = Math.max(0, Math.min(5, Math.round(rating)));
+  return (
+    <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg key={i} width={size} height={size} viewBox="0 0 20 20" fill={i <= n ? "#facc15" : "#2a2a3a"} aria-hidden="true"><path d={V_STAR} /></svg>
+      ))}
+    </div>
+  );
+}
+function Lp2Fade({ children, style, delay = 0 }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return <div ref={ref} className={`lp2-fade${visible ? " lp2-in" : ""}`} style={{ transitionDelay: `${delay}s`, ...style }}>{children}</div>;
+}
+function Lp2Section({ children, bg, maxWidth = 672, pad = "64px 16px", id, style }) {
+  return (
+    <section id={id} style={{ width: "100%", padding: pad, background: bg, ...style }}>
+      <div style={{ width: "100%", maxWidth, margin: "0 auto" }}>{children}</div>
+    </section>
+  );
+}
+function Lp2AddBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: `1px dashed ${V.accent}88`, borderRadius: 8, padding: "8px 14px", color: V.accentLight, fontFamily: V_BODY, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+      <Plus size={14} />{children}
+    </button>
+  );
+}
+function Lp2DelBtn({ onClick, title }) {
+  return (
+    <button onClick={onClick} title={title} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", zIndex: 3 }}><Trash2 size={14} color={V.muted} /></button>
+  );
+}
+
+const LP2_DEFAULTS = {
+  ...LP_EXTRA_DEFAULTS,
+  proofCaption: "Dipercaya oleh pelajar gitar di seluruh Indonesia",
+  faqSubtitle: "Pertanyaan yang sering muncul dari calon member",
+  mainSubtitle: "Video pembelajaran lengkap",
+};
+
+function LandingPageTemplateViolet(props) {
+  const { lp, products } = props;
+  const p = products.find((x) => x.id === lp?.productId);
+  if (!lp || !p) {
+    return (
+      <div className="lp2-root" style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
+        <style>{V_CSS}</style>
+        <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+      </div>
+    );
+  }
+  return <LpVioletBody {...props} p={p} />;
+}
+
+function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
+  // --- Promo harga bertingkat: logika identik dengan template klasik ---
+  const legacyTiers = p.pricingTiers || null;
+  const promo = lp.extra?.promo || (legacyTiers
+    ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours }
+    : { enabled: false, founderPrice: p.price, founderSlots: 100, earlyBirdHours: 72 });
+  const hasTiers = !!promo.enabled;
+  const owned = ownedIds?.includes(p.id);
+  const pending = pendingIds?.includes(p.id);
+  const realReviews = testimonials?.[p.id] || [];
+  const headline = lp.headline || p.name;
+  const subheadline = lp.subheadline || p.desc;
+  const badgeText = lp.badgeText || "Metode Latihan Yang Sudah Teruji";
+  const videoUrl = lp.videoUrl || "";
+
+  const admin = role === "admin" && !!lpEditMode;
+  const extra = lp.extra || {};
+  const getExtra = (key) => (extra[key] !== undefined && extra[key] !== null ? extra[key] : LP2_DEFAULTS[key]);
+  const saveCore = (field) => (value) => onSaveLp && onSaveLp(lp.id, { [field]: value });
+  const saveExtra = (field) => (value) => onSaveLp && onSaveLp(lp.id, { extra: { ...extra, [field]: value } });
+
+  // Daftar-daftar yang bisa ditambah/hapus/diedit langsung di halaman
+  const problemItems = getExtra("problems") || [];
+  const updateProblemItem = (idx, patch) => saveExtra("problems")(problemItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addProblemItem = () => saveExtra("problems")([...problemItems, { title: "Masalah Baru", desc: "Jelaskan masalah yang sering dialami calon pembeli di sini." }]);
+  const removeProblemItem = (idx) => saveExtra("problems")(problemItems.filter((_, i) => i !== idx));
+
+  const featureItems = extra.features !== undefined ? (extra.features || []) : (p.learn || []).map((t) => ({ title: t, desc: "" }));
+  const updateFeature = (idx, patch) => saveExtra("features")(featureItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addFeature = () => saveExtra("features")([...featureItems, { title: "Poin materi baru", desc: "Jelaskan apa yang dipelajari di poin ini." }]);
+  const removeFeature = (idx) => saveExtra("features")(featureItems.filter((_, i) => i !== idx));
+
+  const statItems = extra.stats !== undefined && extra.stats !== null ? extra.stats : [
+    { num: `${p.sold || 0}+`, label: "Pembeli" },
+    { num: p.rating > 0 ? String(p.rating) : "Baru", label: "Rating Rata-rata" },
+    { num: p.duration || "-", label: "Materi" },
+  ];
+  const updateStat = (idx, patch) => saveExtra("stats")(statItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+
+  const manualTestis = extra.manualTestimonials || [];
+  const updateManualTesti = (idx, patch) => saveExtra("manualTestimonials")(manualTestis.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addManualTesti = () => saveExtra("manualTestimonials")([...manualTestis, { name: "Nama Siswa", role: "Keterangan (mis. Mahasiswa, Bandung)", quote: "Tulis testimoni asli dari siswa di sini.", rating: 5 }]);
+  const removeManualTesti = (idx) => saveExtra("manualTestimonials")(manualTestis.filter((_, i) => i !== idx));
+  const allTestis = [
+    ...manualTestis.map((t, i) => ({ ...t, _manual: true, _idx: i })),
+    ...realReviews.map((t) => ({ name: t.name, role: t.date, quote: t.quote, rating: t.rating })),
+  ];
+
+  const comparisonRows = extra.comparison !== undefined && extra.comparison !== null ? extra.comparison : LP_COMPARISON.map((r) => ({ label: r.label, other: r.other }));
+  const updateCompRow = (idx, patch) => saveExtra("comparison")(comparisonRows.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addCompRow = () => saveExtra("comparison")([...comparisonRows, { label: "Poin perbandingan baru", other: false }]);
+  const removeCompRow = (idx) => saveExtra("comparison")(comparisonRows.filter((_, i) => i !== idx));
+
+  const faqItems = getExtra("faq") || [];
+  const updateFaqItem = (idx, patch) => saveExtra("faq")(faqItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addFaqItem = () => saveExtra("faq")([...faqItems, { q: "Pertanyaan baru?", a: "Jawaban untuk pertanyaan ini." }]);
+  const removeFaqItem = (idx) => saveExtra("faq")(faqItems.filter((_, i) => i !== idx));
+
+  const bonusItems = extra.bonusItems !== undefined ? (extra.bonusItems || []) : (p.bonus ? [{ icon: "✨", title: p.bonus, value: "" }] : []);
+  const updateBonusItem = (idx, patch) => saveExtra("bonusItems")(bonusItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  const addBonusItem = () => saveExtra("bonusItems")([...bonusItems, { icon: "✨", title: "Bonus baru", subtitle: "BONUS - keterangan singkat", value: "", image: "" }]);
+  const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
+  const bonusValueTotal = bonusItems.reduce((sum, it) => {
+    const n = parseInt(String(it.value || "").replace(/[^0-9]/g, ""), 10);
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
+
+  const [openFaq, setOpenFaq] = useState(-1);
+
+  useEffect(() => {
+    supabase.rpc("increment_lp_visit", { p_slug: lp.slug }).then(() => {}).catch(() => {});
+    console.log("[MetaPixel] ViewContent", { content_id: p.id, content_name: p.name, value: p.price, currency: "IDR" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lp.slug]);
+
+  const scrollToPricing = () => {
+    document.getElementById("lp-pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  // Countdown JUJUR: dihitung dari kunjungan PERTAMA pengunjung, disimpan di localStorage.
+  const firstVisitKey = `gs_lp_${lp.slug}_first_visit`;
+  const [deadline, setDeadline] = useState(null);
+  useEffect(() => {
+    if (!hasTiers) return;
+    let firstVisit;
+    try {
+      const saved = localStorage.getItem(firstVisitKey);
+      if (saved) {
+        firstVisit = parseInt(saved, 10);
+      } else {
+        firstVisit = Date.now();
+        localStorage.setItem(firstVisitKey, String(firstVisit));
+      }
+    } catch (e) {
+      firstVisit = Date.now();
+    }
+    setDeadline(firstVisit + (promo.earlyBirdHours || 72) * 60 * 60 * 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasTiers, promo.earlyBirdHours]);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!hasTiers) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasTiers]);
+
+  // Promo aktif HANYA kalau slot masih ada DAN waktu belum habis; slot dihitung dari penjualan asli (p.sold).
+  let currentPrice, anchorPrice, disc, tierNote, tierNoteKey, expired, founderSlotsLeft, promoActive, timeLeft, hh, mm, ss;
+  if (hasTiers) {
+    expired = deadline !== null && now >= deadline;
+    timeLeft = deadline ? Math.max(0, Math.floor((deadline - now) / 1000)) : 0;
+    hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
+    mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
+    ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
+    founderSlotsLeft = Math.max(0, (promo.founderSlots || 0) - (p.sold || 0));
+    promoActive = !expired && founderSlotsLeft > 0;
+    if (promoActive) {
+      currentPrice = promo.founderPrice;
+      tierNoteKey = "promoActiveNote";
+      tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", promo.founderSlots);
+    } else {
+      currentPrice = p.price;
+      tierNoteKey = expired ? "promoExpiredTimeNote" : "promoExpiredSlotNote";
+      tierNote = getExtra(tierNoteKey);
+    }
+    anchorPrice = p.price;
+    disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
+  } else {
+    expired = true;
+    promoActive = false;
+    currentPrice = p.price;
+    anchorPrice = p.oldPrice && p.oldPrice > p.price ? p.oldPrice : p.price;
+    disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
+    tierNoteKey = "promoOffNote";
+    tierNote = getExtra("promoOffNote");
+  }
+
+  const buyNow = () => {
+    supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
+    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout");
+  };
+
+  const descPlain = String(p.desc || "").replace(/\*\*/g, "").replace(/^##\s+/gm, "").replace(/^\*\s+/gm, "• ");
+  const twoToneAccent = { accentStyle: { color: V.accent } };
+  const twoToneGradient = { accentClass: "lp2-gradient-text", accentStyle: {} };
+  const h2Style = { fontFamily: V_DISPLAY, fontWeight: 700, fontSize: "clamp(24px, 2vw + 16px, 30px)", color: "#fff", margin: 0, lineHeight: 1.25, textAlign: "center" };
+  const btnStyle = { display: "inline-block", padding: "16px 40px", borderRadius: 12, fontFamily: V_DISPLAY, fontWeight: 600, fontSize: 18 };
+  const mainValueText = rp(anchorPrice);
+
+  return (
+    <div className="lp2-root">
+      <style>{V_CSS}</style>
+
+      {/* Bar mode-edit -- cuma admin yang lihat */}
+      {role === "admin" && (
+        <div style={{ position: "sticky", top: 0, zIndex: 60, background: "#1a1420", borderBottom: `1px solid ${admin ? V.accent : V.border}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={goToAdmin} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#a1a1b5", fontFamily: V_BODY, fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+            <ArrowLeft size={14} />Kembali ke Admin <span style={{ color: V.muted }}>· {lp.name}</span>
+          </button>
+          <button
+            onClick={() => setLpEditMode && setLpEditMode(!lpEditMode)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: admin ? V.accent : "none", border: `1px solid ${admin ? V.accent : V.border}`, borderRadius: 8, padding: "7px 12px", cursor: "pointer", color: "#fff", fontFamily: V_BODY, fontWeight: 700, fontSize: 12.5 }}
+          >
+            <Pencil size={13} />{admin ? "Mode Edit: ON" : "Mode Edit"}
+          </button>
+        </div>
+      )}
+      {admin && (
+        <div style={{ background: `${V.accent}1f`, borderBottom: `1px solid ${V.accent}44`, padding: "8px 16px", textAlign: "center" }}>
+          <span style={{ fontFamily: V_BODY, fontSize: 11.5, color: V.accentLight }}>Arahkan kursor ke teks/video mana pun lalu klik ikon pensil ✎ untuk edit langsung di tempat.</span>
+        </div>
+      )}
+
+      {/* HERO / VSL */}
+      <section className="lp2-lines" style={{ width: "100%", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 16px" }}>
+        <div style={{ width: "100%", maxWidth: 672, margin: "0 auto" }}>
+          <Lp2Fade style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${V.accent}1a`, border: `1px solid ${V.accent}4d`, color: V.accent, fontFamily: V_BODY, fontSize: 14, fontWeight: 500 }}>
+              <Lp2Icon d={V_PATH.bolt} size={16} />
+              <EditableText value={badgeText} admin={admin} onSave={saveCore("badgeText")} tag="span" />
+            </span>
+          </Lp2Fade>
+
+          <Lp2Fade>
+            <LpTwoToneText
+              value={headline}
+              admin={admin}
+              onSave={saveCore("headline")}
+              tag="h1"
+              breakLine
+              {...twoToneGradient}
+              style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: "clamp(30px, 4.5vw + 8px, 48px)", lineHeight: 1.25, textAlign: "center", color: "#fff", margin: "0 0 16px" }}
+            />
+          </Lp2Fade>
+          <Lp2Fade>
+            <EditableText
+              value={subheadline}
+              admin={admin}
+              onSave={saveCore("subheadline")}
+              tag="p"
+              area
+              block
+              style={{ fontFamily: V_BODY, fontSize: 18, color: V.muted, textAlign: "center", maxWidth: 576, margin: "0 auto 32px", lineHeight: 1.6 }}
+            />
+          </Lp2Fade>
+
+          <Lp2Fade>
+            <LpVideoEditable url={videoUrl} admin={admin} onSave={saveCore("videoUrl")}>
+              {videoUrl ? (
+                toEmbedUrl(videoUrl) ? (
+                  <div className="lp2-video lp2-glow-violet" style={{ position: "relative", paddingTop: "56.25%", borderRadius: 16, overflow: "hidden", marginBottom: 32 }}>
+                    <iframe
+                      key={videoUrl}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                      src={toEmbedUrl(videoUrl)}
+                      title={`Video preview ${p.name}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="lp2-video lp2-glow-violet" style={{ display: "block", textDecoration: "none", borderRadius: 16, overflow: "hidden", marginBottom: 32 }}>
+                    <div style={{ position: "relative", paddingTop: "56.25%" }}>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                        <div style={{ width: 60, height: 60, borderRadius: "50%", border: `2px solid ${V.accentLight}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <PlayCircle size={30} color={V.accentLight} strokeWidth={1.2} />
+                        </div>
+                        <span style={{ fontFamily: V_BODY, fontSize: 12.5, color: V.muted }}>Tonton video preview ↗</span>
+                      </div>
+                    </div>
+                  </a>
+                )
+              ) : admin ? (
+                <div style={{ borderRadius: 16, border: `1px dashed ${V.border}`, marginBottom: 32, padding: "36px 20px", textAlign: "center", background: V.card }}>
+                  <PlayCircle size={26} color={V.muted} style={{ marginBottom: 8 }} />
+                  <p style={{ fontFamily: V_BODY, fontSize: 12.5, color: V.muted, margin: 0 }}>Belum ada video preview — klik ikon pensil di kanan atas untuk menambahkan link YouTube/Vimeo.</p>
+                </div>
+              ) : null}
+            </LpVideoEditable>
+          </Lp2Fade>
+
+          <Lp2Fade style={{ textAlign: "center" }}>
+            <LpEditableButtonLabel value={getExtra("ctaText")} admin={admin} onSave={saveExtra("ctaText")}>
+              <button className="lp2-btn lp2-glow-btn" onClick={scrollToPricing} style={btnStyle}>{getExtra("ctaText")}</button>
+            </LpEditableButtonLabel>
+            <div style={{ marginTop: 12 }}>
+              <EditableText value={getExtra("heroNote")} admin={admin} onSave={saveExtra("heroNote")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }} />
+            </div>
+          </Lp2Fade>
+        </div>
+      </section>
+
+      {/* PROBLEM AGITATION */}
+      <Lp2Section bg="rgba(18,18,26,0.5)">
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+          <LpTwoToneText value={getExtra("problemTitle")} admin={admin} onSave={saveExtra("problemTitle")} tag="h2" {...twoToneAccent} style={{ ...h2Style, marginBottom: 16 }} />
+          <EditableText value={getExtra("problemSubtitle")} admin={admin} onSave={saveExtra("problemSubtitle")} tag="p" style={{ fontFamily: V_BODY, fontSize: 16, color: V.muted, margin: 0 }} />
+        </Lp2Fade>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {problemItems.map((item, idx) => (
+            <Lp2Fade key={idx}>
+              <div style={{ position: "relative", background: "rgba(10,10,15,0.8)", borderRadius: 12, padding: 24, border: `1px solid ${V.border}`, display: "flex", gap: 16 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Lp2Icon d={V_PATH.x} size={20} color="#f87171" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <EditableText value={item.title} admin={admin} onSave={(v) => updateProblemItem(idx, { title: v })} tag="h3" block style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 16, color: "#fff", margin: "0 0 4px" }} />
+                  <EditableText value={item.desc} admin={admin} onSave={(v) => updateProblemItem(idx, { desc: v })} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0, lineHeight: 1.6 }} />
+                </div>
+                {admin && problemItems.length > 1 && <Lp2DelBtn onClick={() => removeProblemItem(idx)} title="Hapus poin ini" />}
+              </div>
+            </Lp2Fade>
+          ))}
+          {admin && <div><Lp2AddBtn onClick={addProblemItem}>Tambah Poin Masalah</Lp2AddBtn></div>}
+        </div>
+        <Lp2Fade style={{ marginTop: 40 }}>
+          <div style={{ padding: 24, borderRadius: 12, background: `linear-gradient(to right, ${V.accent}1a, transparent)`, borderLeft: `2px solid ${V.accent}` }}>
+            <EditableText value={getExtra("quoteText")} admin={admin} onSave={saveExtra("quoteText")} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 18, color: "#fff", fontStyle: "italic", margin: 0, lineHeight: 1.6 }} />
+          </div>
+        </Lp2Fade>
+      </Lp2Section>
+
+      {/* SOLUSI */}
+      <Lp2Section>
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+          <span style={{ fontFamily: V_BODY, fontSize: 14, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", color: V.accent }}>Perkenalkan</span>
+          <h2 style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: "clamp(30px, 3vw + 18px, 36px)", color: "#fff", margin: "8px 0 16px", lineHeight: 1.2 }}>{p.name}</h2>
+          {descPlain && <p style={{ fontFamily: V_BODY, fontSize: 16, color: V.muted, maxWidth: 512, margin: "0 auto", lineHeight: 1.6, whiteSpace: "pre-line" }}>{descPlain}</p>}
+        </Lp2Fade>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {featureItems.map((f, idx) => (
+            <Lp2Fade key={idx}>
+              <div className="lp2-card-glow" style={{ position: "relative", background: V.card, borderRadius: 12, padding: 24, border: `1px solid ${V.border}`, display: "flex", alignItems: "flex-start", gap: 16 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: `${V.accent}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Lp2Icon d={V_FEATURE_ICONS[idx % V_FEATURE_ICONS.length]} size={24} color={V.accent} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <EditableText value={f.title} admin={admin} onSave={(v) => updateFeature(idx, { title: v })} tag="h3" block style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 18, color: "#fff", margin: "0 0 4px" }} />
+                  {(f.desc || admin) && (
+                    <EditableText value={f.desc || ""} admin={admin} onSave={(v) => updateFeature(idx, { desc: v })} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0, lineHeight: 1.6 }} />
+                  )}
+                </div>
+                {admin && <Lp2DelBtn onClick={() => removeFeature(idx)} title="Hapus poin ini" />}
+              </div>
+            </Lp2Fade>
+          ))}
+          {admin && <div><Lp2AddBtn onClick={addFeature}>Tambah Poin Materi</Lp2AddBtn></div>}
+        </div>
+      </Lp2Section>
+
+      {/* SOCIAL PROOF */}
+      <Lp2Section bg="rgba(18,18,26,0.3)" pad="48px 16px">
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 32 }}>
+          <EditableText value={getExtra("proofCaption")} admin={admin} onSave={saveExtra("proofCaption")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }} />
+        </Lp2Fade>
+        <Lp2Fade style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 32 }}>
+          {statItems.map((s, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <div className="lp2-sep" />}
+              <div style={{ textAlign: "center" }}>
+                <EditableText value={s.num} admin={admin} onSave={(v) => updateStat(i, { num: v })} tag="div" block style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 30 }} />
+                <EditableText value={s.label} admin={admin} onSave={(v) => updateStat(i, { label: v })} tag="div" block style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted }} />
+              </div>
+            </React.Fragment>
+          ))}
+        </Lp2Fade>
+      </Lp2Section>
+
+      {/* TESTIMONI — ulasan asli pembeli + testimoni yang kamu tambah manual di Mode Edit */}
+      {(allTestis.length > 0 || admin) && (
+        <Lp2Section>
+          <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+            <LpTwoToneText value={getExtra("testimonialTitle")} admin={admin} onSave={saveExtra("testimonialTitle")} tag="h2" {...twoToneGradient} style={h2Style} />
+          </Lp2Fade>
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {allTestis.map((t, i) => (
+              <Lp2Fade key={i}>
+                <div style={{ position: "relative", background: V.card, borderRadius: 16, padding: 24, border: `1px solid ${V.border}` }}>
+                  <Lp2Stars rating={t.rating ?? 5} />
+                  {t._manual ? (
+                    <EditableText value={t.quote} admin={admin} onSave={(v) => updateManualTesti(t._idx, { quote: v })} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 16, color: "rgba(255,255,255,0.9)", fontStyle: "italic", margin: "0 0 16px", lineHeight: 1.6 }} />
+                  ) : (
+                    <p style={{ fontFamily: V_BODY, fontSize: 16, color: "rgba(255,255,255,0.9)", fontStyle: "italic", margin: "0 0 16px", lineHeight: 1.6 }}>"{t.quote}"</p>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: `${V.accent}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontFamily: V_BODY, fontWeight: 600, color: V.accent }}>{String(t.name || "?").trim().charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      {t._manual ? (
+                        <>
+                          <EditableText value={t.name} admin={admin} onSave={(v) => updateManualTesti(t._idx, { name: v })} tag="div" block style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: "#fff" }} />
+                          <EditableText value={t.role || ""} admin={admin} onSave={(v) => updateManualTesti(t._idx, { role: v })} tag="div" block style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted }} />
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: "#fff" }}>{t.name}</div>
+                          {t.role && <div style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted }}>{t.role}</div>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {admin && t._manual && <Lp2DelBtn onClick={() => removeManualTesti(t._idx)} title="Hapus testimoni ini" />}
+                </div>
+              </Lp2Fade>
+            ))}
+            {admin && (
+              <div>
+                <Lp2AddBtn onClick={addManualTesti}>Tambah Testimoni</Lp2AddBtn>
+                <p style={{ fontFamily: V_BODY, fontSize: 11.5, color: V.muted, margin: "8px 0 0", lineHeight: 1.5 }}>Isi dengan testimoni asli dari siswa kamu. Ulasan dari pembeli di website ini otomatis tampil juga di sini.</p>
+              </div>
+            )}
+          </div>
+        </Lp2Section>
+      )}
+
+      {/* PERBANDINGAN */}
+      <Lp2Section bg="rgba(18,18,26,0.3)">
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+          <h2 style={h2Style}>{p.name} vs <EditableText value={getExtra("comparisonHighlight")} admin={admin} onSave={saveExtra("comparisonHighlight")} tag="span" style={{ color: V.accent }} /></h2>
+        </Lp2Fade>
+        <Lp2Fade>
+          <div style={{ overflow: "auto", borderRadius: 16, border: `1px solid ${V.border}` }}>
+            <table style={{ width: "100%", minWidth: 360, borderCollapse: "collapse", fontFamily: V_BODY }}>
+              <thead>
+                <tr style={{ background: V.card }}>
+                  <th style={{ textAlign: "left", padding: 16, fontWeight: 600, color: V.muted, fontSize: 16 }}>Perbandingan</th>
+                  <th style={{ textAlign: "center", padding: 16, fontWeight: 600, color: V.accent, fontSize: 16 }}>{p.name}</th>
+                  <th style={{ textAlign: "center", padding: 16, fontWeight: 600, color: V.muted, fontSize: 16 }}>{getExtra("comparisonHighlight")}</th>
+                </tr>
+              </thead>
+              <tbody style={{ background: "rgba(10,10,15,0.5)" }}>
+                {comparisonRows.map((row, i) => (
+                  <tr key={i} style={{ borderTop: `1px solid ${V.border}` }}>
+                    <td style={{ padding: 16, fontSize: 14, color: "#fff" }}>
+                      <EditableText value={row.label} admin={admin} onSave={(v) => updateCompRow(i, { label: v })} tag="span" />
+                      {admin && comparisonRows.length > 1 && (
+                        <button onClick={() => removeCompRow(i)} title="Hapus baris ini" style={{ background: "none", border: "none", cursor: "pointer", marginLeft: 8, verticalAlign: "middle" }}><Trash2 size={13} color={V.muted} /></button>
+                      )}
+                    </td>
+                    <td style={{ padding: 16, textAlign: "center" }}>
+                      <span style={{ display: "inline-flex", width: 24, height: 24, borderRadius: "50%", background: "rgba(34,197,94,0.2)", color: V.green, alignItems: "center", justifyContent: "center" }}><Lp2Icon d={V_PATH.check} size={16} /></span>
+                    </td>
+                    <td style={{ padding: 16, textAlign: "center" }}>
+                      <button
+                        onClick={admin ? () => updateCompRow(i, { other: row.other === "partial" ? false : "partial" }) : undefined}
+                        title={admin ? "Klik untuk ganti: ✕ / ~" : undefined}
+                        style={{ background: "none", border: "none", padding: 0, cursor: admin ? "pointer" : "default" }}
+                      >
+                        {row.other === "partial" ? (
+                          <span style={{ display: "inline-flex", width: 24, height: 24, borderRadius: "50%", background: "rgba(234,179,8,0.2)", color: "#facc15", alignItems: "center", justifyContent: "center", fontSize: 14 }}>~</span>
+                        ) : (
+                          <span style={{ display: "inline-flex", width: 24, height: 24, borderRadius: "50%", background: "rgba(239,68,68,0.2)", color: "#f87171", alignItems: "center", justifyContent: "center" }}><Lp2Icon d={V_PATH.x} size={16} /></span>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {admin && <div style={{ marginTop: 12 }}><Lp2AddBtn onClick={addCompRow}>Tambah Baris Perbandingan</Lp2AddBtn></div>}
+        </Lp2Fade>
+      </Lp2Section>
+
+      {/* BONUS STACK */}
+      {(bonusItems.length > 0 || admin) && (
+        <Lp2Section bg="rgba(18,18,26,0.3)">
+          <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+            <span style={{ display: "inline-block", padding: "4px 16px", borderRadius: 999, background: `${V.accent}33`, color: V.accent, fontFamily: V_BODY, fontSize: 14, fontWeight: 600, marginBottom: 16 }}>BONUS SPESIAL</span>
+            <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" block style={{ ...h2Style }} />
+          </Lp2Fade>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Produk utama */}
+            <Lp2Fade>
+              <div className="lp2-bonus">
+                <div className="lp2-bonus-flex">
+                  <div className="lp2-bonus-thumb">
+                    {extra.mainImage ? (
+                      <img src={extra.mainImage} alt={p.name} className="lp2-bonus-img" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div className="lp2-bonus-img" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${p.hue || V.accentDark}55, ${V.card})` }}>
+                        <Lp2Icon d={V_PATH.music} size={32} color={V.accentLight} />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: "#fff" }}>{p.name} (Main Course)</div>
+                      <EditableText value={getExtra("mainSubtitle")} admin={admin} onSave={saveExtra("mainSubtitle")} tag="div" block style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted }} />
+                      {admin && (
+                        <div style={{ marginTop: 6, fontFamily: V_BODY, fontSize: 11.5, color: V.muted }}>
+                          Gambar:{" "}
+                          <EditableText value={extra.mainImage || "(belum ada — tempel link gambar)"} admin onSave={(v) => saveExtra("mainImage")(v.startsWith("(belum ada") ? "" : v.trim())} tag="span" style={{ color: V.accentLight, wordBreak: "break-all" }} />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: V.accent, whiteSpace: "nowrap" }}>{mainValueText}</div>
+                  </div>
+                </div>
+              </div>
+            </Lp2Fade>
+
+            {bonusItems.map((it, idx) => (
+              <Lp2Fade key={idx}>
+                <div className="lp2-bonus">
+                  <div className="lp2-bonus-flex">
+                    <div className="lp2-bonus-thumb">
+                      {it.image ? (
+                        <img src={it.image} alt={it.title} className="lp2-bonus-img" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      ) : (
+                        <div className="lp2-bonus-img" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${V.accent}33, ${V.card})`, fontSize: 32 }}>{it.icon || "✨"}</div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <EditableText value={it.title} admin={admin} onSave={(v) => updateBonusItem(idx, { title: v })} tag="div" block style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: "#fff" }} />
+                        {(it.subtitle || admin) && (
+                          <EditableText value={it.subtitle || "BONUS"} admin={admin} onSave={(v) => updateBonusItem(idx, { subtitle: v })} tag="div" block style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted }} />
+                        )}
+                        {admin && (
+                          <div style={{ marginTop: 6, fontFamily: V_BODY, fontSize: 11.5, color: V.muted }}>
+                            Gambar:{" "}
+                            <EditableText value={it.image || "(belum ada — tempel link gambar)"} admin onSave={(v) => updateBonusItem(idx, { image: v.startsWith("(belum ada") ? "" : v.trim() })} tag="span" style={{ color: V.accentLight, wordBreak: "break-all" }} />
+                          </div>
+                        )}
+                      </div>
+                      {(it.value || admin) && (
+                        <div style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 14, color: V.green, whiteSpace: "nowrap" }}>
+                          <EditableText value={it.value || "Rp 0"} admin={admin} onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {admin && <Lp2DelBtn onClick={() => removeBonusItem(idx)} title="Hapus bonus ini" />}
+                </div>
+              </Lp2Fade>
+            ))}
+            {admin && <div><Lp2AddBtn onClick={addBonusItem}>Tambah Bonus</Lp2AddBtn></div>}
+          </div>
+
+          <Lp2Fade style={{ marginTop: 32 }}>
+            <div style={{ padding: 24, borderRadius: 12, background: `linear-gradient(to right, ${V.accent}1a, ${V.accentDark}1a)`, border: `1px solid ${V.accent}4d` }}>
+              {bonusValueTotal > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: V_BODY, color: V.muted }}>Total Nilai Keseluruhan:</span>
+                  <span style={{ fontFamily: V_DISPLAY, fontSize: 28, fontWeight: 700, color: V.muted, textDecoration: "line-through" }}>{rp(anchorPrice + bonusValueTotal)}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: V_BODY, fontWeight: 600 }}>{getExtra("promoNormalPriceLabel")}:</span>
+                <span className="lp2-gradient-text" style={{ fontFamily: V_DISPLAY, fontSize: 28, fontWeight: 700 }}>{rp(anchorPrice)}</span>
+              </div>
+            </div>
+          </Lp2Fade>
+        </Lp2Section>
+      )}
+
+      {/* PRICING / CTA */}
+      <Lp2Section id="lp-pricing">
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 32 }}>
+          {admin ? (
+            <LpTemplateBadge
+              displayValue={tierNote}
+              rawValue={getExtra(tierNoteKey)}
+              onSave={saveExtra(tierNoteKey)}
+              admin={admin}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: V.red, fontFamily: V_BODY, fontSize: 14 }}
+            />
+          ) : (
+            <span className={promoActive ? "lp2-pulse" : undefined} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: V.red, fontFamily: V_BODY, fontSize: 14 }}>
+              <Lp2Icon d={V_PATH.warn} size={16} />{tierNote}
+            </span>
+          )}
+          {admin && (
+            <div style={{ marginTop: 8 }}>
+              <span style={{ fontFamily: V_BODY, fontSize: 10.5, color: V.muted, fontStyle: "italic" }}>
+                Klik pensil untuk edit kalimat ini. Pakai {"{sisa}"} & {"{total}"} kalau mau tetap otomatis menampilkan sisa slot asli.
+              </span>
+            </div>
+          )}
+        </Lp2Fade>
+
+        <Lp2Fade>
+          <div className="lp2-card-glow" style={{ background: `linear-gradient(to bottom, ${V.card}, ${V.bg})`, borderRadius: 24, border: `1px solid ${V.border}`, overflow: "hidden" }}>
+            <div style={{ padding: 40, textAlign: "center" }}>
+              {hasTiers && promoActive ? (
+                <div style={{ marginBottom: 16 }}>
+                  <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: "0 0 8px" }} />
+                  <div style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 24, color: V.red }}>{hh} : {mm} : {ss}</div>
+                </div>
+              ) : hasTiers ? (
+                <div style={{ marginBottom: 16 }}>
+                  <EditableText value={getExtra("promoEndedLabel")} admin={admin} onSave={saveExtra("promoEndedLabel")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }} />
+                </div>
+              ) : null}
+              <EditableText
+                value={getExtra(promoActive ? "promoActivePriceLabel" : "promoNormalPriceLabel")}
+                admin={admin}
+                onSave={saveExtra(promoActive ? "promoActivePriceLabel" : "promoNormalPriceLabel")}
+                tag="span"
+                style={{ fontFamily: V_BODY, fontWeight: 700, fontSize: 18, color: "#fff" }}
+              />
+              {disc > 0 && (
+                <div style={{ marginTop: 8, marginBottom: 16 }}>
+                  <span className="lp2-strike" style={{ fontFamily: V_BODY, fontWeight: 700, fontSize: 30, color: V.muted }}>{rp(anchorPrice)}</span>
+                </div>
+              )}
+              <div className="lp2-gradient-text" style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 48, margin: disc > 0 ? "0 0 8px" : "16px 0 8px", lineHeight: 1.15 }}>{rp(currentPrice)}</div>
+              <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }}>Akses selamanya, one-time payment</p>
+            </div>
+
+            <div style={{ padding: "0 32px 32px" }}>
+              {pending ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 12px", borderRadius: 12, background: V.card, border: `1px solid ${V.red}66` }}>
+                  <Lp2Icon d={V_PATH.clock} size={16} color={V.red} />
+                  <span style={{ fontFamily: V_BODY, fontSize: 13.5, fontWeight: 600, color: V.red }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                </div>
+              ) : owned ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 12px", borderRadius: 12, background: V.card, border: `1px solid ${V.accent}` }}>
+                  <Lp2Icon d={V_PATH.check} size={16} color={V.accent} />
+                  <span style={{ fontFamily: V_BODY, fontSize: 13.5, fontWeight: 600, color: V.accentLight }}>Kamu sudah memiliki produk ini</span>
+                </div>
+              ) : (
+                <button className="lp2-btn lp2-glow-btn" onClick={buyNow} style={{ ...btnStyle, display: "block", width: "100%", textAlign: "center" }}>Beli Sekarang</button>
+              )}
+              <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap", color: V.muted, fontFamily: V_BODY, fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Lp2Icon d={V_PATH.shield} size={16} color={V.green} />
+                  <EditableText value={getExtra("trustBadge1")} admin={admin} onSave={saveExtra("trustBadge1")} tag="span" />
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Lp2Icon d={V_PATH.clock} size={16} color={V.green} />
+                  <EditableText value={getExtra("trustBadge2")} admin={admin} onSave={saveExtra("trustBadge2")} tag="span" />
+                </span>
+              </div>
+            </div>
+          </div>
+        </Lp2Fade>
+
+        <Lp2Fade style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 16 }}>
+          {["Akses selamanya—sekali bayar, milik selamanya", "Bisa ditonton ulang kapanpun kamu mau", "Cocok untuk pemula sampai menengah dengan budget terbatas"].map((r) => (
+            <div key={r} style={{ display: "flex", alignItems: "center", gap: 12, fontFamily: V_BODY, fontSize: 14, color: V.muted }}>
+              <Lp2Icon d={V_PATH.check} size={20} color={V.accent} />{r}
+            </div>
+          ))}
+        </Lp2Fade>
+      </Lp2Section>
+
+      {/* FAQ */}
+      <Lp2Section bg="rgba(18,18,26,0.3)">
+        <Lp2Fade style={{ textAlign: "center", marginBottom: 48 }}>
+          <LpTwoToneText value={getExtra("faqTitle")} admin={admin} onSave={saveExtra("faqTitle")} tag="h2" {...twoToneGradient} style={{ ...h2Style, marginBottom: 16 }} />
+          <EditableText value={getExtra("faqSubtitle")} admin={admin} onSave={saveExtra("faqSubtitle")} tag="p" style={{ fontFamily: V_BODY, fontSize: 16, color: V.muted, margin: 0 }} />
+        </Lp2Fade>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {faqItems.map((f, i) => {
+            const open = openFaq === i;
+            return (
+              <Lp2Fade key={i}>
+                <div style={{ position: "relative", background: V.card, borderRadius: 12, border: `1px solid ${V.border}`, overflow: "hidden" }}>
+                  {admin ? (
+                    <div style={{ padding: "16px 20px" }}>
+                      <EditableText value={f.q} admin onSave={(v) => updateFaqItem(i, { q: v })} tag="div" block style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 16, color: "#fff", marginBottom: 6, paddingRight: 24 }} />
+                      <EditableText value={f.a} admin onSave={(v) => updateFaqItem(i, { a: v })} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, lineHeight: 1.6, margin: 0, paddingRight: 24 }} />
+                      {faqItems.length > 1 && <Lp2DelBtn onClick={() => removeFaqItem(i)} title="Hapus pertanyaan ini" />}
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setOpenFaq(open ? -1 : i)}
+                        aria-expanded={open}
+                        style={{ width: "100%", padding: 20, background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}
+                      >
+                        <span style={{ fontFamily: V_BODY, fontWeight: 600, fontSize: 16 }}>{f.q}</span>
+                        <Lp2Icon d={V_PATH.chevron} size={20} color={V.accent} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .3s ease" }} />
+                      </button>
+                      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows .3s ease" }}>
+                        <div style={{ overflow: "hidden" }}>
+                          <div style={{ padding: "0 20px 20px", fontFamily: V_BODY, fontSize: 14, color: V.muted, lineHeight: 1.6 }}>{f.a}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Lp2Fade>
+            );
+          })}
+          {admin && <div><Lp2AddBtn onClick={addFaqItem}>Tambah Pertanyaan</Lp2AddBtn></div>}
+        </div>
+      </Lp2Section>
+
+      {/* CTA PENUTUP */}
+      <Lp2Section bg="rgba(18,18,26,0.5)">
+        <Lp2Fade style={{ textAlign: "center" }}>
+          <LpTwoToneText value={getExtra("closingTitle")} admin={admin} onSave={saveExtra("closingTitle")} tag="h2" {...twoToneGradient} style={{ ...h2Style, marginBottom: 16 }} />
+          <div style={{ maxWidth: 448, margin: "0 auto 32px" }}>
+            <EditableText value={getExtra("closingSubtitle")} admin={admin} onSave={saveExtra("closingSubtitle")} tag="p" area block style={{ fontFamily: V_BODY, fontSize: 16, color: V.muted, lineHeight: 1.6, margin: 0 }} />
+          </div>
+          <LpEditableButtonLabel value={getExtra("closingCtaText")} admin={admin} onSave={saveExtra("closingCtaText")}>
+            <button className="lp2-btn lp2-glow-btn" onClick={scrollToPricing} style={btnStyle}>{getExtra("closingCtaText")}</button>
+          </LpEditableButtonLabel>
+          <div style={{ marginTop: 16 }}>
+            <EditableText value={getExtra("closingFooterNote")} admin={admin} onSave={saveExtra("closingFooterNote")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }} />
+          </div>
+        </Lp2Fade>
+      </Lp2Section>
+
+      <div style={{ width: "100%", padding: "24px 16px", textAlign: "center" }}>
+        <p style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted, margin: 0 }}>© 2026 {p.name} × Gitar Sakti. Seluruh hak cipta dilindungi.</p>
+      </div>
+    </div>
+  );
+}
+
+// Pemilih template: landing page yang belum pernah diatur otomatis pakai template klasik (emas).
+function LandingPageRouter(props) {
+  const Tpl = props.lp?.extra?.template === "violet" ? LandingPageTemplateViolet : LandingPageTemplate;
+  return <Tpl {...props} />;
 }
 
 
@@ -6005,12 +6840,14 @@ export default function App() {
     let slug = baseSlug;
     let n = 2;
     while (landingPages.some((l) => l.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
-    const { error } = await supabase.from("landing_pages").insert({
+    const row = {
       slug, name: form.name, product_id: form.productId,
       headline: form.headline || "", subheadline: form.subheadline || "",
       video_url: form.videoUrl || "", badge_text: form.badgeText || "",
       status: form.status || "published",
-    });
+    };
+    if (form.template && form.template !== "gold") row.extra = { template: form.template };
+    const { error } = await supabase.from("landing_pages").insert(row);
     fetchLandingPages();
     return { ok: !error, error: error?.message, slug };
   };
@@ -6170,7 +7007,7 @@ export default function App() {
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageTemplate lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
+      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
