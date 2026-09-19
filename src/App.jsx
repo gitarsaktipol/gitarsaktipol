@@ -281,13 +281,13 @@ const DEFAULT_SITE_CONTENT = {
     categoryEyebrow: "Jelajahi", categoryTitle: "Kategori Belajar",
     categorySub: "Dari nol sampai teknik lanjutan, semua level tersedia.",
     whyEyebrow: "Kenapa Gitar Sakti", whyTitle: "Belajar dengan Jalur yang Jelas",
-    whySub: "Struktur kurikulum mengikuti posisi fret 3, 5, 7, 9, dan 12 — titik penanda yang dikenal setiap gitaris.",
+    whySub: "Materi disusun rapi dari dasar sampai mahir, dengan target yang jelas di setiap tahap.",
     whyItems: [
-      { title: "Fret 3 — Fondasi kuat", desc: "Materi disusun bertahap, tidak melompat sebelum dasar benar-benar melekat." },
-      { title: "Fret 5 — Latihan terarah", desc: "Setiap course punya target latihan mingguan yang jelas dan bisa diukur." },
-      { title: "Fret 7 — Praktik nyata", desc: "Belajar lewat lagu dan backing track, bukan cuma teori di atas kertas." },
-      { title: "Fret 9 — Akses selamanya", desc: "Satu kali beli, materi dapat diputar ulang kapan pun kamu butuh." },
-      { title: "Fret 12 — Dari pemula ke mahir", desc: "Jalur lengkap dari chord pertama sampai teknik shredding lanjutan." },
+      { title: "Fondasi kuat", desc: "Materi disusun bertahap, tidak melompat sebelum dasar benar-benar melekat." },
+      { title: "Latihan terarah", desc: "Setiap course punya target latihan mingguan yang jelas dan bisa diukur." },
+      { title: "Praktik nyata", desc: "Belajar lewat lagu dan backing track, bukan cuma teori di atas kertas." },
+      { title: "Akses selamanya", desc: "Satu kali beli, materi dapat diputar ulang kapan pun kamu butuh." },
+      { title: "Dari pemula ke mahir", desc: "Jalur lengkap dari chord pertama sampai teknik shredding lanjutan." },
     ],
     testimonialEyebrow: "Kata Mereka", testimonialTitle: "Cerita dari Siswa Gitar Sakti",
     faqEyebrow: "Sering Ditanyakan", faqTitle: "FAQ",
@@ -338,6 +338,17 @@ function StringDivider({ tight }) {
       {widths.map((w, i) => (
         <div key={i} style={{ height: w, width: "100%", background: `linear-gradient(90deg, transparent, ${C.gold}, transparent)`, opacity: 0.5 + i * 0.02 }} />
       ))}
+    </div>
+  );
+}
+
+const WHY_ICONS = [ShieldCheck, ClipboardList, Music, Clock, TrendingUp];
+const stripFretPrefix = (t) => String(t || "").replace(/^\s*Fret\s*\d+\s*[—–-]\s*/i, "");
+function WhyIcon({ idx }) {
+  const Icon = WHY_ICONS[idx] || Sparkles;
+  return (
+    <div style={{ width: 38, height: 38, borderRadius: 10, background: C.surface2, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Icon size={18} color={C.gold} />
     </div>
   );
 }
@@ -1116,13 +1127,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           {home.whyItems.map((item, idx) => {
             const saveItem = (field, v) => onSaveHome({ whyItems: home.whyItems.map((it, i) => (i === idx ? { ...it, [field]: v } : it)) });
             return (
-              <Reveal key={idx} delay={idx * 0.06} style={{ display: "flex", gap: 12 }}>
-                <FretDot />
+              <Reveal key={idx} delay={idx * 0.06} style={{ display: "flex", gap: 14 }}>
+                <WhyIcon idx={idx} />
                 <div>
                   {admin ? (
-                    <EditableText value={item.title} admin onSave={(v) => saveItem("title", v)} tag="h4" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }} />
+                    <EditableText value={stripFretPrefix(item.title)} admin onSave={(v) => saveItem("title", v)} tag="h4" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }} />
                   ) : (
-                    <h4 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>{item.title}</h4>
+                    <h4 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>{stripFretPrefix(item.title)}</h4>
                   )}
                   {admin ? (
                     <EditableText value={item.desc} admin onSave={(v) => saveItem("desc", v)} tag="p" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.6 }} />
@@ -2634,7 +2645,7 @@ function TampilanBerandaForm({ content, onSave, onBack }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {form.whyItems.map((item, idx) => (
             <div key={idx} style={{ padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 8 }}>
-              <FieldInput label={`Poin ${idx + 1} — Judul`} value={item.title} onChange={(v) => setWhyItem(idx, "title", v)} />
+              <FieldInput label={`Poin ${idx + 1} — Judul`} value={stripFretPrefix(item.title)} onChange={(v) => setWhyItem(idx, "title", v)} />
               <FieldInput label={`Poin ${idx + 1} — Deskripsi`} value={item.desc} onChange={(v) => setWhyItem(idx, "desc", v)} area />
             </div>
           ))}
