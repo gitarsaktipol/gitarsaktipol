@@ -6338,6 +6338,17 @@ export default function App() {
      langsung — supaya API key pengirim email tidak pernah nongol di browser. Kalau Edge
      Function belum di-deploy, panggilan ini gagal diam-diam (tidak mengganggu alur checkout/
      verifikasi pembayaran yang tetap harus jalan meski emailnya gagal terkirim). */
+  // Notifikasi Telegram ke HP/laptop admin -- dipanggil bersamaan dengan email, tidak saling
+  // menunggu (non-blocking), supaya kalau Telegram gagal, proses checkout/upload tetap jalan.
+  const sendTelegramNotify = async (payload) => {
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/notify-telegram`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) { /* non-blocking */ }
+  };
   const sendOrderEmail = async (payload) => {
     try {
       await fetch(`${SUPABASE_URL}/functions/v1/send-order-email`, {
@@ -6645,11 +6656,13 @@ export default function App() {
     }).select().single();
     if (error) return { ok: false, error: error.message };
     fetchOrders();
-    sendOrderEmail({
+    const emailPayload = {
       orderId: data.id, kind: "created", customerEmail, customerName,
       items: cartProducts.map((p) => ({ name: p.name, price: p.price })),
       total, discount, status: "Menunggu Pembayaran",
-    });
+    };
+    sendOrderEmail(emailPayload);
+    sendTelegramNotify(emailPayload);
     return { ok: true, orderId: data.id };
   };
   // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
@@ -6683,7 +6696,11 @@ export default function App() {
     const { error: rpcError } = await supabase.rpc("attach_payment_proof", { p_order_id: orderId, p_proof_url: path, p_note: note });
     if (rpcError) return { ok: false, error: rpcError.message };
     const ord = orders.find((o) => o.id === orderId);
-    if (ord) sendOrderEmail({ orderId, kind: "proof_uploaded", customerEmail: ord.customerEmail, customerName: ord.customerName, total: ord.total, discount: ord.discount, status: "Menunggu Verifikasi" });
+    if (ord) {
+      const payload = { orderId, kind: "proof_uploaded", customerEmail: ord.customerEmail, customerName: ord.customerName, items: ord.items, total: ord.total, discount: ord.discount, status: "Menunggu Verifikasi" };
+      sendOrderEmail(payload);
+      sendTelegramNotify(payload);
+    }
     fetchOrders();
     return { ok: true };
   };
