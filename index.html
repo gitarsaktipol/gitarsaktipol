@@ -8,8 +8,8 @@
     <!-- PWA: supaya website bisa di-"Install" jadi aplikasi khusus halaman Admin -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#B8892E" />
-    <link rel="icon" href="/gitar-sakti-logo.png" />
-    <link rel="apple-touch-icon" href="/gitar-sakti-logo.png" />
+    <link rel="icon" href="/icon-512.png" />
+    <link rel="apple-touch-icon" href="/icon-512.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="GS Admin" />
@@ -24,6 +24,14 @@
           navigator.serviceWorker.register("/sw.js").catch(() => {});
         });
       }
+      // Tahan prompt instal otomatis Chrome supaya TIDAK muncul ke semua pengunjung.
+      // Prompt-nya disimpan di window.__pwaDeferredPrompt, lalu cuma dipicu manual
+      // lewat tombol "Instal Aplikasi di HP" yang khusus muncul untuk admin.
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        window.__pwaDeferredPrompt = e;
+        window.dispatchEvent(new Event("pwa-installable"));
+      });
     </script>
   </body>
 </html>
