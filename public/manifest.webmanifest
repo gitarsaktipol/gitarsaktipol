@@ -1,0 +1,17 @@
+{
+  "name": "Gitar Sakti Admin",
+  "short_name": "GS Admin",
+  "description": "Panel admin Gitar Sakti — kelola produk, pesanan, kupon, dan landing page.",
+  "start_url": "/?admin=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#121214",
+  "theme_color": "#B8892E",
+  "icons": [
+    { "src": "/gitar-sakti-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/gitar-sakti-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/gitar-sakti-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/gitar-sakti-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
