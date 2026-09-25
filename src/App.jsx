@@ -774,6 +774,26 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
 
 /* ---------------- header / footer ---------------- */
 function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage, theme, onToggleTheme, onLogout }) {
+  const [canInstallPWA, setCanInstallPWA] = useState(false);
+  useEffect(() => {
+    if (window.__pwaDeferredPrompt) setCanInstallPWA(true);
+    const onInstallable = () => setCanInstallPWA(true);
+    const onInstalled = () => setCanInstallPWA(false);
+    window.addEventListener("pwa-installable", onInstallable);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("pwa-installable", onInstallable);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+  const installPWA = async () => {
+    const evt = window.__pwaDeferredPrompt;
+    if (!evt) return;
+    evt.prompt();
+    try { await evt.userChoice; } catch (e) {}
+    window.__pwaDeferredPrompt = null;
+    setCanInstallPWA(false);
+  };
   const h = content || DEFAULT_SITE_CONTENT.header;
   const admin = role === "admin" && editMode;
   const navItem = (label, target, saveKey) => (
@@ -865,6 +885,11 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
             {role === "admin" && (
               <button onClick={() => { goToAddPage(); setMobileOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: `1px dashed ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.gold, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer", boxSizing: "border-box" }}>
                 <Plus size={13} />Tambah Halaman
+              </button>
+            )}
+            {role === "admin" && canInstallPWA && (
+              <button onClick={() => { installPWA(); setMobileOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: `1px dashed ${C.gold}88`, borderRadius: 6, padding: "8px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>
+                <Download size={13} />Instal Aplikasi di HP
               </button>
             )}
           </div>
