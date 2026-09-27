@@ -6,7 +6,8 @@ import {
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
-  Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon
+  Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon,
+  GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle,
 } from "lucide-react";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -170,6 +171,27 @@ const youtubeThumb = (url) => {
   const m = embed && embed.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
   return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : null;
 };
+// Gambar utama produk: foto yang diupload admin (merchandise), kalau tidak ada pakai
+// thumbnail video preview YouTube (kelas video).
+const productImage = (p) => (Array.isArray(p?.images) && p.images[0]) || youtubeThumb(p?.previewVideo) || null;
+// Total stok barang fisik (null = tidak dibatasi). Kalau punya varian, jumlah stok semua varian.
+const productStockTotal = (p) => {
+  const vs = Array.isArray(p?.variants) ? p.variants : [];
+  if (vs.length > 0) {
+    if (vs.some((v) => v.stock === null || v.stock === undefined || v.stock === "")) return null;
+    return vs.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+  }
+  return p?.stock === null || p?.stock === undefined ? null : Number(p.stock);
+};
+function ProductThumb({ p, size = 44, radius = 12 }) {
+  const img = productImage(p);
+  const physical = p?.productType === "physical";
+  return (
+    <div style={{ width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: "hidden", background: img ? `center / cover no-repeat url("${img}")` : `linear-gradient(135deg, ${(p?.hue || "#C9A24B")}44, ${C.surface2})`, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.borderSoft}` }}>
+      {!img && (physical ? <Package size={Math.round(size * 0.42)} color={p?.hue || C.gold} /> : <Music size={Math.round(size * 0.42)} color={p?.hue || C.gold} />)}
+    </div>
+  );
+}
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const formatDateID = (d) => `${d.getDate().toString().padStart(2, "0")} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
 // Catatan: ID pesanan (format GS-YYYYMMDD-XXX) sekarang dibuat otomatis oleh database lewat
@@ -385,11 +407,17 @@ function TestimonialSection({ productId, owned, reviews, onSubmit, emptyLabel })
   );
 }
 
-function Badge({ children, tone = "gold" }) {
-  const bg = tone === "gold" ? C.gold : tone === "ember" ? C.ember : C.surface2;
-  const fg = tone === "muted" ? C.muted : "#FFFFFF";
+function Badge({ children, tone = "gold", dot }) {
+  const map = {
+    gold: { bg: `linear-gradient(135deg, ${C.goldLight}, ${C.gold})`, fg: "#1A140A", bd: "transparent" },
+    ember: { bg: `linear-gradient(135deg, ${C.emberLight}, ${C.ember})`, fg: "#FFFFFF", bd: "transparent" },
+    green: { bg: "rgba(52,168,83,0.14)", fg: "#2E9A4E", bd: "rgba(52,168,83,0.35)" },
+    muted: { bg: C.surface2, fg: C.muted, bd: C.border },
+  };
+  const t = map[tone] || map.gold;
   return (
-    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", padding: "4px 11px", borderRadius: 999, background: bg, color: fg, border: "none" }}>
+    <span className="gs-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", padding: "4px 10px", borderRadius: 999, background: t.bg, color: t.fg, border: `1px solid ${t.bd}`, whiteSpace: "nowrap" }}>
+      {dot && <span className="gs-badge-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />}
       {children}
     </span>
   );
@@ -516,38 +544,260 @@ function RichTextEditor({ value, onChange, placeholder, rows = 6 }) {
   );
 }
 
-function PrimaryBtn({ children, onClick, full, small, icon: Icon }) {
+// Efek riak (ripple) kecil di titik jari/kursor saat tombol ditekan — memberi rasa "tombol
+// benar-benar ditekan" di HP maupun desktop.
+const spawnRipple = (e) => {
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 1.6;
+  const span = document.createElement("span");
+  span.className = "gs-ripple";
+  span.style.width = span.style.height = `${size}px`;
+  span.style.left = `${e.clientX - rect.left - size / 2}px`;
+  span.style.top = `${e.clientY - rect.top - size / 2}px`;
+  btn.appendChild(span);
+  span.addEventListener("animationend", () => span.remove());
+};
+
+// Tombol utama: gradasi kuningan/emas ala hardware gitar, kilau yang "menyapu" saat hover,
+// ripple saat ditekan. "loading" menampilkan spinner & mencegah klik ganda.
+function PrimaryBtn({ children, onClick, full, small, icon: Icon, loading, disabled, type = "button" }) {
+  const off = loading || disabled;
   return (
-    <button onClick={onClick} className="gs-btn gs-btn-primary" style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-      background: C.btnPrimaryBg, color: C.btnPrimaryText,
-      border: "none", fontFamily: "'Manrope',sans-serif", fontWeight: 700,
-      fontSize: small ? 13.5 : 15, padding: small ? "9px 18px" : "13px 26px",
-      borderRadius: 980, cursor: "pointer", width: full ? "100%" : "auto", letterSpacing: 0,
+    <button type={type} onClick={off ? undefined : onClick} onPointerDown={off ? undefined : spawnRipple} disabled={off} className="gs-btn gs-btn-primary" style={{
+      position: "relative", overflow: "hidden", isolation: "isolate",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+      background: `linear-gradient(135deg, #F3D27A 0%, ${C.gold} 48%, #9C6F1F 100%)`, color: "#1A140A",
+      border: "1px solid rgba(255,255,255,0.18)", fontFamily: "'Manrope',sans-serif", fontWeight: 800,
+      fontSize: small ? 13 : 14.5, padding: small ? "9px 18px" : "13px 26px", letterSpacing: 0.2,
+      borderRadius: 980, cursor: off ? "default" : "pointer", width: full ? "100%" : "auto", opacity: disabled ? 0.55 : 1,
+      boxShadow: "0 6px 18px rgba(184,137,46,0.28), inset 0 1px 0 rgba(255,255,255,0.45)",
     }}>
-      {children}{Icon && <Icon size={16} />}
+      {loading && <span className="gs-spinner" />}
+      {children}{Icon && !loading && <Icon size={small ? 15 : 16} className="gs-btn-icon" />}
     </button>
   );
 }
 
-function GhostBtn({ children, onClick, full, small, icon: Icon }) {
+function GhostBtn({ children, onClick, full, small, icon: Icon, loading, disabled, type = "button" }) {
+  const off = loading || disabled;
   return (
-    <button onClick={onClick} className="gs-btn gs-btn-ghost" style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
-      background: C.surface2, color: C.text, border: "none",
-      fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: small ? 13.5 : 15,
-      padding: small ? "9px 18px" : "13px 26px", borderRadius: 980, cursor: "pointer",
-      width: full ? "100%" : "auto",
+    <button type={type} onClick={off ? undefined : onClick} onPointerDown={off ? undefined : spawnRipple} disabled={off} className="gs-btn gs-btn-ghost" style={{
+      position: "relative", overflow: "hidden", isolation: "isolate",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+      background: C.surface, color: C.text, border: `1px solid ${C.border}`,
+      fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: small ? 13 : 14.5,
+      padding: small ? "8px 17px" : "12px 25px", borderRadius: 980, cursor: off ? "default" : "pointer",
+      width: full ? "100%" : "auto", opacity: disabled ? 0.55 : 1,
     }}>
-      {children}{Icon && <Icon size={16} />}
+      {loading && <span className="gs-spinner" />}
+      {children}{Icon && !loading && <Icon size={small ? 15 : 16} className="gs-btn-icon" />}
     </button>
   );
 }
 
-function Card({ children, style, onClick }) {
+function Card({ children, style, onClick, className = "" }) {
   return (
-    <div onClick={onClick} className={onClick ? "gs-card gs-card-hover" : "gs-card"} style={{ background: C.surface, border: `1px solid ${C.borderSoft}`, borderRadius: 18, ...style }}>
+    <div onClick={onClick} className={`gs-card ${onClick ? "gs-card-hover gs-card-click" : ""} ${className}`} style={{ background: C.surface, border: `1px solid ${C.borderSoft}`, borderRadius: 20, boxShadow: "0 1px 2px rgba(0,0,0,0.04)", ...style }}>
       {children}
+    </div>
+  );
+}
+
+// Angka yang "berjalan" naik saat pertama tampil (mis. omzet Rp0 -> Rp693.000, 0% -> 2.5%).
+function AnimatedValue({ value }) {
+  const str = String(value ?? "");
+  const m = str.match(/^(\D*?)(\d[\d.,]*)(.*)$/);
+  let target = NaN, decimals = 0;
+  if (m) {
+    if (/^\d{1,3}(\.\d{3})+$|^\d+$/.test(m[2])) target = Number(m[2].replace(/\./g, ""));
+    else if (/^\d+\.\d+$/.test(m[2])) { target = Number(m[2]); decimals = m[2].split(".")[1].length; }
+  }
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (!Number.isFinite(target)) return;
+    let raf; const start = performance.now(); const dur = 750;
+    const tick = (t) => {
+      const k = Math.min(1, (t - start) / dur);
+      setShown(target * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  if (!Number.isFinite(target)) return <>{str}</>;
+  const num = decimals ? shown.toFixed(decimals) : Math.round(shown).toLocaleString("id-ID");
+  return <>{m[1]}{num}{m[3]}</>;
+}
+
+/* ---------------- daftar yang bisa diurutkan: TAHAN lalu GESER ----------------
+   Tekan & tahan ±0,3 detik di mana saja pada baris (HP maupun mouse) sampai baris "terangkat",
+   lalu geser ke posisi baru. Pegangan titik-titik (grip) bisa langsung digeser tanpa menahan.
+   Layar otomatis ikut menggulir kalau baris dibawa ke tepi atas/bawah layar. */
+function DragHandle({ size = 18 }) {
+  return (
+    <span data-drag-handle className="gs-grip" title="Tahan & geser untuk mengubah urutan" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 36, borderRadius: 10, color: C.mutedDark, cursor: "grab", flexShrink: 0, touchAction: "none" }}>
+      <GripVertical size={size} />
+    </span>
+  );
+}
+
+function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled }) {
+  const wrapRef = useRef(null);
+  const sess = useRef(null);
+  const [drag, setDrag] = useState(null); // { idx, over, dy }
+  const [pressIdx, setPressIdx] = useState(null);
+
+  const cleanup = () => {
+    const c = sess.current;
+    if (!c) return;
+    clearTimeout(c.timer);
+    cancelAnimationFrame(c.raf);
+    document.removeEventListener("touchmove", c.onTouchMove);
+    window.removeEventListener("pointermove", c.onMove);
+    window.removeEventListener("pointerup", c.onUp);
+    window.removeEventListener("pointercancel", c.onCancel);
+    document.body.classList.remove("gs-dragging");
+    sess.current = null;
+    setPressIdx(null);
+  };
+  useEffect(() => cleanup, []);
+
+  const update = () => {
+    const c = sess.current;
+    if (!c || !c.active) return;
+    const dy = (c.lastY - c.startY) + (window.scrollY - c.startScroll);
+    const r = c.rects[c.idx];
+    const center = r.top + r.height / 2 + dy;
+    let over = c.idx;
+    c.rects.forEach((ri, i) => {
+      if (i === c.idx) return;
+      const ci = ri.top + ri.height / 2;
+      if (i > c.idx && center > ci) over = Math.max(over, i);
+      if (i < c.idx && center < ci) over = Math.min(over, i);
+    });
+    c.over = over;
+    setDrag({ idx: c.idx, over, dy });
+  };
+
+  const activate = () => {
+    const c = sess.current;
+    if (!c || !wrapRef.current) return;
+    const nodes = Array.from(wrapRef.current.children);
+    c.rects = nodes.map((n) => { const r = n.getBoundingClientRect(); return { top: r.top + window.scrollY, height: r.height }; });
+    c.startScroll = window.scrollY;
+    c.active = true;
+    c.over = c.idx;
+    setPressIdx(null);
+    try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* abaikan */ }
+    document.body.classList.add("gs-dragging");
+    setDrag({ idx: c.idx, over: c.idx, dy: 0 });
+    const loop = () => {
+      const cc = sess.current;
+      if (!cc || !cc.active) return;
+      const edge = 80;
+      if (cc.lastY < edge) window.scrollBy(0, -Math.ceil((edge - cc.lastY) / 6));
+      else if (cc.lastY > window.innerHeight - edge) window.scrollBy(0, Math.ceil((cc.lastY - (window.innerHeight - edge)) / 6));
+      update();
+      cc.raf = requestAnimationFrame(loop);
+    };
+    c.raf = requestAnimationFrame(loop);
+  };
+
+  const onPointerDown = (e, idx) => {
+    if (disabled || items.length < 2) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const onHandle = !!e.target.closest("[data-drag-handle]");
+    if (!onHandle && e.target.closest("button,input,textarea,select,a,label,iframe,[contenteditable='true'],[data-no-drag]")) return;
+    cleanup();
+    const c = { idx, startX: e.clientX, startY: e.clientY, lastY: e.clientY, active: false };
+    sess.current = c;
+    c.onTouchMove = (ev) => { if (sess.current && sess.current.active) ev.preventDefault(); };
+    c.onMove = (ev) => {
+      const cc = sess.current;
+      if (!cc) return;
+      if (!cc.active) {
+        if (Math.hypot(ev.clientX - cc.startX, ev.clientY - cc.startY) > 8) cleanup();
+        return;
+      }
+      cc.lastY = ev.clientY;
+      update();
+    };
+    c.onUp = () => {
+      const cc = sess.current;
+      if (cc && cc.active && cc.over !== cc.idx) {
+        const next = items.slice();
+        const [moved] = next.splice(cc.idx, 1);
+        next.splice(cc.over, 0, moved);
+        onReorder(next, { from: cc.idx, to: cc.over });
+      }
+      cleanup();
+      setDrag(null);
+    };
+    c.onCancel = () => { cleanup(); setDrag(null); };
+    document.addEventListener("touchmove", c.onTouchMove, { passive: false });
+    window.addEventListener("pointermove", c.onMove);
+    window.addEventListener("pointerup", c.onUp);
+    window.addEventListener("pointercancel", c.onCancel);
+    if (onHandle) activate();
+    else { setPressIdx(idx); c.timer = setTimeout(activate, 320); }
+  };
+
+  const h = drag && sess.current?.rects ? sess.current.rects[drag.idx].height + gap : 0;
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      {items.map((it, i) => {
+        const dragging = !!drag && drag.idx === i;
+        let ty = 0;
+        if (drag) {
+          if (dragging) ty = drag.dy;
+          else if (drag.idx < drag.over && i > drag.idx && i <= drag.over) ty = -h;
+          else if (drag.idx > drag.over && i >= drag.over && i < drag.idx) ty = h;
+        }
+        return (
+          <div
+            key={getKey(it)}
+            onPointerDown={(e) => onPointerDown(e, i)}
+            onContextMenu={(e) => { if (sess.current) e.preventDefault(); }}
+            className={`gs-sort-item${dragging ? " is-dragging" : ""}${drag && !dragging ? " is-shifting" : ""}${pressIdx === i ? " is-pressing" : ""}`}
+            style={{ position: "relative", zIndex: dragging ? 50 : 1, marginBottom: i < items.length - 1 ? gap : 0, transform: ty ? `translate3d(0, ${ty}px, 0)` : undefined }}
+          >
+            {renderItem(it, i, { dragging })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------- notifikasi toast (pengganti alert bawaan browser) ---------------- */
+const toastBus = { listeners: new Set() };
+const toast = (message, type = "info") => {
+  toastBus.listeners.forEach((fn) => fn({ id: Date.now() + Math.random(), message: String(message), type }));
+};
+toast.success = (m) => toast(m, "success");
+toast.error = (m) => toast(m, "error");
+function ToastHost() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    const fn = (t) => {
+      setItems((prev) => [...prev.slice(-3), t]);
+      setTimeout(() => setItems((prev) => prev.map((x) => (x.id === t.id ? { ...x, leaving: true } : x))), t.type === "error" ? 5200 : 3200);
+      setTimeout(() => setItems((prev) => prev.filter((x) => x.id !== t.id)), t.type === "error" ? 5600 : 3600);
+    };
+    toastBus.listeners.add(fn);
+    return () => toastBus.listeners.delete(fn);
+  }, []);
+  return (
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 18, zIndex: 3000, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none", padding: "0 16px" }}>
+      {items.map((t) => (
+        <div key={t.id} className={`gs-toast ${t.leaving ? "gs-toast-out" : ""}`} role="status" style={{ pointerEvents: "auto", maxWidth: 440, width: "100%", display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 16px", borderRadius: 16, background: "rgba(24,22,28,0.94)", color: "#F4F1EA", border: `1px solid ${t.type === "error" ? "rgba(255,107,74,0.5)" : t.type === "success" ? "rgba(212,169,74,0.55)" : "rgba(255,255,255,0.12)"}`, boxShadow: "0 18px 40px rgba(0,0,0,0.35)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", fontFamily: "'Manrope',sans-serif", fontSize: 13.5, lineHeight: 1.5 }}>
+          <span style={{ flexShrink: 0, marginTop: 1, width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: t.type === "error" ? "#E0553A" : t.type === "success" ? "#D4A94A" : "#55535C" }}>
+            {t.type === "error" ? <X size={12} color="#fff" /> : <Check size={12} color={t.type === "success" ? "#1A140A" : "#fff"} />}
+          </span>
+          <span>{t.message}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -748,7 +998,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
         <EditableText value={label} admin onSave={(v) => onSaveHeader({ [saveKey]: v })} tag="span" style={{ color: view === target ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14 }} />
       </span>
     ) : (
-      <button onClick={() => go(target)} style={{ background: "none", border: "none", color: view === target ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{label}</button>
+      <button onClick={() => go(target)} className={`gs-nav-link ${view === target ? "is-active" : ""}`} style={{ background: "none", border: "none", color: view === target ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: view === target ? 700 : 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{label}</button>
     )
   );
   return (
@@ -1002,8 +1252,64 @@ function Reveal({ children, delay = 0, className, style }) {
   );
 }
 
+/* ---------------- LANJUTKAN BELAJAR ----------------
+   Kartu besar untuk kelas yang terakhir ditonton (thumbnail video berikutnya + progres), plus
+   daftar ringkas kelas lain yang sedang berjalan. Satu klik langsung ke video yang tertunda. */
+function ContinueLearning({ items, onResume, compact }) {
+  if (!items || items.length === 0) return null;
+  const [main, ...rest] = items;
+  const thumb = youtubeThumb(main.video?.url) || productImage(main.p);
+  const finished = main.pct === 100;
+  return (
+    <div className="gs-anim-in">
+      <Card className="gs-continue" onClick={() => onResume(main.p)} style={{ padding: 0, overflow: "hidden", display: "grid", gridTemplateColumns: compact ? "1fr" : "minmax(0,1.1fr) minmax(0,1fr)", border: `1px solid ${C.gold}44` }}>
+        <div className="gs-continue-media" style={{ position: "relative", aspectRatio: "16 / 9", background: thumb ? `center / cover no-repeat url("${thumb}")` : `linear-gradient(135deg, ${main.p.hue || C.gold}55, #121214)` }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.65) 100%)" }} />
+          <div className="gs-play-orb" style={{ position: "absolute", left: "50%", top: "50%", width: 64, height: 64, marginLeft: -32, marginTop: -32, borderRadius: "50%", background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {finished ? <RotateCcw size={24} color="#fff" /> : <Play size={26} color="#fff" fill="#fff" style={{ marginLeft: 3 }} />}
+          </div>
+          <div style={{ position: "absolute", left: 14, bottom: 12, right: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1, height: 5, borderRadius: 999, background: "rgba(255,255,255,0.25)", overflow: "hidden" }}>
+              <div className="gs-progress-fill" style={{ width: `${main.pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #F3D27A, #D4A94A)" }} />
+            </div>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, color: "#fff" }}>{main.pct}%</span>
+          </div>
+        </div>
+        <div style={{ padding: compact ? 18 : 24, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.4, textTransform: "uppercase", color: C.gold }}>
+            <span className="gs-badge-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: C.gold }} />{finished ? "Kelas selesai — ulangi kapan saja" : "Lanjutkan belajar"}
+          </span>
+          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: compact ? 18 : 22, color: C.text, margin: 0, lineHeight: 1.25 }}>{main.p.name}</h3>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0, lineHeight: 1.5 }}>
+            <b style={{ color: C.text }}>Video {main.idx + 1} dari {main.total}</b>{main.video?.title ? ` · ${main.video.title}` : ""}
+          </p>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>{main.done} dari {main.total} video selesai</span>
+          <div style={{ marginTop: 4 }}><PrimaryBtn onClick={(e) => { e.stopPropagation(); onResume(main.p); }} icon={finished ? RotateCcw : Play}>{finished ? "Tonton Ulang" : main.done === 0 ? "Mulai Belajar" : "Lanjutkan"}</PrimaryBtn></div>
+        </div>
+      </Card>
+      {rest.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, marginTop: 12 }}>
+          {rest.map((it) => (
+            <Card key={it.p.id} onClick={() => onResume(it.p)} style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
+              <ProductThumb p={it.p} size={48} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.p.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <div style={{ flex: 1, height: 4, borderRadius: 999, background: C.surface2, overflow: "hidden" }}><div className="gs-progress-fill" style={{ width: `${it.pct}%`, height: "100%", background: C.gold }} /></div>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.muted }}>{it.pct}%</span>
+                </div>
+              </div>
+              <Play size={16} color={C.gold} />
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- HOME ---------------- */
-function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent, onToggleStatus, testimonials }) {
+function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent, onToggleStatus, testimonials, continueItems, onResume }) {
   const home = content.home;
   const admin = role === "admin" && editMode;
   const onSaveHome = (patch) => updateSiteContent("home", patch);
@@ -1095,6 +1401,12 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           </div>
         </div>
       </div>
+
+      {continueItems && continueItems.length > 0 && (
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 20px 0" }}>
+          <ContinueLearning items={continueItems.slice(0, 4)} onResume={onResume} />
+        </div>
+      )}
 
       <Section eyebrow={T("featuredEyebrow")} title={T("featuredTitle")} sub={T("featuredSub", true)}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
@@ -1841,7 +2153,7 @@ function PaymentMethodEditor({ initial, onSave, onCancel }) {
 
 // Daftar + kelola metode pembayaran. Ini yang bikin metode pembayaran bisa ditambah/diedit/
 // dihapus/diaktif-nonaktifkan sendiri oleh admin tanpa perlu ubah kode sama sekali.
-function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelete, onMove }) {
+function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelete, onReorder }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const iconLabel = { bank: "Bank / Transfer", qris: "QRIS", ewallet: "E-Wallet", card: "Kartu" };
@@ -1857,7 +2169,13 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
         </Card>
       )}
 
-      {paymentMethods.map((m, idx) => {
+      {paymentMethods.length > 1 && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: 0 }}>Tahan & geser untuk mengubah urutan tampil di checkout.</p>}
+      <SortableList
+        items={paymentMethods}
+        getKey={(m) => m.id}
+        onReorder={onReorder}
+        disabled={!!editingId}
+        renderItem={(m) => {
         const Icon = IconFor(m.icon);
         if (editingId === m.id) {
           return (
@@ -1870,8 +2188,9 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
           );
         }
         return (
-          <Card key={m.id} style={{ padding: 14, opacity: m.enabled ? 1 : 0.55 }}>
+          <Card style={{ padding: "12px 14px 12px 6px", opacity: m.enabled ? 1 : 0.6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <DragHandle />
               <div style={{ width: 34, height: 34, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icon size={16} color={C.gold} />
               </div>
@@ -1883,8 +2202,6 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>{iconLabel[m.icon] || m.icon}{m.type === "manual" && m.accountNumber ? ` • ${m.accountNumber}` : ""}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                <button onClick={() => onMove(m.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, padding: 5 }}><ChevronUp size={15} color={C.muted} /></button>
-                <button onClick={() => onMove(m.id, "down")} disabled={idx === paymentMethods.length - 1} style={{ background: "none", border: "none", cursor: idx === paymentMethods.length - 1 ? "default" : "pointer", opacity: idx === paymentMethods.length - 1 ? 0.3 : 1, padding: 5 }}><ChevronDown size={15} color={C.muted} /></button>
                 <button onClick={() => onToggle(m.id, !m.enabled)} title={m.enabled ? "Nonaktifkan" : "Aktifkan"} style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}>
                   {m.enabled ? <ToggleRight size={20} color={C.gold} /> : <ToggleLeft size={20} color={C.muted} />}
                 </button>
@@ -1894,7 +2211,8 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
             </div>
           </Card>
         );
-      })}
+        }}
+      />
 
       {adding ? (
         <PaymentMethodEditor
@@ -2273,13 +2591,31 @@ function ResetPasswordPage({ go, onSubmit }) {
 }
 
 /* ---------------- CUSTOMER DASHBOARD ---------------- */
+// Sidebar dashboard: "pil" emas yang meluncur halus ke menu yang dipilih.
 function DashSidebar({ items, active, onSelect, footer }) {
+  const listRef = useRef(null);
+  const [pill, setPill] = useState(null);
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-key="${active}"]`);
+    if (el) setPill({ top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight });
+  }, [active, items.length]);
+  useEffect(() => {
+    const onResize = () => {
+      const el = listRef.current?.querySelector(`[data-key="${active}"]`);
+      if (el) setPill({ top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [active]);
   return (
-    <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }} className="gs-sidebar-wrap">
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, background: C.surface2, borderRadius: 16, padding: 6 }} className="gs-sidebar">
-        {items.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => onSelect(key)} className="gs-btn" style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: "none", cursor: "pointer", background: active === key ? C.surface : "transparent", boxShadow: active === key ? "0 2px 10px rgba(0,0,0,0.07)" : "none", color: active === key ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, textAlign: "left" }}>
-            <Icon size={16} color={active === key ? C.gold : C.muted} />{label}
+    <div style={{ width: 228, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }} className="gs-sidebar-wrap">
+      <div ref={listRef} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 3, background: C.surface2, borderRadius: 20, padding: 6, border: `1px solid ${C.borderSoft}` }} className="gs-sidebar">
+        {pill && <div className="gs-sidebar-pill" style={{ position: "absolute", top: pill.top, left: pill.left, width: pill.width, height: pill.height, borderRadius: 14, background: C.surface, boxShadow: `0 6px 16px rgba(0,0,0,0.08), inset 0 0 0 1px ${C.gold}40`, pointerEvents: "none" }} />}
+        {items.map(({ key, label, icon: Icon, count }) => (
+          <button key={key} data-key={key} onClick={() => onSelect(key)} className="gs-side-item" style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 14, border: "none", cursor: "pointer", background: "transparent", color: active === key ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: active === key ? 700 : 600, fontSize: 13.5, textAlign: "left" }}>
+            <Icon size={16} color={active === key ? C.gold : C.muted} className="gs-side-icon" />
+            <span style={{ flex: 1 }}>{label}</span>
+            {count > 0 && <span style={{ minWidth: 20, height: 20, padding: "0 6px", borderRadius: 999, background: C.ember, color: "#fff", fontSize: 10.5, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{count}</span>}
           </button>
         ))}
       </div>
@@ -2288,14 +2624,15 @@ function DashSidebar({ items, active, onSelect, footer }) {
   );
 }
 
-function StatCard({ label, value, icon: Icon }) {
+function StatCard({ label, value, icon: Icon, hint }) {
   return (
-    <Card className="gs-card-hover" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{label}</span>
-        <span style={{ width: 28, height: 28, borderRadius: 9, background: `${C.gold}17`, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={14} color={C.gold} /></span>
+    <Card className="gs-card-hover gs-stat" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, position: "relative", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.4 }}>{label}</span>
+        <span className="gs-stat-icon" style={{ width: 34, height: 34, borderRadius: 11, background: `linear-gradient(135deg, ${C.gold}30, ${C.gold}10)`, border: `1px solid ${C.gold}35`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon size={15} color={C.gold} /></span>
       </div>
-      <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.text }}>{value}</span>
+      <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, letterSpacing: -0.3 }}><AnimatedValue value={value} /></span>
+      {hint && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>{hint}</span>}
     </Card>
   );
 }
@@ -2330,13 +2667,13 @@ function ProfileForm({ account, onSave }) {
   );
 }
 
-function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct, onCancelOrder }) {
+function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct, onCancelOrder, continueItems, onResume }) {
   // "orders" di sini sudah otomatis terbatas ke milik customer yang login (lewat RLS di database).
   const myOrders = orders;
   const ownedIds = Array.from(new Set(
     myOrders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter(Boolean)
   ));
-  const owned = products.filter((p) => ownedIds.includes(p.id));
+  const owned = products.filter((p) => ownedIds.includes(p.id) && p.productType !== "physical");
   const totalSpend = myOrders.filter((o) => o.payment === "PAID").reduce((s, o) => s + o.total, 0);
 
   const items = [
@@ -2360,6 +2697,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
 
         {sub === "overview" && (
           <div>
+            {continueItems && continueItems.length > 0 && <div style={{ marginBottom: 20 }}><ContinueLearning items={continueItems.slice(0, 3)} onResume={onResume} compact /></div>}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }} className="gs-grid-3">
               <StatCard label="Total Pembelian" value={rp(totalSpend)} icon={DollarSign} />
               <StatCard label="Produk Dimiliki" value={owned.length} icon={Package} />
@@ -2398,16 +2736,16 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
               <div style={{ marginTop: 12 }}><PrimaryBtn small onClick={() => go("shop")}>Beli Produk Pertamamu</PrimaryBtn></div>
             </Card>
           ) : (
+          <div>
+          {continueItems && continueItems.length > 0 && <div style={{ marginBottom: 18 }}><ContinueLearning items={continueItems.slice(0, 1)} onResume={onResume} compact /></div>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }} className="gs-grid-2">
             {owned.map((p) => {
               const curriculum = curriculumData[p.id];
               const completedCount = (videoProgress[p.id] || []).length;
               const pct = curriculum ? Math.round((completedCount / curriculum.length) * 100) : null;
               return (
-                <Card key={p.id} style={{ padding: 16, display: "flex", gap: 14, alignItems: "center" }}>
-                  <div style={{ width: 56, height: 56, borderRadius: 8, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Music size={22} color={p.hue} />
-                  </div>
+                <Card key={p.id} onClick={() => (curriculum ? onResume(p) : accessProduct(p))} style={{ padding: 14, display: "flex", gap: 14, alignItems: "center" }}>
+                  <ProductThumb p={p} size={64} radius={14} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{p.name}</div>
                     <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted, marginBottom: 8 }}>{p.format}</div>
@@ -2422,11 +2760,12 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                         <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark }}>{completedCount}/{curriculum.length} video selesai</span>
                       </div>
                     )}
-                    <GhostBtn small onClick={() => accessProduct(p)} icon={PlayCircle}>Akses Produk</GhostBtn>
+                    <GhostBtn small onClick={(e) => { e.stopPropagation(); if (curriculum) onResume(p); else accessProduct(p); }} icon={Play}>{pct === 100 ? "Tonton Ulang" : completedCount > 0 ? "Lanjutkan" : "Mulai"}</GhostBtn>
                   </div>
                 </Card>
               );
             })}
+          </div>
           </div>
           )
         )}
@@ -2676,7 +3015,7 @@ function TampilanBerandaForm({ content, onSave, onBack }) {
 }
 
 /* ---------------- TAMPILAN: EDIT HEADER ---------------- */
-function TampilanProdukForm({ content, onSave, onBack, products, moveProduct }) {
+function TampilanProdukForm({ content, onSave, onBack, products, onReorder }) {
   const [form, setForm] = useState(content);
   const [saved, setSaved] = useState(false);
   const handleSave = () => { onSave(form); setSaved(true); setTimeout(() => setSaved(false), 2000); };
@@ -2699,17 +3038,21 @@ function TampilanProdukForm({ content, onSave, onBack, products, moveProduct }) 
 
       <Card style={{ padding: 20 }}>
         <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Urutan Tampil Produk</h3>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 14 }}>Urutan ini menentukan susunan default di katalog & 3 produk pertama yang tampil sebagai "Produk Unggulan" di Beranda.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {products.map((p, idx) => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6, marginBottom: 14 }}><b style={{ color: C.text }}>Tahan & geser</b> baris untuk mengubah urutan. Urutan ini menentukan susunan default di katalog & 3 produk pertama yang tampil sebagai "Produk Unggulan" di Beranda.</p>
+        <SortableList
+          items={products}
+          getKey={(p) => p.id}
+          onReorder={onReorder}
+          gap={8}
+          renderItem={(p, idx) => (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px 8px 4px", borderRadius: 14, background: C.surface2, border: `1px solid ${C.border}` }}>
+              <DragHandle />
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark, width: 20 }}>{idx + 1}</span>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text, flex: 1 }}>{p.name}</span>
-              <button onClick={() => moveProduct(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={15} color={C.muted} /></button>
-              <button onClick={() => moveProduct(p.id, "down")} disabled={idx === products.length - 1} style={{ background: "none", border: "none", cursor: idx === products.length - 1 ? "default" : "pointer", opacity: idx === products.length - 1 ? 0.3 : 1 }}><ChevronDown size={15} color={C.muted} /></button>
+              <ProductThumb p={p} size={36} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 600, color: C.text, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
             </div>
-          ))}
-        </div>
+          )}
+        />
       </Card>
     </div>
   );
@@ -2749,11 +3092,14 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
   const [showYoutubeImport, setShowYoutubeImport] = useState(false);
+  const [merchForm, setMerchForm] = useState(null); // null = tertutup, {} = baru, objek produk = edit
+  const [productQuery, setProductQuery] = useState("");
+  const [productTypeFilter, setProductTypeFilter] = useState("all");
   const [orderFilter, setOrderFilter] = useState("perlu-cek");
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -2863,7 +3209,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           <div>
             <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
               {[["today", "Hari Ini"], ["week", "Minggu Ini"], ["month", "Bulan Ini"], ["year", "Tahun Ini"], ["all", "Semua"]].map(([k, l]) => (
-                <button key={k} onClick={() => setPeriod(k)} style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${period === k ? C.gold : C.border}`, background: period === k ? C.surface2 : "transparent", color: period === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+                <button key={k} onClick={() => setPeriod(k)} className="gs-chip" style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${period === k ? C.gold : C.border}`, background: period === k ? C.surface2 : "transparent", color: period === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
               ))}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
@@ -2922,65 +3268,87 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           </div>
         )}
 
-        {sub === "products" && (
+        {sub === "products" && (() => {
+          const q = productQuery.trim().toLowerCase();
+          const filtered = products.filter((p) =>
+            (productTypeFilter === "all" || (productTypeFilter === "physical" ? p.productType === "physical" : p.productType !== "physical")) &&
+            (!q || p.name.toLowerCase().includes(q)));
+          const canSort = !q && productTypeFilter === "all";
+          const iconBtn = { background: C.surface2, border: `1px solid ${C.borderSoft}`, cursor: "pointer", width: 36, height: 36, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+          return (
           <div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-              <GhostBtn small icon={Plus} onClick={() => setShowQuickProductForm(true)}>Tambah Manual</GhostBtn>
-              <PrimaryBtn small icon={Youtube} onClick={() => setShowYoutubeImport(true)}>Tambah dari Link YouTube</PrimaryBtn>
+            <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+              <PrimaryBtn small icon={Youtube} onClick={() => setShowYoutubeImport(true)}>Kelas dari YouTube</PrimaryBtn>
+              <GhostBtn small icon={Shirt} onClick={() => setMerchForm({})}>Merchandise</GhostBtn>
+              <GhostBtn small icon={Plus} onClick={() => setShowQuickProductForm(true)}>Kelas Manual</GhostBtn>
             </div>
-            <ScrollHint />
-            <Card style={{ overflow: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
-                <thead><tr style={{ background: C.surface2 }}>
-                  {["Urutan", "Produk", "Harga", "Video", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {products.map((p, idx) => {
-                    const status = p.status || "published";
-                    return (
-                      <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "10px 14px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                            <button onClick={() => moveProduct(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 0, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={14} color={C.muted} /></button>
-                            <button onClick={() => moveProduct(p.id, "down")} disabled={idx === products.length - 1} style={{ background: "none", border: "none", cursor: idx === products.length - 1 ? "default" : "pointer", padding: 0, opacity: idx === products.length - 1 ? 0.3 : 1 }}><ChevronDown size={14} color={C.muted} /></button>
-                          </div>
-                        </td>
-                        <td style={{ padding: "10px 14px", color: C.text }}>{p.name}</td>
-                        <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(p.price)}</td>
-                        <td style={{ padding: "10px 14px", color: C.muted }}>{curriculumData[p.id] ? `${curriculumData[p.id].length} video` : "—"}</td>
-                        <td style={{ padding: "10px 14px" }}>
-                          {status === "archived" ? (
-                            <Badge tone="muted">Diarsipkan</Badge>
-                          ) : (
-                            <button onClick={() => toggleProductStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none" }} title="Klik untuk ubah status">
-                              <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Published" : "Draft"}</Badge>
-                            </button>
-                          )}
-                        </td>
-                        <td style={{ padding: "10px 14px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                            <button onClick={() => go("product", p.slug)} title="Lihat Detail" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Eye size={14} color={C.muted} />
-                            </button>
-                            <button onClick={() => openLearnEditor(p.slug)} title="Kelola Materi (video & kurikulum)" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <PlayCircle size={14} color={C.gold} />
-                            </button>
-                            <button onClick={() => { setEditingProduct(p); setShowProductForm(true); }} title="Pengaturan Produk (harga, kategori, deskripsi, dll)" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Settings size={14} color={C.muted} />
-                            </button>
-                            <button onClick={() => setDeleteTarget(p)} title="Hapus Produk" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 6 }}>
-                              <Trash2 size={14} color={C.emberLight} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </Card>
+            <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 200, display: "flex", alignItems: "center", gap: 8, background: C.surface2, borderRadius: 999, padding: "9px 14px", border: `1px solid ${C.borderSoft}` }}>
+                <Search size={15} color={C.muted} />
+                <input value={productQuery} onChange={(e) => setProductQuery(e.target.value)} placeholder="Cari produk..." style={{ background: "transparent", border: "none", outline: "none", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, width: "100%" }} />
+              </div>
+              {[["all", `Semua (${products.length})`], ["digital", `Kelas (${products.filter((p) => p.productType !== "physical").length})`], ["physical", `Merchandise (${products.filter((p) => p.productType === "physical").length})`]].map(([k, l]) => (
+                <button key={k} onClick={() => setProductTypeFilter(k)} className="gs-chip" style={{ padding: "8px 14px", borderRadius: 999, border: `1px solid ${productTypeFilter === k ? C.gold : C.border}`, background: productTypeFilter === k ? C.surface2 : "transparent", color: productTypeFilter === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+              ))}
+            </div>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, margin: "0 0 12px" }}>
+              {canSort ? <><b style={{ color: C.text }}>Tahan & geser</b> kartu (atau tarik ikon ⋮⋮) untuk mengubah urutan tampil di toko.</> : "Kosongkan pencarian & pilih \"Semua\" untuk mengubah urutan."}
+            </p>
+            {filtered.length === 0 ? (
+              <Card style={{ padding: 36, textAlign: "center" }}>
+                <Package size={30} color={C.mutedDark} style={{ margin: "0 auto 10px" }} />
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, margin: 0 }}>{products.length === 0 ? "Belum ada produk. Mulai dari tombol di atas." : "Tidak ada produk yang cocok."}</p>
+              </Card>
+            ) : (
+            <SortableList
+              items={filtered}
+              getKey={(p) => p.id}
+              disabled={!canSort}
+              onReorder={reorderProducts}
+              renderItem={(p) => {
+                const status = p.status || "published";
+                const physical = p.productType === "physical";
+                const vids = curriculumData[p.id]?.length || 0;
+                const stockTotal = physical ? productStockTotal(p) : null;
+                return (
+                  <Card className="gs-admin-row" style={{ padding: "10px 12px 10px 4px", display: "flex", alignItems: "center", gap: 10, opacity: status === "archived" ? 0.6 : 1 }}>
+                    {canSort ? <DragHandle /> : <span style={{ width: 8 }} />}
+                    <ProductThumb p={p} size={54} radius={14} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 12.5 }}>{rp(p.price)}</span>
+                        <span>·</span>
+                        {physical ? (
+                          <span style={{ color: stockTotal === 0 ? C.emberLight : C.muted }}>{stockTotal === null ? "Stok tak dibatasi" : stockTotal === 0 ? "Stok habis" : `Stok ${stockTotal}`}{(p.variants || []).length > 0 ? ` · ${p.variants.length} varian` : ""}</span>
+                        ) : (
+                          <span style={{ color: vids === 0 ? C.emberLight : C.muted }}>{vids > 0 ? `${vids} video` : "Belum ada video"}</span>
+                        )}
+                        <span>·</span>
+                        <span>{p.sold || 0} terjual</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }} className="gs-row-actions">
+                      {status === "archived" ? (
+                        <Badge tone="muted">Arsip</Badge>
+                      ) : (
+                        <button onClick={() => toggleProductStatus(p.id)} title={status === "published" ? "Tampil di toko — klik untuk jadikan Draft" : "Draft — klik untuk tampilkan di toko"} className={`gs-switch ${status === "published" ? "on" : ""}`} style={{ border: "none", cursor: "pointer" }}>
+                          <span className="gs-switch-knob" />
+                        </button>
+                      )}
+                      <button onClick={() => go("product", p.slug)} title="Lihat halaman produk" style={iconBtn}><Eye size={15} color={C.muted} /></button>
+                      {!physical && <button onClick={() => openLearnEditor(p.slug)} title="Kelola materi video" style={iconBtn}><PlayCircle size={15} color={C.gold} /></button>}
+                      <button onClick={() => { if (physical) setMerchForm(p); else { setEditingProduct(p); setShowProductForm(true); } }} title="Edit produk" style={iconBtn}><Pencil size={14} color={C.muted} /></button>
+                      <button onClick={() => setDeleteTarget(p)} title="Hapus produk" style={iconBtn}><Trash2 size={14} color={C.emberLight} /></button>
+                    </div>
+                  </Card>
+                );
+              }}
+            />
+            )}
           </div>
-        )}
+          );
+        })()}
 
         {sub === "orders" && (
           <div>
@@ -3002,7 +3370,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                   return (
                     <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
                       {tabs.map(([k, l]) => (
-                        <button key={k} onClick={() => setOrderFilter(k)} style={{ padding: "7px 12px", borderRadius: 999, border: `1px solid ${orderFilter === k ? C.gold : C.border}`, background: orderFilter === k ? C.surface2 : "transparent", color: orderFilter === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+                        <button key={k} onClick={() => setOrderFilter(k)} className="gs-chip" style={{ padding: "7px 12px", borderRadius: 999, border: `1px solid ${orderFilter === k ? C.gold : C.border}`, background: orderFilter === k ? C.surface2 : "transparent", color: orderFilter === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l}</button>
                       ))}
                     </div>
                   );
@@ -3210,7 +3578,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         )}
 
         {sub === "tampilan" && tampilanSub === "produk" && (
-          <TampilanProdukForm content={siteContent.shop} onSave={(data) => updateSiteContent("shop", data)} onBack={() => setTampilanSub("menu")} products={products} moveProduct={moveProduct} />
+          <TampilanProdukForm content={siteContent.shop} onSave={(data) => updateSiteContent("shop", data)} onBack={() => setTampilanSub("menu")} products={products} onReorder={reorderProducts} />
         )}
 
         {sub === "tampilan" && tampilanSub === "halaman" && (
@@ -3353,7 +3721,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         {sub === "settings" && settingsSub === "rekening" && (
           <div>
             <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
-            <PaymentMethodsForm paymentMethods={paymentMethods} onAdd={addPaymentMethod} onUpdate={updatePaymentMethod} onToggle={togglePaymentMethod} onDelete={deletePaymentMethod} onMove={movePaymentMethod} />
+            <PaymentMethodsForm paymentMethods={paymentMethods} onAdd={addPaymentMethod} onUpdate={updatePaymentMethod} onToggle={togglePaymentMethod} onDelete={deletePaymentMethod} onReorder={reorderPaymentMethods} />
           </div>
         )}
 
@@ -4326,15 +4694,10 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   const saveOutline = (newOutline) => onSaveProduct && onSaveProduct(product.id, { ...product }, newOutline);
   const updateItem = (idx, field, value) => saveOutline(outline.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
   const removeItem = (idx) => {
+    const it = outline[idx];
+    if (!window.confirm(it?.type === "section" ? `Hapus judul bab "${it.title}"? Video di dalamnya tetap ada.` : `Hapus video "${it?.title || ""}"? Progres member untuk video ini ikut terhapus.`)) return;
     saveOutline(outline.filter((_, i) => i !== idx));
     if (idx === curIdx) selectVideo(Math.max(0, curIdx - 1));
-  };
-  const moveItem = (idx, direction) => {
-    const newIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= outline.length) return;
-    const copy = outline.slice();
-    [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
-    saveOutline(copy);
   };
   const insertItemAt = (idx, newItem) => {
     const copy = outline.slice();
@@ -4507,7 +4870,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               toggleVideoExpand={toggleVideoExpand}
               updateItem={updateItem}
               removeItem={removeItem}
-              moveItem={moveItem}
+              onReorderOutline={(next) => saveOutline(next)}
               insertVideoAfter={insertVideoAfter}
               insertSectionAfter={insertSectionAfter}
               addVideoRow={addVideoRow}
@@ -4564,130 +4927,132 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   );
 }
 
-// Editor kurikulum yang tampil live di LearnPage waktu Mode Edit ON -- struktur & interaksinya
-// sama persis dengan editor "Video Materi" di form produk (grup per judul materi yang bisa
-// ditutup, baris ringkas, detail link/deskripsi/durasi baru muncul kalau dibuka), bedanya di sini
-// tiap perubahan langsung tersimpan ke database (tidak perlu tombol "Simpan" terpisah).
-function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, moveItem, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow, onImportYoutube }) {
-  const totalVideoCount = outline.filter((it) => it.type === "video").length;
-  const hasSections = outline.some((it) => it.type === "section");
+// Editor kurikulum yang tampil live di LearnPage waktu Mode Edit ON. Semua baris (judul bab &
+// video) bisa diurutkan dengan TAHAN & GESER. Bab bisa dilipat supaya daftar puluhan video tetap
+// rapi; tiap perubahan langsung tersimpan ke database (tanpa tombol "Simpan").
+function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, onReorderOutline, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow, onImportYoutube }) {
+  const totalVideoCount = outline.filter((it) => it.type !== "section").length;
+  const sectionCount = outline.filter((it) => it.type === "section").length;
+  const secKey = (it, idx) => `s-${it.id ?? `new-${idx}`}`;
 
-  const groups = (() => {
-    const list = [];
-    let cur = null;
-    let videoCounter = -1;
+  // Baris yang terlihat (video di dalam bab yang dilipat disembunyikan).
+  const rows = [];
+  {
+    let hidden = false;
+    let vn = -1;
     outline.forEach((it, idx) => {
       if (it.type === "section") {
-        cur = { key: `s-${idx}`, isRoot: false, headerIdx: idx, headerItem: it, rows: [] };
-        list.push(cur);
+        const key = secKey(it, idx);
+        hidden = collapsedSections.has(key);
+        let count = 0;
+        for (let j = idx + 1; j < outline.length && outline[j].type !== "section"; j++) count++;
+        rows.push({ kind: "section", it, idx, key, count, collapsed: hidden });
       } else {
-        videoCounter++;
-        if (!cur) { cur = { key: "__root__", isRoot: true, headerIdx: -1, headerItem: null, rows: [] }; list.push(cur); }
-        cur.rows.push({ item: it, idx, videoNumber: videoCounter });
+        vn++;
+        if (!hidden) rows.push({ kind: "video", it, idx, vn, key: `v-${it.id ?? `new-${idx}`}` });
       }
     });
-    return list;
-  })();
+  }
 
-  const iconBtnStyle = { background: "none", border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", padding: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
+  // Hasil geser pada baris yang terlihat -> urutan lengkap (termasuk video di bab terlipat).
+  const handleReorder = (nextRows, { to }) => {
+    const moved = nextRows[to];
+    const after = nextRows[to + 1];
+    const rest = outline.filter((_, i) => i !== moved.idx);
+    const insertAt = after ? rest.indexOf(after.it) : rest.length;
+    rest.splice(insertAt < 0 ? rest.length : insertAt, 0, moved.it);
+    onReorderOutline(rest);
+  };
+
+  const iconBtn = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", width: 34, height: 34, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
 
   return (
     <div>
-      <div style={{ marginBottom: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark }}>{totalVideoCount} video{hasSections ? ` · ${outline.filter((it) => it.type === "section").length} judul materi` : ""}</div>
-      <Card style={{ padding: 8, maxHeight: 720, overflowY: "auto" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 4 }}>
-          {groups.map((group) => {
-            const collapsed = collapsedSections.has(group.key);
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark }}>{totalVideoCount} video{sectionCount ? ` · ${sectionCount} bab` : ""}</span>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Tahan & geser untuk mengurutkan</span>
+      </div>
+      {outline.length === 0 ? (
+        <Card style={{ padding: 28, textAlign: "center" }}>
+          <Youtube size={30} color={C.gold} style={{ margin: "0 auto 10px" }} />
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: "0 0 14px" }}>Belum ada materi. Cara tercepat: tempel link playlist YouTube.</p>
+          {onImportYoutube && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import dari YouTube</PrimaryBtn>}
+        </Card>
+      ) : (
+      <SortableList
+        items={rows}
+        getKey={(r) => r.key}
+        gap={8}
+        onReorder={handleReorder}
+        renderItem={(r) => {
+          if (r.kind === "section") {
             return (
-              <div key={group.key}>
-                {!group.isRoot && (
-                  <div style={{ padding: "12px 12px", borderRadius: 10, background: `${C.gold}14`, border: `1px solid ${C.gold}55`, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <button onClick={() => toggleSection(group.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, display: "flex" }}>
-                        {collapsed ? <ChevronDown size={17} color={C.goldLight} /> : <ChevronUp size={17} color={C.goldLight} />}
-                      </button>
-                      <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
-                        <EditableText value={group.headerItem.title} admin onSave={(v) => updateItem(group.headerIdx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }} />
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.goldLight }}>{group.rows.length} video</span>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => insertVideoAfter(group.headerIdx)} title="Tambah video di kelompok ini" style={{ ...iconBtnStyle, border: `1px solid ${C.gold}55` }}><Plus size={15} color={C.goldLight} /></button>
-                        <button onClick={() => removeItem(group.headerIdx)} title="Hapus judul (video di dalamnya tetap ada)" style={iconBtnStyle}><Trash2 size={15} color={C.mutedDark} /></button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {!collapsed && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: group.isRoot ? 0 : 10, paddingLeft: group.isRoot ? 0 : 10 }}>
-                    {group.rows.map(({ item: it, idx, videoNumber }) => {
-                      const expanded = expandedVideoIdx.has(idx);
-                      const active = videoNumber === curIdx;
-                      return (
-                        <div key={idx}>
-                          <div style={{ padding: "12px 12px", borderRadius: expanded ? "10px 10px 0 0" : 10, background: active ? C.surface2 : C.bg, border: `1px solid ${active ? C.gold : C.border}`, display: "flex", flexDirection: "column", gap: 10 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <button onClick={() => onSelect(videoNumber)} title="Pilih video ini" style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${C.border}`, background: "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
-                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>{videoNumber + 1}</span>
-                              </button>
-                              <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                                <button onClick={() => moveItem(idx, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 3, opacity: idx === 0 ? 0.3 : 1 }}><ChevronUp size={13} color={C.muted} /></button>
-                                <button onClick={() => moveItem(idx, "down")} disabled={idx === outline.length - 1} style={{ background: "none", border: "none", cursor: idx === outline.length - 1 ? "default" : "pointer", padding: 3, opacity: idx === outline.length - 1 ? 0.3 : 1 }}><ChevronDown size={13} color={C.muted} /></button>
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
-                                <EditableText value={it.title} admin onSave={(v) => updateItem(idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }} />
-                              </div>
-                              {!it.url && <span title="Link video belum diisi" style={{ width: 7, height: 7, borderRadius: "50%", background: C.emberLight, flexShrink: 0 }} />}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                              <button onClick={() => toggleVideoExpand(idx)} title="Link, deskripsi & durasi" style={{ ...iconBtnStyle, flex: "0 1 auto", gap: 6, paddingLeft: 10, paddingRight: 10, width: "auto" }}>
-                                {expanded ? <ChevronUp size={13} color={C.muted} /> : <ChevronDown size={13} color={C.muted} />}
-                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Detail</span>
-                              </button>
-                              <button onClick={() => insertVideoAfter(idx)} title="Sisipkan video setelah ini" style={iconBtnStyle}><Plus size={14} color={C.mutedDark} /></button>
-                              <button onClick={() => insertSectionAfter(idx)} title="Sisipkan judul materi baru setelah video ini" style={iconBtnStyle}><Type size={14} color={C.mutedDark} /></button>
-                              <button onClick={() => removeItem(idx)} title="Hapus video" style={iconBtnStyle}><Trash2 size={14} color={C.mutedDark} /></button>
-                            </div>
-                          </div>
-                          {expanded && (
-                            <div style={{ padding: "14px 12px", borderRadius: "0 0 10px 10px", background: C.surface2, border: `1px solid ${C.border}`, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 14 }}>
-                              <div style={{ position: "relative", paddingRight: 26 }}>
-                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Link video (YouTube/Vimeo/dll)</span>
-                                <EditableText value={it.url || ""} admin onSave={(v) => updateItem(idx, "url", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.url ? C.text : C.mutedDark, wordBreak: "break-all" }} />
-                              </div>
-                              <div style={{ position: "relative", paddingRight: 26 }}>
-                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Deskripsi singkat</span>
-                                <EditableText value={it.desc || ""} admin onSave={(v) => updateItem(idx, "desc", v)} tag="div" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.desc ? C.text : C.mutedDark }} />
-                              </div>
-                              <div style={{ position: "relative", paddingRight: 26, maxWidth: 160 }}>
-                                <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Durasi (mis. 12:30)</span>
-                                <EditableText value={it.duration || ""} admin onSave={(v) => updateItem(idx, "duration", v)} tag="div" block style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: it.duration ? C.text : C.mutedDark }} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {!group.isRoot && (
-                      <button onClick={() => insertVideoAfter(group.rows.length > 0 ? group.rows[group.rows.length - 1].idx : group.headerIdx)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: `1px dashed ${C.border}`, borderRadius: 8, padding: "9px 12px", cursor: "pointer", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}><Plus size={13} />Video di kelompok ini</button>
-                    )}
-                  </div>
-                )}
+              <div style={{ padding: "10px 10px 10px 2px", borderRadius: 14, background: `linear-gradient(135deg, ${C.gold}22, ${C.gold}0A)`, border: `1px solid ${C.gold}55`, display: "flex", alignItems: "center", gap: 6 }}>
+                <DragHandle />
+                <button onClick={() => toggleSection(r.key)} title={r.collapsed ? "Buka bab" : "Lipat bab"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }}>
+                  <ChevronDown size={17} color={C.goldLight} style={{ transform: r.collapsed ? "rotate(-90deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
+                  <EditableText value={r.it.title} admin onSave={(v) => updateItem(r.idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.goldLight, textTransform: "uppercase", letterSpacing: 0.3 }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, opacity: 0.8 }}>{r.count} video</span>
+                </div>
+                <button onClick={() => insertVideoAfter(r.idx)} title="Tambah video di bab ini" style={{ ...iconBtn, borderColor: `${C.gold}66` }}><Plus size={15} color={C.goldLight} /></button>
+                <button onClick={() => removeItem(r.idx)} title="Hapus judul bab (videonya tetap ada)" style={iconBtn}><Trash2 size={14} color={C.mutedDark} /></button>
               </div>
             );
-          })}
-          {outline.length === 0 && (
-            <p style={{ padding: 14, textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, fontStyle: "italic" }}>Belum ada materi. Mulai dengan tombol di bawah.</p>
-          )}
-        </div>
-      </Card>
-      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-        <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
-        <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Kelas / Materi</GhostBtn>
-        {onImportYoutube && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import dari YouTube</PrimaryBtn>}
+          }
+          const it = r.it;
+          const expanded = expandedVideoIdx.has(r.idx);
+          const active = r.vn === curIdx;
+          return (
+            <div style={{ borderRadius: 14, background: active ? C.surface2 : C.surface, border: `1px solid ${active ? C.gold : C.border}`, overflow: "hidden" }}>
+              <div style={{ padding: "8px 8px 8px 2px", display: "flex", alignItems: "center", gap: 6 }}>
+                <DragHandle />
+                <button onClick={() => onSelect(r.vn)} title="Putar video ini" style={{ width: 30, height: 30, borderRadius: "50%", border: `1px solid ${active ? C.gold : C.border}`, background: active ? C.gold : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: active ? "#1A140A" : C.muted }}>{r.vn + 1}</span>
+                </button>
+                <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
+                  <EditableText value={it.title} admin onSave={(v) => updateItem(r.idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, color: C.text }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    {it.duration && it.duration !== "—" && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.mutedDark }}>{it.duration}</span>}
+                    {!it.url && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 700, color: C.emberLight }}>● link belum diisi</span>}
+                  </div>
+                </div>
+                <button onClick={() => toggleVideoExpand(r.idx)} title="Link, deskripsi & durasi" style={iconBtn}>
+                  <ChevronDown size={15} color={C.muted} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
+                </button>
+                <button onClick={() => insertVideoAfter(r.idx)} title="Sisipkan video setelah ini" style={iconBtn}><Plus size={15} color={C.mutedDark} /></button>
+                <button onClick={() => removeItem(r.idx)} title="Hapus video" style={iconBtn}><Trash2 size={14} color={C.mutedDark} /></button>
+              </div>
+              {expanded && (
+                <div className="gs-anim-in" data-no-drag style={{ padding: "12px 14px 14px", background: C.surface2, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ position: "relative", paddingRight: 26 }}>
+                    <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Link video (YouTube/Vimeo)</span>
+                    <EditableText value={it.url || ""} admin onSave={(v) => updateItem(r.idx, "url", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.url ? C.text : C.mutedDark, wordBreak: "break-all" }} />
+                  </div>
+                  <div style={{ position: "relative", paddingRight: 26 }}>
+                    <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Deskripsi singkat</span>
+                    <EditableText value={it.desc || ""} admin onSave={(v) => updateItem(r.idx, "desc", v)} tag="div" area block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: it.desc ? C.text : C.mutedDark }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div style={{ position: "relative", paddingRight: 26, minWidth: 110 }}>
+                      <span style={{ display: "block", fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginBottom: 4 }}>Durasi (mis. 12:30)</span>
+                      <EditableText value={it.duration || ""} admin onSave={(v) => updateItem(r.idx, "duration", v)} tag="div" block style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: it.duration ? C.text : C.mutedDark }} />
+                    </div>
+                    <GhostBtn small onClick={() => insertSectionAfter(r.idx)} icon={Type}>Judul bab setelah ini</GhostBtn>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }}
+      />
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+        {onImportYoutube && outline.length > 0 && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import YouTube</PrimaryBtn>}
+        <GhostBtn small onClick={addVideoRow} icon={Plus}>Video</GhostBtn>
+        <GhostBtn small onClick={addSectionRow} icon={Type}>Judul Bab</GhostBtn>
       </div>
-
     </div>
   );
 }
@@ -6412,6 +6777,10 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [videoProgress, setVideoProgress] = useState({});
   const [videoCurrent, setVideoCurrent] = useState({});
+  // Video terakhir yang dibuka member per kelas { [productId]: { idx, at } } — dipakai kartu
+  // "Lanjutkan Belajar". Disimpan di browser per akun (progres "selesai" tetap di database).
+  const [lastWatched, setLastWatched] = useState({});
+  const prevCurrentRef = useRef({});
   const [orders, setOrders] = useState(DEMO_ORDERS);
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const [coupons, setCoupons] = useState([]); // hanya terisi untuk admin (RLS)
@@ -6641,17 +7010,12 @@ export default function App() {
     await supabase.from("payment_methods").delete().eq("id", id);
     fetchPaymentMethods();
   };
-  const movePaymentMethod = async (id, direction) => {
-    const idx = paymentMethods.findIndex((p) => p.id === id);
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= paymentMethods.length) return;
-    const a = paymentMethods[idx], b = paymentMethods[swapIdx];
-    setPaymentMethods((prev) => { // optimistic swap biar kerasa instan
-      const next = [...prev]; [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]; return next;
-    });
-    await supabase.from("payment_methods").update({ sort_order: b.sortOrder }).eq("id", a.id);
-    await supabase.from("payment_methods").update({ sort_order: a.sortOrder }).eq("id", b.id);
-    fetchPaymentMethods();
+  // Simpan urutan hasil tahan-&-geser (sekali panggil ke server, tampilan langsung berubah).
+  const reorderPaymentMethods = async (next) => {
+    setPaymentMethods(next.map((m, i) => ({ ...m, sortOrder: i })));
+    const { error } = await supabase.rpc("admin_reorder_payment_methods", { p_ids: next.map((m) => m.id) });
+    if (error) { toast.error("Urutan gagal disimpan: " + error.message); fetchPaymentMethods(); return; }
+    toast.success("Urutan metode pembayaran disimpan");
   };
 
   /* ---------------- EMAIL KONFIRMASI PESANAN ----------------
@@ -6743,6 +7107,31 @@ export default function App() {
     fetchVideoProgress();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, session?.user?.id, curriculumData]);
+
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) { prevCurrentRef.current = {}; setVideoCurrent({}); setLastWatched({}); return; }
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(`gs-last-${uid}`) || "{}") || {}; } catch (e) { saved = {}; }
+    const cur = Object.fromEntries(Object.entries(saved).map(([k, v]) => [k, v.idx]));
+    prevCurrentRef.current = cur;
+    setLastWatched(saved);
+    setVideoCurrent(cur);
+  }, [session?.user?.id]);
+  useEffect(() => {
+    const prev = prevCurrentRef.current;
+    const changed = Object.keys(videoCurrent).filter((k) => videoCurrent[k] !== prev[k]);
+    prevCurrentRef.current = videoCurrent;
+    const uid = session?.user?.id;
+    if (!changed.length || !uid) return;
+    setLastWatched((lw) => {
+      const next = { ...lw };
+      changed.forEach((k) => { next[k] = { idx: videoCurrent[k], at: Date.now() }; });
+      try { localStorage.setItem(`gs-last-${uid}`, JSON.stringify(next)); } catch (e) { /* abaikan */ }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoCurrent]);
 
   const registerCustomer = async ({ name, email, phone, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -6843,7 +7232,7 @@ export default function App() {
   // dilakukan dari browser. Kalau perlu reset data toko, lakukan lewat Supabase Table Editor
   // atau jalankan ulang SQL seed di SQL Editor.
   const resetAllData = () => {
-    alert("Data sekarang tersimpan di database Supabase, bukan di browser. Untuk reset data, buka Supabase Dashboard -> Table Editor, atau jalankan ulang script seed.sql.");
+    toast("Data sekarang tersimpan di database Supabase, bukan di browser. Untuk reset data, buka Supabase Dashboard -> Table Editor, atau jalankan ulang script seed.sql.");
   };
 
   // Sinkronkan tombol back browser/HP dengan navigasi di dalam app. Tanpa ini, browser tidak
@@ -6937,7 +7326,7 @@ export default function App() {
       go("auth");
       return false;
     }
-    if (role === "admin") { alert("Akun admin tidak bisa membeli. Gunakan akun customer untuk uji coba pembelian."); return false; }
+    if (role === "admin") { toast("Akun admin tidak bisa membeli. Gunakan akun customer untuk uji coba pembelian."); return false; }
     if (ownedIds.includes(id) || pendingIds.includes(id)) return false;
     setCart((c) => (c.includes(id) ? c : [...c, id]));
     const prod = products.find((pr) => pr.id === id);
@@ -6979,8 +7368,37 @@ export default function App() {
     // Sebelumnya tombol ini diam-diam mengarahkan kembali ke halaman produk yang sama,
     // yang tampak seperti tidak berfungsi karena tidak ada perubahan tampilan.
     if (role === "admin") { openLearnEditor(p.slug); return; }
-    alert(`Materi "${p.name}" sedang disiapkan. Kami akan mengabari kamu begitu materinya siap diakses.`);
+    toast(`Materi "${p.name}" sedang disiapkan. Kami akan mengabari kamu begitu materinya siap diakses.`);
   };
+  // Video yang paling pas untuk dilanjutkan: video terakhir dibuka (kalau belum selesai),
+  // kalau sudah selesai -> video berikutnya yang belum selesai.
+  const resumeIndex = (p) => {
+    const vids = curriculumData[p.id] || [];
+    const done = videoProgress[p.id] || [];
+    const last = lastWatched[p.id]?.idx;
+    if (last !== undefined && last < vids.length && !done.includes(last)) return last;
+    const after = vids.findIndex((_, i) => i > (last ?? -1) && !done.includes(i));
+    if (after !== -1) return after;
+    const any = vids.findIndex((_, i) => !done.includes(i));
+    return any === -1 ? Math.max(0, vids.length - 1) : any;
+  };
+  const resumeLesson = (p) => {
+    const idx = resumeIndex(p);
+    setVideoCurrent((prev) => ({ ...prev, [p.id]: idx }));
+    go("learn", p.slug);
+  };
+  const continueItems = role === "customer"
+    ? products
+      .filter((p) => p.productType !== "physical" && ownedIds.includes(p.id) && (curriculumData[p.id] || []).length > 0)
+      .map((p) => {
+        const vids = curriculumData[p.id];
+        const done = (videoProgress[p.id] || []).length;
+        const idx = resumeIndex(p);
+        return { p, total: vids.length, done, idx, video: vids[idx], pct: Math.round((done / vids.length) * 100), at: lastWatched[p.id]?.at || 0 };
+      })
+      .sort((a, b) => (b.at - a.at) || (a.pct === 100) - (b.pct === 100))
+    : [];
+
   const removeFromCart = (id) => {
     setCart((c) => c.filter((x) => x !== id));
     setCartPrices((prev) => { const n = { ...prev }; delete n[id]; return n; });
@@ -7028,7 +7446,7 @@ export default function App() {
   // penambahan counter "sold" produk & "used" kupon konsisten dan tidak bisa dipalsukan dari client.
   const updateOrderStatus = async (id, payment, status) => {
     const { error } = await supabase.rpc("admin_update_order_status", { p_order_id: id, p_payment: payment, p_status: status });
-    if (error) { alert("Gagal mengubah status pesanan: " + error.message); return; }
+    if (error) { toast.error("Gagal mengubah status pesanan: " + error.message); return; }
     if (payment === "PAID") sendOrderEmail(id, "paid");
     fetchOrders();
     fetchProducts();
@@ -7052,7 +7470,7 @@ export default function App() {
   // Customer membatalkan pesanan yang belum dibayar (misal salah pilih / mau ganti metode).
   const cancelOrder = async (orderId) => {
     const { error } = await supabase.rpc("cancel_my_order", { p_order_id: orderId });
-    if (error) { alert(error.message); return; }
+    if (error) { toast.error(error.message); return; }
     fetchOrders();
   };
   const goToPaymentConfirm = (orderId) => {
@@ -7109,10 +7527,10 @@ export default function App() {
       bonus: data.bonus || "", status: data.status || "draft", preview_video: data.previewVideo || "",
       sort_order: products.length,
     }).select().single();
-    if (error) { alert("Gagal menambah produk: " + error.message); return null; }
+    if (error) { toast.error("Gagal menambah produk: " + error.message); return null; }
     if (items && items.length > 0) {
       const { error: curErr } = await supabase.rpc("admin_save_curriculum", { p_product_id: inserted.id, p_items: items });
-      if (curErr) alert("Produk tersimpan, tapi materi gagal disimpan: " + curErr.message);
+      if (curErr) toast.error("Produk tersimpan, tapi materi gagal disimpan: " + curErr.message);
     }
     await fetchProducts();
     await fetchCurriculum();
@@ -7120,6 +7538,9 @@ export default function App() {
   };
   const updateProduct = async (id, data, items = []) => {
     const videoCount = items.filter((it) => it.type !== "section").length;
+    // Optimis: tampilan materi langsung berubah (mis. setelah geser urutan), server menyusul.
+    setCurriculumOutline((prev) => ({ ...prev, [id]: items }));
+    setCurriculumData((prev) => ({ ...prev, [id]: items.filter((it) => it.type !== "section").map(({ id: vid, title, desc, url, duration }) => ({ id: vid, title, desc, url, duration })) }));
     const payload = {
       name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",
@@ -7128,11 +7549,11 @@ export default function App() {
     };
     if (videoCount > 0) payload.duration = `${videoCount} video`;
     const { error } = await supabase.from("products").update(payload).eq("id", id);
-    if (error) { alert("Gagal menyimpan produk: " + error.message); return; }
+    if (error) { toast.error("Gagal menyimpan produk: " + error.message); return; }
     // Materi disimpan lewat RPC yang MEMPERTAHANKAN id video lama (update di tempat), bukan
     // hapus-semua-lalu-buat-ulang — kalau id berubah, progres belajar semua member ikut hilang.
     const { error: curErr } = await supabase.rpc("admin_save_curriculum", { p_product_id: id, p_items: items || [] });
-    if (curErr) alert("Gagal menyimpan materi: " + curErr.message);
+    if (curErr) toast.error("Gagal menyimpan materi: " + curErr.message);
     await fetchProducts();
     await fetchCurriculum();
   };
@@ -7157,19 +7578,11 @@ export default function App() {
     fetchProducts();
     fetchCurriculum();
   };
-  const moveProduct = async (id, direction) => {
-    const idx = products.findIndex((p) => p.id === id);
-    const newIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (idx < 0 || newIdx < 0 || newIdx >= products.length) return;
-    const a = products[idx], b = products[newIdx];
-    setProducts((prev) => {
-      const copy = [...prev];
-      [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
-      return copy;
-    });
-    await supabase.from("products").update({ sort_order: newIdx }).eq("id", a.id);
-    await supabase.from("products").update({ sort_order: idx }).eq("id", b.id);
-    fetchProducts();
+  const reorderProducts = async (next) => {
+    setProducts(next);
+    const { error } = await supabase.rpc("admin_reorder_products", { p_ids: next.map((p) => p.id) });
+    if (error) { toast.error("Urutan gagal disimpan: " + error.message); fetchProducts(); return; }
+    toast.success("Urutan produk disimpan");
   };
   const updateSiteContent = async (section, data) => {
     const next = { ...siteContent, [section]: { ...siteContent[section], ...data } };
@@ -7243,13 +7656,13 @@ export default function App() {
       code: data.code, type: data.type, value: data.value,
       min_purchase: data.minPurchase || 0, usage_limit: data.limit || 0, used: 0, expiry: data.expiry || null,
     });
-    if (error) alert(error.code === "23505" ? "Kode kupon itu sudah ada." : "Gagal menyimpan kupon: " + error.message);
+    if (error) toast.error(error.code === "23505" ? "Kode kupon itu sudah ada." : "Gagal menyimpan kupon: " + error.message);
     fetchCoupons();
   };
   const deleteCoupon = async (code) => {
     const { data, error } = await supabase.from("coupons").delete().eq("code", code).select();
     if (error || !data || data.length === 0) {
-      alert("Kupon gagal dihapus. Coba muat ulang halaman dan pastikan kamu masih login sebagai admin.");
+      toast.error("Kupon gagal dihapus. Coba muat ulang halaman dan pastikan kamu masih login sebagai admin.");
     }
     if (coupon?.code === code) setCoupon(null);
     fetchCoupons();
@@ -7318,19 +7731,98 @@ export default function App() {
 
         .gs-header { transition: background-color .3s var(--gs-ease); }
 
-        .gs-btn { transition: transform .22s var(--gs-spring), opacity .18s ease, box-shadow .25s var(--gs-ease), background-color .2s ease; will-change: transform; }
-        .gs-btn:hover { transform: translateY(-1px); }
-        .gs-btn:active { transform: scale(0.96) translateY(0); }
-        .gs-btn-primary:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
-        .gs-btn-ghost:hover { background: ${C.border} !important; }
+        .gs-btn { transition: transform .25s var(--gs-spring), opacity .18s ease, box-shadow .3s var(--gs-ease), background-color .2s ease, border-color .25s ease; will-change: transform; -webkit-tap-highlight-color: transparent; }
+        .gs-btn:not(:disabled):hover { transform: translateY(-2px); }
+        .gs-btn:not(:disabled):active { transform: scale(0.96) translateY(0); transition-duration: .08s; }
+        .gs-btn-icon { transition: transform .3s var(--gs-spring); }
+        .gs-btn:not(:disabled):hover .gs-btn-icon { transform: translateX(3px); }
+        /* kilau yang menyapu tombol emas saat hover */
+        .gs-btn-primary::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.55) 45%, transparent 70%); transform: translateX(-120%); transition: transform .8s var(--gs-ease); }
+        .gs-btn-primary:not(:disabled):hover::before { transform: translateX(120%); }
+        .gs-btn-primary:not(:disabled):hover { box-shadow: 0 12px 28px rgba(184,137,46,0.42), inset 0 1px 0 rgba(255,255,255,0.5) !important; }
+        .gs-btn-ghost:not(:disabled):hover { border-color: ${C.gold} !important; box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 0 0 3px ${C.gold}1F; }
+        .gs-ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .22; transform: scale(0); animation: gsRipple .6s var(--gs-ease) forwards; z-index: -1; }
+        @keyframes gsRipple { to { transform: scale(1); opacity: 0; } }
+        .gs-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: gsSpin .7s linear infinite; flex-shrink: 0; }
+        @keyframes gsSpin { to { transform: rotate(360deg); } }
+        .gs-badge-dot { animation: gsPulseDot 1.8s ease-in-out infinite; }
+        @keyframes gsPulseDot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+        /* toast */
+        .gs-toast { animation: gsToastIn .45s var(--gs-spring) both; }
+        .gs-toast-out { animation: gsToastOut .35s var(--gs-ease) both; }
+        @keyframes gsToastIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+        @keyframes gsToastOut { to { opacity: 0; transform: translateY(10px) scale(.97); } }
+
+        /* sidebar dashboard */
+        .gs-sidebar-pill { transition: top .45s var(--gs-spring), left .45s var(--gs-spring), width .45s var(--gs-spring), height .45s var(--gs-spring); }
+        .gs-side-item { transition: color .2s ease, transform .2s var(--gs-spring); -webkit-tap-highlight-color: transparent; }
+        .gs-side-item:hover { color: ${C.text} !important; }
+        .gs-side-item:active { transform: scale(.97); }
+        .gs-side-item:hover .gs-side-icon { transform: rotate(-8deg) scale(1.1); }
+        .gs-side-icon { transition: transform .3s var(--gs-spring); }
+
+        /* kartu statistik: garis emas "senar" di atas saat hover */
+        .gs-stat::after { content: ""; position: absolute; left: 18px; right: 18px; top: 0; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, ${C.gold}, transparent); transform: scaleX(0); transition: transform .5s var(--gs-ease); }
+        .gs-stat:hover::after { transform: scaleX(1); }
+        .gs-stat:hover .gs-stat-icon { transform: rotate(-10deg) scale(1.08); }
+        .gs-stat-icon { transition: transform .35s var(--gs-spring); }
+
+        /* chip filter / pil pilihan */
+        .gs-chip { transition: all .25s var(--gs-ease); -webkit-tap-highlight-color: transparent; }
+        .gs-chip:hover { border-color: ${C.gold} !important; color: ${C.text} !important; }
+        .gs-chip:active { transform: scale(.95); }
+
+        /* link navigasi header dengan garis bawah yang tumbuh */
+        .gs-nav-link { position: relative; }
+        .gs-nav-link::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 0; height: 2px; border-radius: 2px; background: ${C.gold}; transform: scaleX(0); transition: transform .35s var(--gs-spring); }
+        .gs-nav-link:hover::after, .gs-nav-link.is-active::after { transform: scaleX(1); }
+
+        /* skeleton loading */
+        .gs-skeleton { background: linear-gradient(90deg, ${C.surface2} 25%, ${C.border} 37%, ${C.surface2} 63%); background-size: 400% 100%; animation: gsShimmer 1.4s ease infinite; border-radius: 12px; }
+        @keyframes gsShimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+        /* kartu lanjutkan belajar */
+        .gs-continue .gs-continue-media { transition: transform .6s var(--gs-ease); }
+        .gs-continue:hover .gs-play-orb { transform: scale(1.12); background: rgba(212,169,74,0.85) !important; border-color: #F3D27A !important; }
+        .gs-play-orb { transition: transform .4s var(--gs-spring), background .3s ease; animation: gsOrb 2.4s ease-in-out infinite; }
+        @keyframes gsOrb { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.35); } 60% { box-shadow: 0 0 0 16px rgba(255,255,255,0); } }
+        .gs-progress-fill { animation: gsGrow 1.1s var(--gs-ease) both; transform-origin: left; }
+        @keyframes gsGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @media (max-width: 760px) { .gs-continue { grid-template-columns: 1fr !important; } }
+
+        /* sakelar on/off */
+        .gs-switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: ${C.border}; transition: background .3s var(--gs-ease); padding: 0; flex-shrink: 0; }
+        .gs-switch.on { background: linear-gradient(135deg, #F3D27A, ${C.gold}); }
+        .gs-switch-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform .35s var(--gs-spring); }
+        .gs-switch.on .gs-switch-knob { transform: translateX(18px); }
+        .gs-switch:active .gs-switch-knob { width: 24px; }
+        @media (max-width: 560px) { .gs-row-actions button[title="Lihat halaman produk"] { display: none !important; } }
+
+        /* tahan & geser */
+        .gs-sort-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+        .gs-sort-item > * { transition: transform .3s var(--gs-spring), box-shadow .3s var(--gs-ease); }
+        .gs-sort-item.is-shifting { transition: transform .32s var(--gs-spring); }
+        .gs-sort-item.is-pressing > * { transform: scale(.975); transition: transform .32s ease; }
+        .gs-sort-item.is-dragging { cursor: grabbing; }
+        .gs-sort-item.is-dragging > * { transform: scale(1.025) rotate(-.4deg); box-shadow: 0 24px 48px rgba(0,0,0,.22), 0 0 0 2px ${C.gold} !important; }
+        .gs-grip:hover { color: ${C.gold} !important; background: ${C.gold}14; }
+        body.gs-dragging, body.gs-dragging * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+
+        ::selection { background: ${C.gold}55; }
+        *::-webkit-scrollbar { width: 10px; height: 10px; }
+        *::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+        *::-webkit-scrollbar-thumb:hover { background: ${C.gold}88; background-clip: padding-box; border: 2px solid transparent; }
+        button:focus-visible, a:focus-visible { outline: 2px solid ${C.gold}; outline-offset: 2px; }
 
         .gs-icon-btn { transition: transform .22s var(--gs-spring), background-color .2s ease; }
         .gs-icon-btn:hover { transform: translateY(-1px) scale(1.04); }
         .gs-icon-btn:active { transform: scale(0.92); }
         .gs-cart-badge { animation: gsPopIn .35s var(--gs-spring) both; }
 
-        .gs-card { transition: transform .3s var(--gs-spring), box-shadow .3s var(--gs-ease), border-color .3s ease; }
-        .gs-card-hover:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); border-color: ${C.border} !important; }
+        .gs-card { transition: transform .35s var(--gs-spring), box-shadow .35s var(--gs-ease), border-color .3s ease; }
+        .gs-card-hover:hover { transform: translateY(-4px); box-shadow: 0 18px 38px rgba(0,0,0,0.10), 0 0 0 1px ${C.gold}40 !important; border-color: ${C.gold}55 !important; }
+        .gs-card-click { cursor: pointer; }
         .gs-card-hover:active { transform: translateY(-1px) scale(0.995); }
 
         .gs-mobile-menu { animation: gsSlideDown .32s var(--gs-ease) both; transform-origin: top center; }
@@ -7360,10 +7852,11 @@ export default function App() {
         @media (min-width: 861px) { .gs-mobile-toggle { display: none !important; } }
       `}</style>
 
+      <ToastHost />
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
@@ -7386,7 +7879,7 @@ export default function App() {
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
-          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} onCancelOrder={cancelOrder} />
+          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} onCancelOrder={cancelOrder} continueItems={continueItems} onResume={resumeLesson} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
@@ -7411,7 +7904,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );
