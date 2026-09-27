@@ -1,60 +1,57 @@
-# Gitar Sakti — Prototipe Website
+# Gitar Sakti
 
-Prototipe interaktif Gitar Sakti (React + Vite). Karena ini website sungguhan
-(bukan lagi di dalam preview Claude), embed video YouTube/Vimeo akan berjalan
-normal di sini.
+Website kursus gitar online (React + Vite) dengan backend Supabase (database, login,
+storage bukti transfer, Edge Functions). Hasil audit & rekomendasi lengkap ada di
+[`LAPORAN-AUDIT.md`](./LAPORAN-AUDIT.md).
 
-## 1. Jalankan di komputer sendiri
+## Menjalankan di komputer sendiri
 
-Butuh [Node.js](https://nodejs.org) (versi 18 ke atas) sudah terpasang.
+Butuh [Node.js](https://nodejs.org) 18+.
 
 ```bash
 npm install
-npm run dev
+npm run dev      # buka http://localhost:5173
+npm run build    # cek build produksi
 ```
 
-Buka link yang muncul di terminal (biasanya `http://localhost:5173`).
+Halaman login admin: tambahkan `?admin=1` di URL (mis. `https://domainkamu.com/?admin=1`).
 
-## 2. Push ke GitHub
+## Upload produk langsung dari link YouTube
 
-```bash
-git init
-git add .
-git commit -m "Prototipe awal Gitar Sakti"
-git branch -M main
-git remote add origin https://github.com/USERNAME/NAMA-REPO.git
-git push -u origin main
-```
+1. Upload video kelas ke YouTube sebagai **Tidak publik (Unlisted)**, kumpulkan dalam satu
+   playlist (juga Tidak publik).
+2. Admin → **Produk** → **Tambah dari Link YouTube** → tempel link playlist (atau beberapa
+   link video, satu per baris) → **Ambil Video**.
+3. Isi harga, pilih video yang mau dimasukkan, opsional kelompokkan per bab → **Buat Produk**.
+   Semua video otomatis jadi materi (judul, urutan, durasi), video pertama jadi preview gratis.
+4. Untuk menambah video ke kelas yang sudah ada: Admin → Produk → ikon ▶ (Kelola Materi) →
+   **Import dari YouTube**.
 
-Ganti `USERNAME/NAMA-REPO` dengan repo GitHub kamu sendiri.
+Import dijalankan oleh Edge Function `youtube-import` (hanya admin yang bisa memanggil).
+Supaya lebih stabil & durasi video satuan selalu terbaca, pasang API key YouTube (gratis):
+Google Cloud Console → aktifkan *YouTube Data API v3* → buat API key → Supabase Dashboard →
+Edge Functions → Secrets → `YOUTUBE_API_KEY`.
 
-## 3. Deploy supaya bisa diakses online
+## Deploy (Vercel) & domain
 
-Cara termudah (gratis, tanpa setting rumit): **Vercel** atau **Netlify**.
+1. Vercel → Add New Project → pilih repo ini (preset Vite terdeteksi otomatis) → Deploy.
+2. Vercel → Settings → Domains → tambahkan domain kamu, ikuti instruksi DNS.
+3. **Supabase Dashboard → Authentication → URL Configuration**: ganti *Site URL* ke domain
+   baru dan tambahkan `https://domainkamu.com/**` ke *Redirect URLs* (kalau tidak, link
+   reset password & verifikasi email mengarah ke alamat lama).
+4. Supabase → Edge Functions → Secrets, isi:
+   - `SITE_URL` = `https://domainkamu.com`
+   - `RESEND_API_KEY`, `FROM_EMAIL` (email pesanan; domain diverifikasi di Resend)
+   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (notifikasi pesanan ke HP admin)
+   - `YOUTUBE_API_KEY` (opsional, disarankan)
+5. Opsional: Vercel → Environment Variables → `VITE_META_PIXEL_ID` untuk Meta Pixel.
 
-### Vercel (disarankan)
-1. Buka https://vercel.com, daftar/masuk pakai akun GitHub
-2. Klik "Add New Project" → pilih repo GitHub yang tadi kamu push
-3. Vercel otomatis mendeteksi ini project Vite — biarkan pengaturan default
-4. Klik "Deploy", tunggu ± 1 menit
-5. Selesai — dapat link seperti `nama-project.vercel.app`
+## Struktur backend (Supabase)
 
-### Netlify (alternatif)
-1. Buka https://netlify.com, daftar/masuk pakai akun GitHub
-2. "Add new site" → "Import an existing project" → pilih repo
-3. Build command: `npm run build`, Publish directory: `dist`
-4. Deploy
+- `supabase/migrations/` — perubahan database (sudah diterapkan ke project).
+- `supabase/functions/youtube-import` — ambil daftar video dari link YouTube.
+- `supabase/functions/send-order-email` — email pesanan (via Resend).
+- `supabase/functions/notify-telegram` — notifikasi Telegram ke admin.
 
-## Catatan penting
-
-- Ini **masih prototipe**: semua data (pesanan, produk yang ditambahkan lewat
-  Admin, progres video, kupon) tersimpan di memori browser (React state) dan
-  akan **hilang setiap kali halaman di-refresh**. Belum ada database sungguhan.
-- Checkout di sini simulasi — belum tersambung ke payment gateway asli
-  (Midtrans/Xendit/dll).
-- Cocok untuk: uji coba tampilan & alur, termasuk video YouTube/Vimeo yang
-  sekarang sudah bisa embed langsung karena tidak lagi dibatasi kebijakan
-  keamanan preview Claude.
-- Untuk versi produksi (database sungguhan, payment gateway asli, autentikasi
-  nyata), akan perlu backend terpisah — bisa lanjut diskusi kalau sudah siap
-  ke tahap itu.
+Harga, diskon kupon, dan total pesanan **dihitung ulang di database** (trigger
+`orders_before_insert`), jadi tidak bisa dimanipulasi dari browser.
