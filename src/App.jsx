@@ -20,6 +20,23 @@ const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Panggil Supabase Edge Function dengan token sesi login (bukan publishable key), supaya
+// function bisa memastikan siapa yang memanggil. Pesan error dari function ikut diteruskan.
+const invokeFn = async (name, body) => {
+  try {
+    const { data, error } = await supabase.functions.invoke(name, { body });
+    if (error) {
+      let msg = error.message;
+      try { const j = await error.context?.json?.(); if (j?.error) msg = j.error; } catch (e) { /* bukan JSON */ }
+      return { ok: false, error: msg };
+    }
+    if (data && data.ok === false) return { ok: false, error: data.error };
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Gagal menghubungi server." };
+  }
+};
+
 /* ---------------- design tokens (gaya iOS: putih bersih, aksen emas & terracotta) ---------------- */
 const LIGHT_THEME = {
   bg: "#FFFFFF",
@@ -71,17 +88,19 @@ const C = new Proxy({}, {
 const LOGO_URL = "/gitar-sakti-logo.png";
 const HERO_BG_URL = "/gitar-sakti-bg.jpg";
 
-const rp = (n) => "Rp" + n.toLocaleString("id-ID");
+const rp = (n) => "Rp" + (Number(n) || 0).toLocaleString("id-ID");
 
 const toEmbedUrl = (url) => {
   if (!url) return null;
   try {
     const u = new URL(url);
-    if (u.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+    if (u.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${u.pathname.split("/").filter(Boolean)[0]}`;
     if (u.hostname.includes("youtube.com")) {
       if (u.pathname.includes("/embed/")) return url;
       const v = u.searchParams.get("v");
       if (v) return `https://www.youtube.com/embed/${v}`;
+      const m = u.pathname.match(/\/(?:shorts|live)\/([A-Za-z0-9_-]{11})/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
     }
     if (u.hostname.includes("vimeo.com")) {
       const id = u.pathname.split("/").filter(Boolean).pop();
@@ -118,13 +137,45 @@ const toAutoplayEmbedUrl = (url) => {
     return base;
   } catch (e) { return base; }
 };
+// Versi embed untuk halaman materi member: tanpa rekomendasi video channel lain di akhir video
+// (rel=0) supaya member tidak "tersesat" ke YouTube di tengah belajar.
+const toLessonEmbedUrl = (url) => {
+  const base = toEmbedUrl(url);
+  if (!base) return null;
+  try {
+    const u = new URL(base);
+    if (u.hostname.includes("youtube.com")) {
+      u.searchParams.set("rel", "0");
+      u.searchParams.set("modestbranding", "1");
+      u.searchParams.set("playsinline", "1");
+    }
+    return u.toString();
+  } catch (e) { return base; }
+};
+// Kirim event ke Meta Pixel kalau sudah dipasang (lihat VITE_META_PIXEL_ID di README).
+const trackEvent = (name, params) => {
+  try { if (typeof window !== "undefined" && typeof window.fbq === "function") window.fbq("track", name, params); } catch (e) { /* abaikan */ }
+};
+
+// Link chat WhatsApp dari nomor Indonesia (08xx / +628xx / 628xx).
+const waLink = (phone, text = "") => {
+  let n = String(phone || "").replace(/\D/g, "");
+  if (n.startsWith("0")) n = "62" + n.slice(1);
+  return `https://wa.me/${n}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+};
+
+// Thumbnail otomatis dari video YouTube (dipakai sebagai gambar kartu produk).
+const youtubeThumb = (url) => {
+  const embed = toEmbedUrl(url);
+  const m = embed && embed.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+  return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : null;
+};
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const formatDateID = (d) => `${d.getDate().toString().padStart(2, "0")} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
 // Catatan: ID pesanan (format GS-YYYYMMDD-XXX) sekarang dibuat otomatis oleh database lewat
 // sequence (lihat backend/schema.sql -> generate_order_id()), bukan dihitung di sini lagi —
 // supaya tidak bentrok kalau ada beberapa customer checkout bersamaan.
 
-/* ---------------- demo data ---------------- */
 const CATEGORIES = [
   "Beginner Guitar", "Guitar Technique", "Melody", "Speed & Shredding",
   "Improvisation", "Music Theory", "Ebook", "Bundle",
@@ -134,93 +185,10 @@ const CATEGORIES = [
 // ditandai lewat sentinel ini di kolom "duration" — supaya tidak perlu menambah kolom baru di database.
 const SECTION_MARKER = "__section__";
 
-const INITIAL_PRODUCTS = [
-  {
-    id: 1, slug: "secret-of-shredding", name: "Secret of Shredding",
-    category: "Speed & Shredding", level: "Mahir", price: 297000, oldPrice: 597000,
-    rating: 0, reviews: 0, sold: 0, badge: null,
-    duration: "8 jam video", format: "Video Course + Tab PDF",
-    hue: "#B8432A",
-    desc: "Program latihan terstruktur untuk menguasai alternate picking, economy picking, dan speed building tanpa merusak teknik dasarmu.",
-    benefits: ["Kecepatan picking naik terukur tiap minggu", "Teknik tangan kanan & kiri sinkron", "Latihan metronome bertahap 60-200 BPM", "Bebas tension & cedera saat bermain cepat"],
-    learn: ["Alternate picking fundamental", "Economy picking & sweep dasar", "String skipping presisi", "3 lagu shred untuk latihan aplikatif"],
-    bonus: "Ebook 40 Warm-up Wajib Sebelum Latihan (gratis, tanpa batas waktu)",
-    // Tier harga real untuk landing page: berubah otomatis berdasar slot & waktu, bukan angka statis.
-    pricingTiers: {
-      founderPrice: 247000,   // harga spesial 100 pembeli pertama
-      founderSlots: 100,
-      earlyBirdPrice: 297000, // harga early bird setelah 100 slot founder habis
-      regularPrice: 597000,   // harga asli setelah countdown early bird berakhir
-      earlyBirdHours: 72,     // lama window early bird sejak kunjungan pertama user ke landing page
-    },
-  },
-  {
-    id: 2, slug: "fondasi-gitar-pemula", name: "Fondasi Gitar untuk Pemula",
-    category: "Beginner Guitar", level: "Pemula", price: 149000, oldPrice: 249000,
-    rating: 4.8, reviews: 980, sold: 3210, badge: "New",
-    duration: "6 jam video", format: "Video Course + Chord Sheet",
-    hue: "#C9A24B",
-    desc: "Dari cara pegang gitar yang benar sampai bisa main lagu utuh — disusun untuk orang yang benar-benar belum pernah menyentuh gitar.",
-    benefits: ["Belajar dari nol tanpa rasa canggung", "Chord dasar melekat lewat repetisi terarah", "Ritme strumming yang enak didengar", "Bisa mainkan lagu pertama di minggu ke-2"],
-    learn: ["Anatomi gitar & tuning", "12 chord wajib pemula", "Strumming pattern populer", "Membaca chord chart"],
-    bonus: "Playlist 20 lagu mudah untuk latihan (gratis, tanpa batas waktu)",
-  },
-  {
-    id: 3, slug: "melodic-improvisation-blueprint", name: "Melodic Improvisation Blueprint",
-    category: "Improvisation", level: "Menengah", price: 249000, oldPrice: 349000,
-    rating: 4.7, reviews: 356, sold: 860, badge: null,
-    duration: "7 jam video", format: "Video Course + Backing Track",
-    hue: "#7C6BB0",
-    desc: "Cara berimprovisasi yang terdengar musikal, bukan sekadar tangga nada dihafal — fokus pada phrasing dan storytelling di solo gitar.",
-    benefits: ["Solo terasa bercerita, bukan latihan skala", "Paham target note di tiap perubahan chord", "Vocabulary lick makin luas", "Percaya diri jam session"],
-    learn: ["Pentatonic beyond the box", "Target notes & chord tones", "Call and response phrasing", "Improvisasi di atas 12-bar blues"],
-    bonus: "10 Backing Track eksklusif (gratis, tanpa batas waktu)",
-  },
-  {
-    id: 4, slug: "teori-musik-praktis-gitaris", name: "Teori Musik Praktis untuk Gitaris",
-    category: "Music Theory", level: "Semua Level", price: 129000, oldPrice: 179000,
-    rating: 4.9, reviews: 640, sold: 1520, badge: null,
-    duration: "5 jam video", format: "Video Course + Worksheet",
-    hue: "#3E7D64",
-    desc: "Teori musik yang langsung bisa dipraktikkan di fretboard, bukan hafalan istilah yang cepat dilupakan.",
-    benefits: ["Paham kenapa suatu chord terdengar pas", "Bisa transpose lagu dengan cepat", "Mengerti scale-chord relationship", "Fondasi kuat untuk songwriting"],
-    learn: ["Interval & tangga nada mayor", "Chord construction", "Diatonic harmony", "Circle of fifths di fretboard"],
-    bonus: "Fretboard Map Cheat Sheet PDF (gratis, tanpa batas waktu)",
-  },
-  {
-    id: 5, slug: "ebook-100-lick-legendaris", name: "Ebook 100 Lick Legendaris",
-    category: "Ebook", level: "Menengah", price: 79000, oldPrice: 99000,
-    rating: 4.6, reviews: 512, sold: 2040, badge: null,
-    duration: "PDF 180 halaman", format: "Ebook + Tab + Audio Demo",
-    hue: "#C9A24B",
-    desc: "Kumpulan lick ikonik dari berbagai era rock & blues, lengkap dengan tab dan penjelasan konteks penggunaannya.",
-    benefits: ["Vocabulary lick siap pakai", "Belajar dari frasa yang sudah teruji", "Referensi gaya berbagai gitaris legendaris", "Bisa dipraktikkan langsung sambil dengar audio demo"],
-    learn: ["100 lick dengan tab lengkap", "Konteks harmoni tiap lick", "Variasi fingering", "Tips menggabungkan lick jadi solo"],
-    bonus: "Audio backing untuk 20 lick pilihan (gratis, tanpa batas waktu)",
-  },
-  {
-    id: 6, slug: "bundle-gitaris-lengkap", name: "Bundle Gitaris Lengkap",
-    category: "Bundle", level: "Semua Level", price: 599000, oldPrice: 1199000,
-    rating: 5.0, reviews: 210, sold: 410, badge: "Best Seller",
-    duration: "26+ jam video", format: "5 Course + 2 Ebook",
-    hue: "#B8432A",
-    desc: "Semua course Gitar Sakti dalam satu paket — dari pemula sampai teknik lanjutan, dengan harga jauh lebih hemat.",
-    benefits: ["Hemat lebih dari 50% dibanding beli satuan", "Jalur belajar lengkap pemula ke mahir", "Akses seluruh update materi mendatang", "Satu kali bayar, akses selamanya"],
-    learn: ["Seluruh materi 5 course inti", "2 ebook referensi lick & teori", "Akses grup diskusi member", "Update materi berkala"],
-    bonus: "Sesi review video pribadi (1x, gratis, tanpa batas waktu)",
-  },
-];
-
-const TESTIMONIALS = [
-  { name: "Raka Pratama", role: "Siswa Secret of Shredding", quote: "Progres picking saya paling terasa 3 bulan terakhir dibanding 2 tahun otodidak.", rating: 5 },
-  { name: "Dinda Ayu", role: "Siswa Fondasi Gitar", quote: "Baru pertama pegang gitar, sekarang sudah berani main di depan teman-teman.", rating: 5 },
-  { name: "Bagus Wirawan", role: "Siswa Bundle Gitaris Lengkap", quote: "Materinya runtut, enak diikuti pelan-pelan sambil kerja.", rating: 4.8 },
-];
-
 const FAQ_HOME = [
   { q: "Apakah materi bisa diakses selamanya?", a: "Ya. Setelah pembayaran terverifikasi, produk masuk ke akun kamu dan dapat diakses kapan saja tanpa batas waktu." },
   { q: "Apakah cocok untuk yang belum pernah pegang gitar?", a: "Cocok. Tersedia kategori Beginner Guitar yang disusun dari nol tanpa asumsi kemampuan sebelumnya." },
-  { q: "Metode pembayaran apa saja yang tersedia?", a: "Transfer bank, QRIS, dan e-wallet, diproses melalui payment gateway sehingga akses produk terbuka otomatis setelah pembayaran berhasil." },
+  { q: "Metode pembayaran apa saja yang tersedia?", a: "Transfer bank, QRIS, dan e-wallet (sesuai pilihan di halaman checkout). Setelah transfer, unggah bukti pembayaran — akses materi otomatis terbuka di akunmu begitu pembayaran diverifikasi admin." },
   { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti melalui WhatsApp yang tertera di halaman kontak." },
 ];
 
@@ -238,26 +206,6 @@ const DEFAULT_BANK_INFO = {
 const INITIAL_TESTIMONIALS = {};
 
 const DEMO_ORDERS = [];
-
-const INITIAL_CURRICULUM = {
-  1: [
-    { title: "Pengenalan & Setting Awal", duration: "6:12" },
-    { title: "Postur & Pegangan Pick yang Benar", duration: "9:40" },
-    { title: "Alternate Picking Dasar (Fret Statis)", duration: "14:05" },
-    { title: "Alternate Picking dengan Pergerakan Fret", duration: "16:22" },
-    { title: "Latihan Metronome 60-100 BPM", duration: "11:18" },
-    { title: "Chromatic Runs untuk Kecepatan", duration: "13:47" },
-    { title: "Economy Picking Dasar", duration: "15:30" },
-    { title: "Economy Picking Lanjutan", duration: "17:09" },
-    { title: "String Skipping Presisi", duration: "12:54" },
-    { title: "Sweep Picking Dasar (3 Senar)", duration: "18:21" },
-    { title: "Sweep Picking Lanjutan (5-6 Senar)", duration: "20:03" },
-    { title: "Legato & Hammer-on/Pull-off untuk Speed", duration: "16:47" },
-    { title: "Menggabungkan Teknik dalam Satu Lick", duration: "19:15" },
-    { title: "Studi Lagu 1 — Aplikasi Speed Picking", duration: "22:38" },
-    { title: "Studi Lagu 2 & Evaluasi Akhir", duration: "24:10" },
-  ],
-};
 
 const ADMIN_ORDERS = [];
 
@@ -319,11 +267,6 @@ const DEFAULT_SITE_CONTENT = {
     ctaLabel: "Mulai Belajar",
   },
 };
-
-const INITIAL_COUPONS = [
-  { code: "MERDEKA25", type: "percent", value: 25, minPurchase: 150000, limit: 200, used: 84, expiry: "31 Agu 2026" },
-  { code: "PEMULA20K", type: "fixed", value: 20000, minPurchase: 100000, limit: 500, used: 312, expiry: "30 Sep 2026" },
-];
 
 const REVENUE_7D = [];
 
@@ -696,30 +639,33 @@ function VideoDescription({ desc, admin, onSave }) {
 
 /* ---------------- product card ---------------- */
 function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData, role, onToggleStatus }) {
-  const disc = Math.round((1 - p.price / p.oldPrice) * 100);
+  const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const isAdmin = role === "admin";
   const status = p.status || "published";
+  const thumb = youtubeThumb(p.previewVideo);
   const curriculum = curriculumData?.[p.id];
   const completedCount = (videoProgress?.[p.id] || []).length;
   const pct = curriculum ? Math.round((completedCount / curriculum.length) * 100) : null;
   return (
     <Card style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div onClick={() => onOpen(p.slug)} style={{ cursor: "pointer", height: 148, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", borderBottom: `1px solid ${C.border}` }}>
-        <Music size={36} color={p.hue} strokeWidth={1.3} />
+      <div onClick={() => onOpen(p.slug)} style={{ cursor: "pointer", height: 148, background: thumb ? `center / cover no-repeat url(${thumb})` : `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", borderBottom: `1px solid ${C.border}` }}>
+        {!thumb && <Music size={36} color={p.hue} strokeWidth={1.3} />}
         {owned ? (
           <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="gold">Dimiliki</Badge></div>
         ) : pending ? (
           <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="ember">Menunggu Pembayaran</Badge></div>
         ) : p.badge && <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge></div>}
-        {!owned && !pending && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: C.goldLight, fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>-{disc}%</div>}
+        {!owned && !pending && disc > 0 && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: C.goldLight, fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>-{disc}%</div>}
       </div>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
         <span style={{ fontSize: 11, color: C.muted, fontFamily: "'Manrope',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{p.category}</span>
         <h3 onClick={() => onOpen(p.slug)} style={{ cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 15.5, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1.35 }}>{p.name}</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <StarRow rating={p.rating} />
-          <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Manrope',sans-serif" }}>{p.rating} ({p.reviews})</span>
-        </div>
+        {p.reviews > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <StarRow rating={p.rating} />
+            <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Manrope',sans-serif" }}>{p.rating} ({p.reviews})</span>
+          </div>
+        )}
         {owned ? (
           curriculum ? (
             <div style={{ marginTop: "auto" }}>
@@ -741,7 +687,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
         ) : (
           <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: C.goldLight }}>{rp(p.price)}</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>
+            {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
           </div>
         )}
         <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
@@ -1057,7 +1003,7 @@ function Reveal({ children, delay = 0, className, style }) {
 }
 
 /* ---------------- HOME ---------------- */
-function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent, onToggleStatus }) {
+function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, editMode, updateSiteContent, onToggleStatus, testimonials }) {
   const home = content.home;
   const admin = role === "admin" && editMode;
   const onSaveHome = (patch) => updateSiteContent("home", patch);
@@ -1065,6 +1011,13 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const [heroVideoDraft, setHeroVideoDraft] = useState(home.heroVideoUrl || "");
   const T = (key, area) => (admin ? <EditableText value={home[key]} admin onSave={(v) => onSaveHome({ [key]: v })} tag="span" area={area} /> : home[key]);
   const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
+  // Testimoni di beranda diambil dari ulasan ASLI pembeli (rating 4-5, terbaru), bukan contoh
+  // karangan — menampilkan testimoni fiktif berisiko melanggar UU Perlindungan Konsumen.
+  const realTestimonials = Object.entries(testimonials || {})
+    .flatMap(([pid, list]) => (list || []).map((t) => ({ ...t, productName: products.find((p) => String(p.id) === String(pid))?.name })))
+    .filter((t) => t.rating >= 4 && (t.quote || "").trim().length > 0)
+    .slice(0, 3);
+  const sampleProduct = featured.find((p) => p.previewVideo) || featured[0];
   return (
     <div>
       <div style={{ position: "relative", borderBottom: `1px solid ${C.borderSoft}`, overflow: "hidden", transform: "translateZ(0)" }}>
@@ -1083,7 +1036,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
             </p>
             <div style={{ display: "flex", gap: 12, marginTop: 28, flexWrap: "wrap" }}>
               <PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>{T("heroCta1")}</PrimaryBtn>
-              <GhostBtn onClick={() => openProduct("secret-of-shredding")} icon={PlayCircle}>{T("heroCta2")}</GhostBtn>
+              {sampleProduct && <GhostBtn onClick={() => openProduct(sampleProduct.slug)} icon={PlayCircle}>{T("heroCta2")}</GhostBtn>}
             </div>
             <div style={{ marginTop: 36, maxWidth: 420 }}><StringDivider /></div>
             <div style={{ display: "flex", gap: 28, marginTop: 18, flexWrap: "wrap" }}>
@@ -1177,15 +1130,16 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
         </div>
       </Section>
 
+      {realTestimonials.length > 0 && (
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <Section eyebrow={T("testimonialEyebrow")} title={T("testimonialTitle")}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }} className="gs-grid-3">
-            {TESTIMONIALS.map((t, i) => (
-              <Reveal key={t.name} delay={i * 0.08}>
+            {realTestimonials.map((t, i) => (
+              <Reveal key={t.id || i} delay={i * 0.08}>
                 <Card style={{ padding: 20, background: C.surface2, border: `1px solid ${C.border}` }}>
                   <div style={{ marginBottom: 12, fontFamily: "'Manrope',sans-serif" }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{t.name}</div>
-                    <div style={{ fontSize: 12, color: C.muted }}>{t.role}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{t.productName ? `Pembeli ${t.productName}` : "Pembeli terverifikasi"}</div>
                   </div>
                   <StarRow rating={t.rating} />
                   <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.text, marginTop: 12, marginBottom: 0, lineHeight: 1.6 }}>"{t.quote}"</p>
@@ -1195,6 +1149,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           </div>
         </Section>
       </div>
+      )}
 
       <Section eyebrow={T("faqEyebrow")} title={T("faqTitle")}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1280,11 +1235,19 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 
 /* ---------------- PRODUCT DETAIL ---------------- */
 function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus }) {
-  const p = products.find((x) => x.slug === slug) || products[0];
-  const related = products.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
-  const disc = Math.round((1 - p.price / p.oldPrice) * 100);
-  const isAdmin = role === "admin";
   const [previewBuyer, setPreviewBuyer] = useState(false);
+  const p = products.find((x) => x.slug === slug);
+  if (!p) {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>{products.length === 0 ? "Memuat produk..." : "Produk tidak ditemukan."}</p>
+        {products.length > 0 && <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("shop")}>Lihat Semua Produk</PrimaryBtn></div>}
+      </div>
+    );
+  }
+  const related = products.filter((x) => x.category === p.category && x.id !== p.id && (role === "admin" || (x.status || "published") === "published")).slice(0, 3);
+  const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+  const isAdmin = role === "admin";
   const showAdminControls = isAdmin && !previewBuyer;
   const status = p.status || "published";
   const owned = ownedIds.includes(p.id) || (isAdmin && previewBuyer);
@@ -1447,9 +1410,9 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.goldLight }}>{rp(p.price)}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>
+                  {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
                 </div>
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Hemat {disc}%</span>
+                {disc > 0 && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Hemat {disc}%</span>}
               </>
             )}
 
@@ -1505,23 +1468,37 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
 }
 
 /* ---------------- CART ---------------- */
-function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons, calcDiscount }) {
+// Kotak input kupon (dipakai di Keranjang & Checkout). Kupon dicek ke server lewat RPC
+// validate_coupon — daftar kupon tidak pernah dikirim ke browser pengunjung.
+function CouponBox({ subtotal, coupon, setCoupon, validateCoupon }) {
+  const [couponInput, setCouponInput] = useState(coupon?.code || "");
+  const [couponMsg, setCouponMsg] = useState(coupon ? `Kupon ${coupon.code} diterapkan.` : "");
+  const [checking, setChecking] = useState(false);
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) { setCoupon(null); setCouponMsg(""); return; }
+    setChecking(true);
+    const r = await validateCoupon(code, subtotal);
+    setChecking(false);
+    if (!r.ok) { setCoupon(null); setCouponMsg(r.error || "Kode kupon tidak valid."); return; }
+    setCoupon(r.coupon);
+    setCouponMsg(r.coupon.type === "percent" ? `Kupon ${r.coupon.code} diterapkan — diskon ${r.coupon.value}%.` : `Kupon ${r.coupon.code} diterapkan — diskon ${rp(r.coupon.value)}.`);
+  };
+  return (
+    <>
+      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyCoupon()} placeholder="Kode kupon" style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box" }} />
+        <GhostBtn small onClick={applyCoupon}>{checking ? "Cek..." : "Pakai"}</GhostBtn>
+      </div>
+      {couponMsg && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: coupon ? C.gold : C.ember, marginTop: 6 }}>{couponMsg}</p>}
+    </>
+  );
+}
+
+function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, validateCoupon, calcDiscount }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
-  const [couponInput, setCouponInput] = useState("");
-  const [couponMsg, setCouponMsg] = useState("");
-
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
-    const found = coupons.find((c) => c.code.toUpperCase() === code);
-    if (!found) { setCoupon(null); setCouponMsg("Kode kupon tidak valid."); return; }
-    if (found.minPurchase && subtotal < found.minPurchase) {
-      setCoupon(null); setCouponMsg(`Minimum belanja untuk kupon ini ${rp(found.minPurchase)}.`); return;
-    }
-    setCoupon(found.code);
-    setCouponMsg(found.type === "percent" ? `Kupon ${found.code} diterapkan — diskon ${found.value}%.` : `Kupon ${found.code} diterapkan — diskon ${rp(found.value)}.`);
-  };
 
   return (
     <div className="gs-anim-in" style={{ maxWidth: 900, margin: "0 auto", padding: "36px 20px 60px" }}>
@@ -1554,11 +1531,7 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
           <div>
             <Card style={{ padding: 18 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>Ringkasan Pesanan</h3>
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Kode kupon" style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13 }} />
-                <GhostBtn small onClick={applyCoupon}>Pakai</GhostBtn>
-              </div>
-              {couponMsg && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: coupon ? C.gold : C.ember, marginTop: 6 }}>{couponMsg}</p>}
+              <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
@@ -1574,7 +1547,7 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, coupons
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
+function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
   const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
   const discount = calcDiscount(subtotal, coupon);
   const total = subtotal - discount;
@@ -1585,23 +1558,11 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
   const iconForMethod = (icon) => ({ bank: Landmark, qris: QrCode, ewallet: Wallet, card: CreditCard }[icon] || CreditCard);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [couponInput, setCouponInput] = useState(coupon || "");
-  const [couponMsg, setCouponMsg] = useState("");
-
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
-    if (!code) { setCoupon(null); setCouponMsg(""); return; }
-    const found = coupons.find((c) => c.code.toUpperCase() === code);
-    if (!found) { setCoupon(null); setCouponMsg("Kode kupon tidak valid."); return; }
-    if (found.minPurchase && subtotal < found.minPurchase) {
-      setCoupon(null); setCouponMsg(`Minimum belanja untuk kupon ini ${rp(found.minPurchase)}.`); return;
-    }
-    setCoupon(found.code);
-    setCouponMsg(found.type === "percent" ? `Kupon ${found.code} diterapkan — diskon ${found.value}%.` : `Kupon ${found.code} diterapkan — diskon ${rp(found.value)}.`);
-  };
 
   const placeOrder = async () => {
+    if (submitting) return;
     if (!form.name.trim() || !form.phone.trim()) { setError("Lengkapi nama dan nomor WhatsApp terlebih dahulu."); return; }
+    if (form.phone.replace(/\D/g, "").length < 9) { setError("Nomor WhatsApp sepertinya belum benar."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
     if (!methodId) { setError("Pilih metode pembayaran terlebih dahulu."); return; }
     setError("");
@@ -1611,7 +1572,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
       cartProducts,
       total,
       discount,
-      couponCode: coupon || null,
+      couponCode: coupon?.code || null,
       method: chosenMethod?.label || "-",
       paymentMethodId: methodId,
       customerName: form.name.trim(),
@@ -1677,14 +1638,10 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, coupons, clearCart,
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Kode kupon" style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13, boxSizing: "border-box" }} />
-              <GhostBtn small onClick={applyCoupon}>Pakai</GhostBtn>
-            </div>
-            {couponMsg && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: coupon ? C.gold : C.ember, marginTop: 6 }}>{couponMsg}</p>}
+            <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon{coupon ? ` (${coupon})` : ""}</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon{coupon ? ` (${coupon.code})` : ""}</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight }}>{rp(total)}</span></div>
             </div>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
@@ -1959,9 +1916,12 @@ function AdminPasswordForm({ onChangePassword }) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+  const handleSave = async () => {
     if (next !== confirm) { setError("Konfirmasi kata sandi baru tidak cocok."); setSaved(false); return; }
-    const result = onChangePassword(current, next);
+    setSaving(true);
+    const result = await onChangePassword(current, next);
+    setSaving(false);
     if (!result.ok) { setError(result.error); setSaved(false); return; }
     setError(""); setSaved(true);
     setCurrent(""); setNext(""); setConfirm("");
@@ -1988,7 +1948,7 @@ function AdminPasswordForm({ onChangePassword }) {
       </div>
       {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
       {saved && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.gold, marginTop: 10 }}>Kata sandi berhasil diganti.</p>}
-      <div style={{ marginTop: 14 }}><PrimaryBtn onClick={handleSave} icon={Check}>Simpan Kata Sandi Baru</PrimaryBtn></div>
+      <div style={{ marginTop: 14 }}><PrimaryBtn onClick={handleSave} icon={Check}>{saving ? "Menyimpan..." : "Simpan Kata Sandi Baru"}</PrimaryBtn></div>
     </Card>
   );
 }
@@ -2358,7 +2318,7 @@ function ProfileForm({ account, onSave }) {
       <div style={{ marginBottom: 14 }}>
         <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Email</label>
         <input value={account.email} disabled style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", cursor: "not-allowed" }} />
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Email dipakai sebagai identitas akun dan tidak bisa diganti sendiri di prototipe ini.</p>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Email dipakai sebagai identitas akun. Hubungi admin kalau perlu menggantinya.</p>
       </div>
       <div style={{ marginBottom: 18 }}>
         <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>WhatsApp</label>
@@ -2370,7 +2330,7 @@ function ProfileForm({ account, onSave }) {
   );
 }
 
-function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct }) {
+function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct, onCancelOrder }) {
   // "orders" di sini sudah otomatis terbatas ke milik customer yang login (lewat RLS di database).
   const myOrders = orders;
   const ownedIds = Array.from(new Set(
@@ -2497,7 +2457,13 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                     <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.status}</td>
                     <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
                       {o.payment === "Pending" && !o.proofImage && (
-                        <GhostBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Upload Bukti</GhostBtn>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <GhostBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Bayar / Upload Bukti</GhostBtn>
+                          <button onClick={() => { if (window.confirm(`Batalkan pesanan ${o.id}? Kamu bisa checkout ulang setelahnya.`)) onCancelOrder(o.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 600 }}>Batalkan</button>
+                        </div>
+                      )}
+                      {o.payment === "Pending" && o.proofImage && (
+                        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Sedang dicek admin</span>
                       )}
                     </td>
                   </tr>
@@ -2783,10 +2749,12 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
+  const [showYoutubeImport, setShowYoutubeImport] = useState(false);
+  const [orderFilter, setOrderFilter] = useState("perlu-cek");
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showPageForm, setShowPageForm] = useState(false);
@@ -2839,7 +2807,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               <StatCard label="Total Orders" value={String(orders.length)} icon={ClipboardList} />
               <StatCard label="Total Order Berhasil" value={String(paidOrders.length)} icon={Check} />
               <StatCard label="Total Kunjungan Web" value={String(totalVisits)} icon={Eye} />
-              <StatCard label="Total Customers" value={String(uniqueCustomers.length)} icon={Users} />
+              <StatCard label="Member Terdaftar" value={String((members || []).filter((m) => m.role !== "admin").length || uniqueCustomers.length)} icon={Users} />
               <StatCard label="Conversion Rate" value={totalVisits > 0 ? ((paidOrders.length / totalVisits) * 100).toFixed(1) + "%" : "-"} icon={TrendingUp} />
             </div>
             <Card style={{ padding: 18, marginTop: 20 }}>
@@ -2892,7 +2860,10 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
 
         {sub === "products" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><PrimaryBtn small icon={Plus} onClick={() => setShowQuickProductForm(true)}>Tambah Produk</PrimaryBtn></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+              <GhostBtn small icon={Plus} onClick={() => setShowQuickProductForm(true)}>Tambah Manual</GhostBtn>
+              <PrimaryBtn small icon={Youtube} onClick={() => setShowYoutubeImport(true)}>Tambah dari Link YouTube</PrimaryBtn>
+            </div>
             <ScrollHint />
             <Card style={{ overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
@@ -2956,6 +2927,22 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               </Card>
             ) : (
               <>
+                {(() => {
+                  const needCheck = orders.filter((o) => o.payment === "Pending" && o.proofImage).length;
+                  const tabs = [
+                    ["perlu-cek", `Perlu Dicek (${needCheck})`],
+                    ["pending", `Belum Bayar (${orders.filter((o) => o.payment === "Pending" && !o.proofImage).length})`],
+                    ["paid", `Lunas (${orders.filter((o) => o.payment === "PAID").length})`],
+                    ["semua", `Semua (${orders.length})`],
+                  ];
+                  return (
+                    <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                      {tabs.map(([k, l]) => (
+                        <button key={k} onClick={() => setOrderFilter(k)} style={{ padding: "7px 12px", borderRadius: 999, border: `1px solid ${orderFilter === k ? C.gold : C.border}`, background: orderFilter === k ? C.surface2 : "transparent", color: orderFilter === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <ScrollHint />
                 <Card style={{ overflow: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
@@ -2963,10 +2950,15 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                     {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Bukti Bayar", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
-                    {orders.map((o) => (
+                    {orders.filter((o) => orderFilter === "semua" || (orderFilter === "perlu-cek" && o.payment === "Pending" && o.proofImage) || (orderFilter === "pending" && o.payment === "Pending" && !o.proofImage) || (orderFilter === "paid" && o.payment === "PAID")).map((o) => (
                       <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
                         <td style={{ padding: "10px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.text }}>{o.id}</td>
-                        <td style={{ padding: "10px 14px", color: C.text }}>{o.customerName || "-"}</td>
+                        <td style={{ padding: "10px 14px", color: C.text }}>
+                          <div>{o.customerName || "-"}</div>
+                          {o.customerPhone && (
+                            <a href={waLink(o.customerPhone, `Halo ${o.customerName || ""}, terkait pesanan ${o.id} di Gitar Sakti:`)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.gold }}>WA {o.customerPhone}</a>
+                          )}
+                        </td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.items.join(", ")}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(o.total)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.method}</td>
@@ -2993,16 +2985,19 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         )}
 
         {sub === "customers" && (() => {
+          // Semua akun terdaftar (termasuk yang belum pernah beli — ini "leads" untuk di-follow up).
           const customerMap = {};
-          orders.forEach((o) => {
-            if (!o.customerEmail) return;
-            if (!customerMap[o.customerEmail]) {
-              customerMap[o.customerEmail] = { name: o.customerName, email: o.customerEmail, orders: 0, spending: 0, joined: o.date };
-            }
-            customerMap[o.customerEmail].orders += 1;
-            if (o.payment === "PAID") customerMap[o.customerEmail].spending += o.total;
+          (members || []).filter((m) => m.role !== "admin").forEach((m) => {
+            customerMap[m.id] = { id: m.id, name: m.name || "-", email: m.email, phone: m.phone, orders: 0, spending: 0, joined: m.created_at ? formatDateID(new Date(m.created_at)) : "-" };
           });
-          const customerList = Object.values(customerMap);
+          orders.forEach((o) => {
+            const key = o.customerId && customerMap[o.customerId] ? o.customerId : o.customerEmail;
+            if (!key) return;
+            if (!customerMap[key]) customerMap[key] = { id: key, name: o.customerName, email: o.customerEmail, phone: o.customerPhone, orders: 0, spending: 0, joined: o.date };
+            customerMap[key].orders += 1;
+            if (o.payment === "PAID") customerMap[key].spending += o.total;
+          });
+          const customerList = Object.values(customerMap).sort((a, b) => b.spending - a.spending || b.orders - a.orders);
           return (
           <div>
             {customerList.length === 0 ? (
@@ -3016,13 +3011,14 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                 <Card style={{ overflow: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
                   <thead><tr style={{ background: C.surface2 }}>
-                    {["Nama", "Email", "Total Order", "Total Belanja", "Bergabung"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
+                    {["Nama", "Email", "WhatsApp", "Total Order", "Total Belanja", "Bergabung"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600 }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {customerList.map((c) => (
-                      <tr key={c.email} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <tr key={c.id || c.email} style={{ borderTop: `1px solid ${C.border}` }}>
                         <td style={{ padding: "10px 14px", color: C.text }}>{c.name}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{c.email}</td>
+                        <td style={{ padding: "10px 14px" }}>{c.phone ? <a href={waLink(c.phone, `Halo ${c.name || ""}, `)} target="_blank" rel="noopener noreferrer" style={{ color: C.gold }}>{c.phone}</a> : <span style={{ color: C.mutedDark }}>-</span>}</td>
                         <td style={{ padding: "10px 14px", color: C.text }}>{c.orders}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(c.spending)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{c.joined}</td>
@@ -3053,8 +3049,8 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                       <td style={{ padding: "10px 14px", color: C.muted }}>{c.type === "percent" ? "Persen" : "Nominal"}</td>
                       <td style={{ padding: "10px 14px", color: C.text }}>{c.type === "percent" ? `${c.value}%` : rp(c.value)}</td>
                       <td style={{ padding: "10px 14px", color: C.muted }}>{c.minPurchase ? rp(c.minPurchase) : "—"}</td>
-                      <td style={{ padding: "10px 14px", color: C.muted }}>{c.used}/{c.limit}</td>
-                      <td style={{ padding: "10px 14px", color: C.muted }}>{c.expiry}</td>
+                      <td style={{ padding: "10px 14px", color: C.muted }}>{c.used}/{c.limit > 0 ? c.limit : "∞"}</td>
+                      <td style={{ padding: "10px 14px", color: c.expiry && /^\d{4}-\d{2}-\d{2}$/.test(c.expiry) && new Date(c.expiry + "T23:59:59") < new Date() ? C.emberLight : C.muted }}>{c.expiry && /^\d{4}-\d{2}-\d{2}$/.test(c.expiry) ? formatDateID(new Date(c.expiry + "T00:00:00")) + (new Date(c.expiry + "T23:59:59") < new Date() ? " (habis)" : "") : (c.expiry || "Tanpa batas")}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <button onClick={() => { if (window.confirm(`Hapus kupon "${c.code}"? Kupon ini tidak bisa dipakai lagi setelah dihapus.`)) deleteCoupon(c.code); }} title="Hapus kupon" style={{ background: "none", border: "none", cursor: "pointer", padding: 9, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <Trash2 size={15} color={C.emberLight} />
@@ -3241,7 +3237,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                   <Download size={18} color={C.gold} />
                   <div>
                     <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Data</h3>
-                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Backup data ke file, atau reset data prototipe ini.</p>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Backup data toko ke file.</p>
                   </div>
                 </div>
                 <ChevronRight size={16} color={C.muted} />
@@ -3321,6 +3317,20 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         )}
       </div>
 
+      {showYoutubeImport && (
+        <YoutubeImportModal
+          mode="create"
+          onClose={() => setShowYoutubeImport(false)}
+          onCreate={async (data, items) => {
+            const created = await addProduct(data, items);
+            if (!created) return;
+            setShowYoutubeImport(false);
+            // Langsung buka halaman materi dalam Mode Edit supaya admin bisa cek hasil import.
+            openLearnEditor(created.slug);
+          }}
+        />
+      )}
+
       {showQuickProductForm && (
         <QuickProductFormModal
           onClose={() => setShowQuickProductForm(false)}
@@ -3358,7 +3368,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       {deleteTarget && (() => {
         const hasOrders = orders.some((o) => (o.itemIds && o.itemIds.includes(deleteTarget.id)) || o.items.includes(deleteTarget.name));
         return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>{hasOrders ? "Arsipkan Produk?" : "Hapus Produk?"}</h3>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
@@ -3392,7 +3402,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       )}
 
       {deletePageTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Halaman?</h3>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
@@ -3428,7 +3438,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       )}
 
       {deleteLpTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <Card style={{ width: "100%", maxWidth: 380, padding: 22 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, marginTop: 0 }}>Hapus Landing Page?</h3>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
@@ -3443,7 +3453,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       )}
 
       {showProofOrder && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
           <Card style={{ width: "100%", maxWidth: 460, padding: 22 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text, margin: 0 }}>Bukti Pembayaran — {showProofOrder.id}</h3>
@@ -3468,7 +3478,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
       )}
 
       {confirmPaidOrder && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
           <Card style={{ width: "100%", maxWidth: 420, padding: 22, textAlign: "center" }}>
             <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${C.gold}18`, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
               <ShieldCheck size={22} color={C.gold} />
@@ -3490,6 +3500,200 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------- IMPORT DARI YOUTUBE ---------------- */
+// Tempel link playlist YouTube (atau beberapa link video, satu per baris) -> semua video otomatis
+// jadi daftar materi. mode "create": sekalian bikin produk baru (judul, deskripsi, harga, video
+// preview). mode "append": tambahkan video ke materi produk yang sudah ada.
+// Tips: upload video kelas ke YouTube sebagai "Tidak publik" (Unlisted) supaya tidak bisa dicari
+// orang, lalu kumpulkan dalam 1 playlist (juga Tidak publik) dan tempel link playlist-nya di sini.
+function YoutubeImportModal({ mode = "create", productName, onClose, onCreate, onAppend }) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [titles, setTitles] = useState({});
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [price, setPrice] = useState("");
+  const [oldPrice, setOldPrice] = useState("");
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [level, setLevel] = useState("Semua Level");
+  const [status, setStatus] = useState("draft");
+  const [previewMode, setPreviewMode] = useState("first"); // first | none
+  const [groupSize, setGroupSize] = useState(0); // 0 = tanpa judul bagian otomatis
+  const [saving, setSaving] = useState(false);
+
+  const fieldStyle = { width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
+  const labelStyle = { fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted };
+
+  const fetchVideos = async () => {
+    if (!text.trim()) { setError("Tempel link YouTube dulu."); return; }
+    setError(""); setLoading(true);
+    const r = await invokeFn("youtube-import", { url: text });
+    setLoading(false);
+    if (!r.ok) { setError(r.error || "Gagal mengambil video dari YouTube."); return; }
+    const data = r.data;
+    setResult(data);
+    setSelected(new Set(data.videos.map((v) => v.videoId)));
+    setTitles(Object.fromEntries(data.videos.map((v) => [v.videoId, v.title])));
+    if (mode === "create") {
+      setName(data.title || "");
+      setDesc(data.description || "");
+    }
+  };
+
+  const chosen = (result?.videos || []).filter((v) => selected.has(v.videoId));
+  const toggle = (id) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allSelected = result && selected.size === result.videos.length;
+
+  const buildItems = () => {
+    const items = [];
+    chosen.forEach((v, i) => {
+      if (groupSize > 0 && i % groupSize === 0) {
+        items.push({ type: "section", title: `Bagian ${Math.floor(i / groupSize) + 1}` });
+      }
+      items.push({ type: "video", title: (titles[v.videoId] || v.title || "").trim() || `Video ${i + 1}`, desc: v.description || "", url: v.url, duration: v.duration || "" });
+    });
+    return items;
+  };
+
+  const submit = async () => {
+    if (chosen.length === 0) { setError("Pilih minimal 1 video."); return; }
+    if (mode === "create") {
+      if (!name.trim()) { setError("Judul produk wajib diisi."); return; }
+      if (!price || Number(price) <= 0) { setError("Harga wajib diisi."); return; }
+    }
+    setError(""); setSaving(true);
+    const items = buildItems();
+    if (mode === "create") {
+      await onCreate({
+        name: name.trim(), price: Number(price), oldPrice: oldPrice ? Number(oldPrice) : Number(price),
+        category, level, desc: desc.trim(), status, benefits: [], learn: [], bonus: "",
+        previewVideo: previewMode === "first" ? chosen[0].url : "",
+        duration: `${chosen.length} video`, format: "Video Course",
+      }, items);
+    } else {
+      await onAppend(items);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+      <Card style={{ width: "100%", maxWidth: 680, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+            <Youtube size={22} color="#FF0000" />{mode === "create" ? "PRODUK DARI YOUTUBE" : "IMPORT VIDEO YOUTUBE"}
+          </h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+        </div>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginTop: 0, marginBottom: 16, lineHeight: 1.6 }}>
+          {mode === "create"
+            ? "Tempel link playlist YouTube (atau beberapa link video, satu per baris). Semua video otomatis jadi materi kelas — judul, urutan & durasi terisi sendiri."
+            : <>Video akan ditambahkan di akhir materi <b style={{ color: C.text }}>{productName}</b>.</>}
+          {" "}Saran: set video & playlist ke <b style={{ color: C.text }}>Tidak publik (Unlisted)</b> supaya tidak bisa dicari orang di YouTube.
+        </p>
+
+        {!result ? (
+          <>
+            <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"https://www.youtube.com/playlist?list=PL...\natau\nhttps://youtu.be/xxxxxxxxxxx\nhttps://youtu.be/yyyyyyyyyyy"} style={{ ...fieldStyle, fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, resize: "vertical" }} />
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <GhostBtn full onClick={onClose}>Batal</GhostBtn>
+              <PrimaryBtn full onClick={fetchVideos} icon={Download}>{loading ? "Mengambil video..." : "Ambil Video"}</PrimaryBtn>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {(result.warnings || []).map((w) => (
+              <p key={w} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: 0, background: C.surface2, padding: "8px 10px", borderRadius: 8 }}>ⓘ {w}</p>
+            ))}
+
+            {mode === "create" && (
+              <>
+                <div>
+                  <label style={labelStyle}>Judul Produk / Kelas</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Judul kelas" style={fieldStyle} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Harga Jual (Rp)</label>
+                    <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="247000" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono',monospace" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Harga Coret (opsional)</label>
+                    <input type="number" min="0" value={oldPrice} onChange={(e) => setOldPrice(e.target.value)} placeholder="497000" style={{ ...fieldStyle, fontFamily: "'JetBrains Mono',monospace" }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Kategori</label>
+                    <select value={category} onChange={(e) => setCategory(e.target.value)} style={fieldStyle}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={labelStyle}>Level</label>
+                    <select value={level} onChange={(e) => setLevel(e.target.value)} style={fieldStyle}>{["Pemula", "Menengah", "Mahir", "Semua Level"].map((l) => <option key={l}>{l}</option>)}</select>
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Deskripsi (diambil dari deskripsi playlist, boleh diubah)</label>
+                  <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} style={{ ...fieldStyle, resize: "vertical" }} />
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label style={labelStyle}>Video preview (gratis untuk calon pembeli)</label>
+                    <select value={previewMode} onChange={(e) => setPreviewMode(e.target.value)} style={fieldStyle}>
+                      <option value="first">Pakai video pertama</option>
+                      <option value="none">Tanpa preview (atur nanti)</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label style={labelStyle}>Status</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} style={fieldStyle}>
+                      <option value="draft">Draft (belum tampil di toko)</option>
+                      <option value="published">Published (langsung dijual)</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label style={labelStyle}>Kelompokkan jadi bagian/bab otomatis</label>
+              <select value={groupSize} onChange={(e) => setGroupSize(Number(e.target.value))} style={fieldStyle}>
+                <option value={0}>Tidak (tanpa judul bagian)</option>
+                {[3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>Setiap {n} video (judul bagian bisa diganti nanti)</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>{selected.size} dari {result.videos.length} video dipilih</span>
+              <button onClick={() => setSelected(allSelected ? new Set() : new Set(result.videos.map((v) => v.videoId)))} style={{ background: "none", border: "none", cursor: "pointer", color: C.gold, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>{allSelected ? "Kosongkan pilihan" : "Pilih semua"}</button>
+            </div>
+            <div style={{ maxHeight: 340, overflowY: "auto", border: `1px solid ${C.border}`, borderRadius: 10 }}>
+              {result.videos.map((v, i) => (
+                <div key={v.videoId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderBottom: i < result.videos.length - 1 ? `1px solid ${C.borderSoft}` : "none", opacity: selected.has(v.videoId) ? 1 : 0.45 }}>
+                  <input type="checkbox" checked={selected.has(v.videoId)} onChange={() => toggle(v.videoId)} style={{ flexShrink: 0, width: 16, height: 16 }} />
+                  <img src={v.thumbnail} alt="" loading="lazy" style={{ width: 64, height: 36, objectFit: "cover", borderRadius: 4, flexShrink: 0, background: C.surface2 }} />
+                  <input value={titles[v.videoId] ?? v.title} onChange={(e) => setTitles((t) => ({ ...t, [v.videoId]: e.target.value }))} style={{ flex: 1, minWidth: 0, background: "transparent", border: `1px solid transparent`, borderRadius: 6, padding: "6px 8px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark, flexShrink: 0 }}>{v.duration || "—"}</span>
+                </div>
+              ))}
+            </div>
+
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <GhostBtn full onClick={() => { setResult(null); setError(""); }} icon={ArrowLeft}>Ganti Link</GhostBtn>
+              <PrimaryBtn full onClick={submit} icon={Check}>{saving ? "Menyimpan..." : mode === "create" ? `Buat Produk (${selected.size} video)` : `Tambahkan ${selected.size} Video`}</PrimaryBtn>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -3519,7 +3723,7 @@ function QuickProductFormModal({ onClose, onSubmit }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 420, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>TAMBAH PRODUK</h2>
@@ -3576,8 +3780,8 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   const [items] = useState(() =>
     initialItems && initialItems.length > 0
       ? initialItems.map((it) => it.type === "section"
-          ? { type: "section", title: it.title || "" }
-          : { type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
+          ? { id: it.id, type: "section", title: it.title || "" }
+          : { id: it.id, type: "video", title: it.title || "", desc: it.desc || "", url: it.url || "", duration: it.duration || "" })
       : []
   );
   const [error, setError] = useState("");
@@ -3592,8 +3796,8 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
     const validItems = items
       .filter((it) => it.title.trim())
       .map((it) => it.type === "section"
-        ? { type: "section", title: it.title.trim() }
-        : { type: "video", title: it.title.trim(), desc: (it.desc || "").trim(), url: (it.url || "").trim(), duration: (it.duration || "").trim() || "—" });
+        ? { id: it.id, type: "section", title: it.title.trim() }
+        : { id: it.id, type: "video", title: it.title.trim(), desc: (it.desc || "").trim(), url: (it.url || "").trim(), duration: (it.duration || "").trim() || "—" });
     setError("");
     onSubmit(
       {
@@ -3609,7 +3813,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 620, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT PRODUK" : "TAMBAH PRODUK BARU"}</h2>
@@ -3658,7 +3862,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
           <div>
             <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Video Preview (tampil di halaman produk)</label>
             <input value={previewVideo} onChange={(e) => setPreviewVideo(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Beda dengan video materi di bawah — ini video cuplikan/trailer yang tampil duluan ke calon pembeli. Upload file langsung belum didukung di prototipe ini, gunakan link.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 4 }}>Beda dengan video materi — ini video cuplikan/trailer yang tampil ke calon pembeli (gratis ditonton). Thumbnail-nya otomatis dipakai sebagai gambar kartu produk.</p>
           </div>
 
           <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 6, paddingTop: 14 }}>
@@ -3742,13 +3946,13 @@ function CouponFormModal({ onClose, onSubmit }) {
     onSubmit({
       code: code.trim().toUpperCase(), type, value: Number(value),
       minPurchase: minPurchase ? Number(minPurchase) : 0,
-      limit: limit ? Number(limit) : 999999,
-      expiry: expiry.trim() || "Tanpa batas waktu",
+      limit: limit ? Number(limit) : 0,
+      expiry: expiry || null,
     });
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 440, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>BUAT KODE DISKON</h2>
@@ -3781,14 +3985,14 @@ function CouponFormModal({ onClose, onSubmit }) {
               <input type="number" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} placeholder="0" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13.5, boxSizing: "border-box" }} />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Batas Pemakaian</label>
+              <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Batas Pemakaian (0 = tanpa batas)</label>
               <input type="number" value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="100" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13.5, boxSizing: "border-box" }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Berlaku Sampai (opsional)</label>
-            <input value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="31 Des 2026" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+            <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Berlaku Sampai (opsional — kosongkan kalau tanpa batas)</label>
+            <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
           </div>
 
           {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, margin: 0 }}>{error}</p>}
@@ -3848,7 +4052,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 460, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{initialLp ? "PENGATURAN LANDING PAGE" : "TAMBAH LANDING PAGE"}</h2>
@@ -3964,7 +4168,7 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
       <Card style={{ width: "100%", maxWidth: 640, padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: 0 }}>{isEdit ? "EDIT HALAMAN" : "TAMBAH HALAMAN BARU"}</h2>
@@ -4028,12 +4232,16 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
 function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, products, curriculumData, curriculumOutline, role, learnEditMode, setLearnEditMode, onSaveProduct, goToAdmin }) {
-  const product = products.find((x) => x.slug === slug) || products[0];
+  const product = products.find((x) => x.slug === slug) || { id: null, name: "", hue: C.gold };
   const curriculum = curriculumData[product.id] || [];
   const outline = (curriculumOutline?.[product.id] && curriculumOutline[product.id].length > 0) ? curriculumOutline[product.id] : curriculum.map((v) => ({ type: "video", ...v }));
   const completed = progress[product.id] || [];
-  const curIdx = current[product.id] ?? 0;
+  // Saat member membuka kelas, langsung lanjut ke video pertama yang BELUM selesai
+  // (bukan selalu mulai dari video 1).
+  const firstUndone = curriculum.findIndex((_, i) => !completed.includes(i));
+  const curIdx = Math.min(current[product.id] ?? (firstUndone === -1 ? 0 : firstUndone), Math.max(0, curriculum.length - 1));
   const video = curriculum[curIdx];
+  const [showImport, setShowImport] = useState(false);
   const isLast = curIdx === curriculum.length - 1;
   const isCurrentDone = video ? completed.includes(curIdx) : false;
 
@@ -4090,7 +4298,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   if (curriculum.length === 0 && !admin) {
     return (
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
-        <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted }}>Materi video untuk produk ini belum tersedia di prototipe.</p>
+        <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted }}>Materi untuk produk ini sedang disiapkan. Kami akan mengabari kamu begitu siap.</p>
         <div style={{ marginTop: 16 }}><GhostBtn onClick={() => go("customer")}>Kembali ke Dashboard</GhostBtn></div>
       </div>
     );
@@ -4178,12 +4386,13 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
 
           <LpVideoEditable url={video.url} admin={admin} onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "url", v)}>
             {(() => {
-              const embedUrl = toEmbedUrl(video.url);
+              const embedUrl = toLessonEmbedUrl(video.url);
               if (embedUrl) {
                 return (
                   <div>
                     <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, background: C.surface2 }}>
                       <iframe
+                        key={embedUrl}
                         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
                         src={embedUrl}
                         title={video.title}
@@ -4208,7 +4417,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               return (
                 <div style={{ height: 340, borderRadius: 14, background: `linear-gradient(135deg, ${product.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
                   <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{admin ? "Belum ada link video — klik ikon pensil di kanan atas" : "Pemutar video (contoh tampilan)"}</span>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{admin ? "Belum ada link video — klik ikon pensil di kanan atas" : "Video untuk materi ini segera hadir"}</span>
                 </div>
               );
             })()}
@@ -4239,6 +4448,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               insertSectionAfter={insertSectionAfter}
               addVideoRow={addVideoRow}
               addSectionRow={addSectionRow}
+              onImportYoutube={() => setShowImport(true)}
             />
           ) : (
           <Card style={{ padding: 6, maxHeight: 560, overflowY: "auto" }}>
@@ -4275,6 +4485,17 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
         </div>
       </div>
       </div>
+      {showImport && (
+        <YoutubeImportModal
+          mode="append"
+          productName={product.name}
+          onClose={() => setShowImport(false)}
+          onAppend={async (items) => {
+            await saveOutline([...outline, ...items]);
+            setShowImport(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -4283,7 +4504,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
 // sama persis dengan editor "Video Materi" di form produk (grup per judul materi yang bisa
 // ditutup, baris ringkas, detail link/deskripsi/durasi baru muncul kalau dibuka), bedanya di sini
 // tiap perubahan langsung tersimpan ke database (tidak perlu tombol "Simpan" terpisah).
-function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, moveItem, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow }) {
+function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, moveItem, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow, onImportYoutube }) {
   const totalVideoCount = outline.filter((it) => it.type === "video").length;
   const hasSections = outline.some((it) => it.type === "section");
 
@@ -4400,6 +4621,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         <GhostBtn small onClick={addSectionRow} icon={Plus}>Judul Materi</GhostBtn>
         <GhostBtn small onClick={addVideoRow} icon={Plus}>Tambah Kelas / Materi</GhostBtn>
+        {onImportYoutube && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import dari YouTube</PrimaryBtn>}
       </div>
 
     </div>
@@ -4660,7 +4882,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
     // Titik integrasi Meta Pixel + Conversions API juga bisa ditaruh di sini kalau perlu nanti.
     supabase.rpc("increment_lp_visit", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    console.log("[MetaPixel] ViewContent", { content_id: p.id, content_name: p.name, value: p.price, currency: "IDR" });
+    trackEvent("ViewContent", { content_ids: [String(p.id)], content_name: p.name, content_type: "product", value: p.price, currency: "IDR" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lp.slug]);
 
@@ -4738,7 +4960,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout");
+    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice, lp.slug)) go("checkout");
   };
 
   return (
@@ -5392,7 +5614,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
 
   useEffect(() => {
     supabase.rpc("increment_lp_visit", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    console.log("[MetaPixel] ViewContent", { content_id: p.id, content_name: p.name, value: p.price, currency: "IDR" });
+    trackEvent("ViewContent", { content_ids: [String(p.id)], content_name: p.name, content_type: "product", value: p.price, currency: "IDR" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lp.slug]);
 
@@ -5461,7 +5683,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice)) go("checkout");
+    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice, lp.slug)) go("checkout");
   };
 
   const descPlain = String(p.desc || "").replace(/\*\*/g, "").replace(/^##\s+/gm, "").replace(/^\*\s+/gm, "• ");
@@ -6106,11 +6328,16 @@ export default function App() {
   // kurikulum (judul kelas, video, link) langsung di tampilan asli yang dilihat pembeli.
   const [learnEditMode, setLearnEditMode] = useState(false);
   const [landingPages, setLandingPages] = useState([]);
-  const [productSlug, setProductSlug] = useState(INITIAL_PRODUCTS[0].slug);
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
-  const [curriculumData, setCurriculumData] = useState(INITIAL_CURRICULUM);
+  const [productSlug, setProductSlug] = useState(null);
+  // Mulai kosong (bukan data contoh) supaya pengunjung tidak pernah melihat/membeli produk fiktif
+  // sebelum data asli dari database selesai dimuat.
+  const [products, setProducts] = useState([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [curriculumData, setCurriculumData] = useState({});
   const [curriculumOutline, setCurriculumOutline] = useState({});
   const [cart, setCart] = useState([]);
+  // Harga khusus per produk di keranjang (mis. harga promo dari landing page) + asal LP-nya.
+  const [cartPrices, setCartPrices] = useState({});
   const [coupon, setCoupon] = useState(null);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
   const [preAuthView, setPreAuthView] = useState(null);
@@ -6123,7 +6350,7 @@ export default function App() {
   const [videoCurrent, setVideoCurrent] = useState({});
   const [orders, setOrders] = useState(DEMO_ORDERS);
   const [pendingOrderId, setPendingOrderId] = useState(null);
-  const [coupons, setCoupons] = useState(INITIAL_COUPONS);
+  const [coupons, setCoupons] = useState([]); // hanya terisi untuk admin (RLS)
   const [siteContent, setSiteContent] = useState(DEFAULT_SITE_CONTENT);
   const [customPages, setCustomPages] = useState([]);
   const [customPageSlug, setCustomPageSlug] = useState(null);
@@ -6175,6 +6402,7 @@ export default function App() {
   const fetchProducts = async () => {
     const { data, error } = await supabase.from("products").select("*").order("sort_order");
     if (!error && data) setProducts(data.map(mapProductRow));
+    setProductsLoaded(true);
   };
   const fetchCurriculum = async () => {
     const { data, error } = await supabase.from("curriculum_videos").select("*").order("sort_order");
@@ -6282,14 +6510,10 @@ export default function App() {
   // dimuat sekali di awal, tidak bergantung status login.
   useEffect(() => {
     fetchProducts();
-    fetchCurriculum();
-    fetchCoupons();
     fetchTestimonials();
     fetchBankInfo();
     fetchSiteContent();
     fetchCustomPages();
-    fetchLandingPages();
-    fetchPaymentMethods();
     logVisit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -6365,30 +6589,23 @@ export default function App() {
      verifikasi pembayaran yang tetap harus jalan meski emailnya gagal terkirim). */
   // Notifikasi Telegram ke HP/laptop admin -- dipanggil bersamaan dengan email, tidak saling
   // menunggu (non-blocking), supaya kalau Telegram gagal, proses checkout/upload tetap jalan.
-  const sendTelegramNotify = async (payload) => {
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/notify-telegram`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify(payload),
-      });
-    } catch (e) { /* non-blocking */ }
-  };
-  const sendOrderEmail = async (payload) => {
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/send-order-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify(payload),
-      });
-    } catch (e) { /* non-blocking */ }
-  };
+  // Cukup kirim { orderId, kind } — isi email/notifikasi dibaca function langsung dari database,
+  // dan function mengecek bahwa pemanggilnya memang pemilik pesanan / admin (anti-spam).
+  const sendTelegramNotify = (orderId, kind) => { invokeFn("notify-telegram", { orderId, kind }); };
+  const sendOrderEmail = (orderId, kind) => { invokeFn("send-order-email", { orderId, kind }); };
 
   /* ---------------- AKUN & SESI (Supabase Auth) ---------------- */
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const role = profile?.role || null;
+
+  // Daftar semua member terdaftar (hanya admin yang bisa membaca semua profil lewat RLS).
+  const [members, setMembers] = useState([]);
+  const fetchMembers = async () => {
+    const { data, error } = await supabase.from("profiles").select("id, email, name, phone, role, created_at").order("created_at", { ascending: false });
+    if (!error && data) setMembers(data);
+  };
 
   const fetchProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
@@ -6426,11 +6643,25 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, session?.user?.id]);
 
-  // Total kunjungan cuma relevan buat admin — diambil begitu status admin terdeteksi.
+  // Data yang isinya bergantung siapa yang login (RLS): materi video (hanya pembeli/admin),
+  // landing page draft & metode pembayaran nonaktif (admin), kupon & daftar member (admin).
+  // Dimuat ulang tiap kali sesi/role berubah — sebelumnya hanya dimuat sekali saat halaman
+  // dibuka, sehingga setelah login materi yang sudah dibeli tidak muncul sampai di-refresh.
   useEffect(() => {
-    if (profile?.role === "admin") fetchTotalVisits();
+    if (!authReady) return;
+    fetchCurriculum();
+    fetchLandingPages();
+    fetchPaymentMethods();
+    if (profile?.role === "admin") {
+      fetchTotalVisits();
+      fetchCoupons();
+      fetchMembers();
+    } else {
+      setCoupons([]);
+      setMembers([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.role]);
+  }, [authReady, session?.user?.id, profile?.role]);
 
   // Progres video: dimuat ulang tiap kali sesi berubah ATAU data kurikulum termuat/berubah —
   // butuh curriculumData supaya video_id dari database bisa dicocokkan ke index video yang benar.
@@ -6485,10 +6716,13 @@ export default function App() {
   };
   const logout = async () => {
     await supabase.auth.signOut();
+    setCart([]);
+    setCartPrices({});
+    setCoupon(null);
     go("home");
   };
   const changeAdminPassword = async (currentPw, newPw) => {
-    if (newPw.length < 6) return { ok: false, error: "Kata sandi baru minimal 6 karakter." };
+    if (newPw.length < 8) return { ok: false, error: "Kata sandi baru minimal 8 karakter." };
     const { error: reauthError } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPw });
     if (reauthError) return { ok: false, error: "Kata sandi saat ini salah." };
     const { error } = await supabase.auth.updateUser({ password: newPw });
@@ -6612,6 +6846,13 @@ export default function App() {
   const pendingIds = role === "customer" ? Array.from(new Set(
     orders.filter((o) => o.payment === "Pending").flatMap((o) => o.itemIds).filter((id) => id && !ownedIds.includes(id))
   )) : [];
+  // Begitu admin memverifikasi pembayaran (pesanan jadi PAID lewat realtime), materi produk itu
+  // langsung dimuat — member tidak perlu refresh halaman.
+  const ownedKey = ownedIds.slice().sort().join(",");
+  useEffect(() => {
+    if (authReady && ownedKey) fetchCurriculum();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedKey]);
   const goToAuth = () => {
     setPreAuthView({ view, slug: productSlug });
     go("auth");
@@ -6624,8 +6865,11 @@ export default function App() {
       go("auth");
       return false;
     }
+    if (role === "admin") { alert("Akun admin tidak bisa membeli. Gunakan akun customer untuk uji coba pembelian."); return false; }
     if (ownedIds.includes(id) || pendingIds.includes(id)) return false;
     setCart((c) => (c.includes(id) ? c : [...c, id]));
+    const prod = products.find((pr) => pr.id === id);
+    if (prod) trackEvent("AddToCart", { content_ids: [String(id)], content_name: prod.name, value: prod.price, currency: "IDR" });
     return true;
   };
   const goOrAuth = (target, slug) => {
@@ -6662,14 +6906,21 @@ export default function App() {
     // Produk tanpa video (mis. bundle atau ebook) belum punya halaman materinya sendiri.
     // Sebelumnya tombol ini diam-diam mengarahkan kembali ke halaman produk yang sama,
     // yang tampak seperti tidak berfungsi karena tidak ada perubahan tampilan.
-    alert(`Materi video untuk "${p.name}" belum ditambahkan. Tambahkan kurikulum lewat halaman edit produk di Admin.`);
+    if (role === "admin") { openLearnEditor(p.slug); return; }
+    alert(`Materi "${p.name}" sedang disiapkan. Kami akan mengabari kamu begitu materinya siap diakses.`);
   };
-  const removeFromCart = (id) => setCart((c) => c.filter((x) => x !== id));
-  const clearCart = () => { setCart([]); setCoupon(null); };
+  const removeFromCart = (id) => {
+    setCart((c) => c.filter((x) => x !== id));
+    setCartPrices((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  };
+  const clearCart = () => { setCart([]); setCartPrices({}); setCoupon(null); };
 
+  // Harga, diskon & total yang dikirim di sini hanya "permintaan" — database (trigger
+  // orders_before_insert) menghitung ulang semuanya dari harga produk & kupon asli, jadi tidak
+  // bisa dimanipulasi dari browser. "lp" = slug landing page asal (untuk harga promo).
   const addOrder = async ({ cartProducts, total, discount, couponCode, method, paymentMethodId, customerName, customerEmail, customerPhone }) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan, silakan masuk ulang." };
-    const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price }));
+    const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price, ...(p.lpSlug ? { lp: p.lpSlug } : {}) }));
     const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
     const { data, error } = await supabase.from("orders").insert({
       customer_id: session.user.id,
@@ -6680,32 +6931,33 @@ export default function App() {
       payment: "Pending", status: "Menunggu Pembayaran", method, payment_method_id: paymentMethodId || null,
     }).select().single();
     if (error) return { ok: false, error: error.message };
-    fetchOrders();
-    const emailPayload = {
-      orderId: data.id, kind: "created", customerEmail, customerName,
-      items: cartProducts.map((p) => ({ name: p.name, price: p.price })),
-      total, discount, status: "Menunggu Pembayaran",
-    };
-    sendOrderEmail(emailPayload);
-    sendTelegramNotify(emailPayload);
+    // Simpan juga nomor WA terbaru ke profil supaya checkout berikutnya otomatis terisi.
+    if (customerPhone && customerPhone !== profile?.phone) {
+      supabase.from("profiles").update({ phone: customerPhone }).eq("id", session.user.id).then(() => {});
+      setProfile((prev) => (prev ? { ...prev, phone: customerPhone } : prev));
+    }
+    await fetchOrders();
+    sendOrderEmail(data.id, "created");
+    sendTelegramNotify(data.id, "created");
+    trackEvent("InitiateCheckout", { value: data.total, currency: "IDR", content_ids: items.map((i) => String(i.id)) });
     return { ok: true, orderId: data.id };
   };
   // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
   // masuk keranjang, supaya harga di checkout sama persis dengan yang ditampilkan di landing page.
-  const applyPricingAndBuy = (productId, price, oldPrice) => {
-    setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, price, oldPrice } : p))); // optimistic
-    supabase.from("products").update({ price, old_price: oldPrice }).eq("id", productId).then(() => {});
-    return addToCart(productId);
+  // Sebelumnya fungsi ini MENGUBAH harga produk di database (kalau yang klik admin, harga produk
+  // permanen berubah jadi harga promo). Sekarang harga promo cuma "ditempel" di keranjang pembeli
+  // ini, dan tetap diverifikasi ulang oleh database saat pesanan dibuat.
+  const applyPricingAndBuy = (productId, price, oldPrice, lpSlug) => {
+    const ok = addToCart(productId);
+    if (ok) setCartPrices((prev) => ({ ...prev, [productId]: { price, oldPrice, lpSlug } }));
+    return ok;
   };
   // Perubahan status (terutama jadi PAID) lewat RPC di server — bukan UPDATE langsung — supaya
   // penambahan counter "sold" produk & "used" kupon konsisten dan tidak bisa dipalsukan dari client.
   const updateOrderStatus = async (id, payment, status) => {
     const { error } = await supabase.rpc("admin_update_order_status", { p_order_id: id, p_payment: payment, p_status: status });
     if (error) { alert("Gagal mengubah status pesanan: " + error.message); return; }
-    if (payment === "PAID") {
-      const ord = orders.find((o) => o.id === id);
-      if (ord) sendOrderEmail({ orderId: id, kind: "paid", customerEmail: ord.customerEmail, customerName: ord.customerName, total: ord.total, discount: ord.discount, status });
-    }
+    if (payment === "PAID") sendOrderEmail(id, "paid");
     fetchOrders();
     fetchProducts();
     fetchCoupons();
@@ -6714,20 +6966,22 @@ export default function App() {
   // supaya customer hanya bisa mengisi kolom bukti transfer, bukan kolom lain seperti payment/status).
   const attachPaymentProof = async (orderId, file, note) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan." };
-    const ext = file.name.split(".").pop() || "jpg";
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${session.user.id}/${orderId}-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("payment-proofs").upload(path, file);
     if (uploadError) return { ok: false, error: uploadError.message };
     const { error: rpcError } = await supabase.rpc("attach_payment_proof", { p_order_id: orderId, p_proof_url: path, p_note: note });
     if (rpcError) return { ok: false, error: rpcError.message };
-    const ord = orders.find((o) => o.id === orderId);
-    if (ord) {
-      const payload = { orderId, kind: "proof_uploaded", customerEmail: ord.customerEmail, customerName: ord.customerName, items: ord.items, total: ord.total, discount: ord.discount, status: "Menunggu Verifikasi" };
-      sendOrderEmail(payload);
-      sendTelegramNotify(payload);
-    }
+    sendOrderEmail(orderId, "proof_uploaded");
+    sendTelegramNotify(orderId, "proof_uploaded");
     fetchOrders();
     return { ok: true };
+  };
+  // Customer membatalkan pesanan yang belum dibayar (misal salah pilih / mau ganti metode).
+  const cancelOrder = async (orderId) => {
+    const { error } = await supabase.rpc("cancel_my_order", { p_order_id: orderId });
+    if (error) { alert(error.message); return; }
+    fetchOrders();
   };
   const goToPaymentConfirm = (orderId) => {
     setPendingOrderId(orderId);
@@ -6761,15 +7015,20 @@ export default function App() {
     setCustomerSub("overview");
     go("customer");
   };
-  const cartProducts = cart.map((id) => products.find((p) => p.id === id)).filter(Boolean);
+  const cartProducts = cart.map((id) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) return null;
+    const o = cartPrices[id];
+    return o ? { ...p, price: o.price, oldPrice: o.oldPrice, lpSlug: o.lpSlug } : p;
+  }).filter(Boolean);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-  const addProduct = async (data, items) => {
+  const addProduct = async (data, items = []) => {
     let baseSlug = slugify(data.name) || `produk-${Date.now()}`;
     let slug = baseSlug;
     let n = 2;
     while (products.some((p) => p.slug === slug)) { slug = `${baseSlug}-${n}`; n++; }
-    const videoCount = items.filter((it) => it.type === "video").length;
+    const videoCount = items.filter((it) => it.type !== "section").length;
     const { data: inserted, error } = await supabase.from("products").insert({
       slug, name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, rating: 0, reviews: 0, sold: 0,
@@ -6780,18 +7039,15 @@ export default function App() {
     }).select().single();
     if (error) { alert("Gagal menambah produk: " + error.message); return null; }
     if (items && items.length > 0) {
-      await supabase.from("curriculum_videos").insert(items.map((it, i) => (
-        it.type === "section"
-          ? { product_id: inserted.id, title: it.title, description: "", url: "", duration: SECTION_MARKER, sort_order: i }
-          : { product_id: inserted.id, title: it.title, description: it.desc || "", url: it.url || "", duration: it.duration || "", sort_order: i }
-      )));
+      const { error: curErr } = await supabase.rpc("admin_save_curriculum", { p_product_id: inserted.id, p_items: items });
+      if (curErr) alert("Produk tersimpan, tapi materi gagal disimpan: " + curErr.message);
     }
     await fetchProducts();
     await fetchCurriculum();
     return mapProductRow(inserted);
   };
-  const updateProduct = async (id, data, items) => {
-    const videoCount = items.filter((it) => it.type === "video").length;
+  const updateProduct = async (id, data, items = []) => {
+    const videoCount = items.filter((it) => it.type !== "section").length;
     const payload = {
       name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",
@@ -6799,15 +7055,12 @@ export default function App() {
       benefits: data.benefits || [], learn_points: data.learn || [], bonus: data.bonus || "",
     };
     if (videoCount > 0) payload.duration = `${videoCount} video`;
-    await supabase.from("products").update(payload).eq("id", id);
-    await supabase.from("curriculum_videos").delete().eq("product_id", id);
-    if (items && items.length > 0) {
-      await supabase.from("curriculum_videos").insert(items.map((it, i) => (
-        it.type === "section"
-          ? { product_id: id, title: it.title, description: "", url: "", duration: SECTION_MARKER, sort_order: i }
-          : { product_id: id, title: it.title, description: it.desc || "", url: it.url || "", duration: it.duration || "", sort_order: i }
-      )));
-    }
+    const { error } = await supabase.from("products").update(payload).eq("id", id);
+    if (error) { alert("Gagal menyimpan produk: " + error.message); return; }
+    // Materi disimpan lewat RPC yang MEMPERTAHANKAN id video lama (update di tempat), bukan
+    // hapus-semua-lalu-buat-ulang — kalau id berubah, progres belajar semua member ikut hilang.
+    const { error: curErr } = await supabase.rpc("admin_save_curriculum", { p_product_id: id, p_items: items || [] });
+    if (curErr) alert("Gagal menyimpan materi: " + curErr.message);
     await fetchProducts();
     await fetchCurriculum();
   };
@@ -6914,10 +7167,11 @@ export default function App() {
     fetchLandingPages();
   };
   const addCoupon = async (data) => {
-    await supabase.from("coupons").insert({
+    const { error } = await supabase.from("coupons").insert({
       code: data.code, type: data.type, value: data.value,
       min_purchase: data.minPurchase || 0, usage_limit: data.limit || 0, used: 0, expiry: data.expiry || null,
     });
+    if (error) alert(error.code === "23505" ? "Kode kupon itu sudah ada." : "Gagal menyimpan kupon: " + error.message);
     fetchCoupons();
   };
   const deleteCoupon = async (code) => {
@@ -6925,15 +7179,21 @@ export default function App() {
     if (error || !data || data.length === 0) {
       alert("Kupon gagal dihapus. Coba muat ulang halaman dan pastikan kamu masih login sebagai admin.");
     }
-    if (coupon === code) setCoupon(null);
+    if (coupon?.code === code) setCoupon(null);
     fetchCoupons();
   };
-  // Dihitung di client dari daftar kupon yang sudah di-fetch — cukup untuk kebutuhan sekarang.
-  // (Ada juga RPC validate_coupon di database untuk validasi sisi-server yang lebih ketat kalau
-  // nanti dibutuhkan, tapi belum dipakai supaya alur tampilan harga tetap instan/sinkron.)
-  const calcDiscount = (subtotal, couponCode) => {
-    if (!couponCode) return 0;
-    const c = coupons.find((x) => x.code === couponCode);
+  // Kupon dicek ke server (RPC validate_coupon: kode, kedaluwarsa, kuota, minimum belanja).
+  // Hasilnya disimpan di state "coupon" hanya untuk menampilkan perkiraan diskon — angka final
+  // tetap dihitung ulang oleh database saat pesanan dibuat.
+  const validateCoupon = async (code, subtotal) => {
+    if (!session) return { ok: false, error: "Masuk dulu untuk memakai kupon." };
+    const { data, error } = await supabase.rpc("validate_coupon", { p_code: code, p_subtotal: subtotal });
+    if (error) return { ok: false, error: "Gagal mengecek kupon. Coba lagi." };
+    const r = Array.isArray(data) ? data[0] : data;
+    if (!r?.ok) return { ok: false, error: r?.error || "Kode kupon tidak valid." };
+    return { ok: true, coupon: { code: r.code, type: r.coupon_type, value: r.coupon_value, minPurchase: r.min_purchase || 0 } };
+  };
+  const calcDiscount = (subtotal, c) => {
     if (!c) return 0;
     if (c.minPurchase && subtotal < c.minPurchase) return 0;
     if (c.type === "percent") return Math.round(subtotal * (c.value / 100));
@@ -7002,7 +7262,7 @@ export default function App() {
         .gs-card-hover:active { transform: translateY(-1px) scale(0.995); }
 
         .gs-mobile-menu { animation: gsSlideDown .32s var(--gs-ease) both; transform-origin: top center; }
-        .gs-page-enter { animation: gsFadeIn .45s var(--gs-ease) both; }
+        .gs-page-enter { animation: gsFadeIn .45s var(--gs-ease) backwards; }
 
         @media (prefers-reduced-motion: reduce) {
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -7031,13 +7291,13 @@ export default function App() {
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} />}
-      {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} coupons={coupons} calcDiscount={calcDiscount} />}
+      {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
-          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} coupons={coupons} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} paymentMethods={paymentMethods} />
+          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} paymentMethods={paymentMethods} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
@@ -7054,7 +7314,7 @@ export default function App() {
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
-          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} />
+          <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} onCancelOrder={cancelOrder} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
@@ -7079,7 +7339,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );
