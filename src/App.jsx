@@ -1652,7 +1652,7 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
               <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}><Badge tone={(p.status || "published") === "published" ? "gold" : "muted"}>{(p.status || "published") === "published" ? "Tampil" : "Draft"}</Badge></button>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <div className="gs-buy-row" style={{ display: "flex", gap: 10, marginTop: 22 }}>
               <div style={{ flex: 1 }}><PrimaryBtn full disabled={soldOut} onClick={() => doAdd(false)} icon={ShoppingCart}>Tambah ke Keranjang</PrimaryBtn></div>
               <div style={{ flex: 1 }}><GhostBtn full disabled={soldOut} onClick={() => doAdd(true)}>Beli Sekarang</GhostBtn></div>
             </div>
@@ -3015,39 +3015,65 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
               <div style={{ marginTop: 12 }}><PrimaryBtn small onClick={() => go("shop")}>Mulai Belanja</PrimaryBtn></div>
             </Card>
           ) : (
-          <>
-          <ScrollHint />
-          <Card style={{ overflow: "auto" }}>
-            <table style={{ width: "100%", minWidth: 640, borderCollapse: "collapse", fontFamily: "'Manrope',sans-serif", fontSize: 12.5 }}>
-              <thead><tr style={{ background: C.surface2 }}>
-                {["Order ID", "Tanggal", "Produk", "Total", "Pembayaran", "Status", ""].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {myOrders.map((o) => (
-                  <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={{ padding: "10px 14px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, whiteSpace: "nowrap" }}>{o.id}</td>
-                    <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
-                    <td style={{ padding: "10px 14px", color: C.text, whiteSpace: "nowrap" }}>{o.items.join(", ")}</td>
-                    <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{rp(o.total)}</td>
-                    <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}><Badge>{o.payment}</Badge></td>
-                    <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.status}</td>
-                    <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                      {o.payment === "Pending" && !o.proofImage && (
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <GhostBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Bayar / Upload Bukti</GhostBtn>
-                          <button onClick={() => { if (window.confirm(`Batalkan pesanan ${o.id}? Kamu bisa checkout ulang setelahnya.`)) onCancelOrder(o.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 600 }}>Batalkan</button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {myOrders.map((o, i) => {
+              const steps = ["Dikemas", "Dikirim", "Diterima"];
+              const stepIdx = o.fulfillmentStatus ? steps.indexOf(o.fulfillmentStatus) : -1;
+              const paid = o.payment === "PAID";
+              const tone = paid ? "gold" : o.payment === "Failed" ? "muted" : "ember";
+              return (
+                <Reveal key={o.id} delay={Math.min(i, 6) * 0.04}>
+                  <Card style={{ padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.muted }}>{o.id} · {o.date}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 8 }}>
+                          {o.lines.map((l, j) => <span key={j} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 600, color: C.text }}>{l.name}{l.qty > 1 ? ` ×${l.qty}` : ""}</span>)}
                         </div>
-                      )}
-                      {o.payment === "Pending" && o.proofImage && (
-                        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Sedang dicek admin</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          </>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <Badge tone={tone} dot={o.payment === "Pending"}>{paid ? "Lunas" : o.payment === "Failed" ? o.status : o.proofImage ? "Sedang dicek" : "Belum dibayar"}</Badge>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 15, color: C.goldLight, marginTop: 8 }}>{rp(o.total)}</div>
+                      </div>
+                    </div>
+                    {paid && o.shippingAddress && (
+                      <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 14, background: C.surface2 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {steps.map((st, k) => (
+                            <React.Fragment key={st}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: k <= stepIdx ? `linear-gradient(135deg, #F3D27A, ${C.gold})` : C.border, transition: "background .4s ease" }}>{k <= stepIdx ? <Check size={12} color="#1A140A" /> : null}</span>
+                                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, color: k <= stepIdx ? C.text : C.mutedDark }}>{st}</span>
+                              </div>
+                              {k < steps.length - 1 && <div style={{ flex: 1, height: 2, borderRadius: 2, background: k < stepIdx ? C.gold : C.border }} />}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        {o.trackingNumber && (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+                            <span><Truck size={13} style={{ verticalAlign: -2, marginRight: 5 }} color={C.gold} />Resi: <b style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace" }}>{o.trackingNumber}</b></span>
+                            <button onClick={() => { try { navigator.clipboard.writeText(o.trackingNumber); toast.success("Nomor resi disalin"); } catch (e) {} }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 999, padding: "4px 10px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, fontWeight: 700, color: C.text }}><Copy size={11} />Salin</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {o.payment === "Pending" && (
+                      <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
+                        {!o.proofImage ? (
+                          <>
+                            <PrimaryBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Bayar & Upload Bukti</PrimaryBtn>
+                            <button onClick={() => { if (window.confirm(`Batalkan pesanan ${o.id}? Kamu bisa checkout ulang setelahnya.`)) onCancelOrder(o.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>Batalkan</button>
+                          </>
+                        ) : (
+                          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark }}>Bukti transfer sedang dicek admin — biasanya tidak lama.</span>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                </Reveal>
+              );
+            })}
+          </div>
           )
         )}
 
@@ -3329,7 +3355,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, updateFulfillment, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
@@ -3338,6 +3364,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
   const [productQuery, setProductQuery] = useState("");
   const [productTypeFilter, setProductTypeFilter] = useState("all");
   const [orderFilter, setOrderFilter] = useState("perlu-cek");
+  const [detailOrder, setDetailOrder] = useState(null);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showPageForm, setShowPageForm] = useState(false);
@@ -3352,7 +3379,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
   const items = [
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "products", label: "Produk", icon: Package },
-    { key: "orders", label: "Pesanan", icon: ClipboardList },
+    { key: "orders", label: "Pesanan", icon: ClipboardList, count: orders.filter((o) => (o.payment === "Pending" && o.proofImage) || needsShipping(o)).length },
     { key: "customers", label: "Pelanggan", icon: Users },
     { key: "coupons", label: "Kupon", icon: Tag },
     { key: "analytics", label: "Analitik", icon: BarChart3 },
@@ -3598,8 +3625,10 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               <>
                 {(() => {
                   const needCheck = orders.filter((o) => o.payment === "Pending" && o.proofImage).length;
+                  const needShip = orders.filter(needsShipping).length;
                   const tabs = [
                     ["perlu-cek", `Perlu Dicek (${needCheck})`],
+                    ["perlu-kirim", `Perlu Dikirim (${needShip})`],
                     ["pending", `Belum Bayar (${orders.filter((o) => o.payment === "Pending" && !o.proofImage).length})`],
                     ["paid", `Lunas (${orders.filter((o) => o.payment === "PAID").length})`],
                     ["semua", `Semua (${orders.length})`],
@@ -3619,16 +3648,20 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                     {["Order ID", "Customer", "Produk", "Jumlah", "Metode", "Bukti Bayar", "Pembayaran", "Status", "Tanggal"].map((h) => <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: C.muted, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
-                    {orders.filter((o) => orderFilter === "semua" || (orderFilter === "perlu-cek" && o.payment === "Pending" && o.proofImage) || (orderFilter === "pending" && o.payment === "Pending" && !o.proofImage) || (orderFilter === "paid" && o.payment === "PAID")).map((o) => (
+                    {(() => { const rows = orders.filter((o) => orderFilter === "semua" || (orderFilter === "perlu-kirim" && needsShipping(o)) || (orderFilter === "perlu-cek" && o.payment === "Pending" && o.proofImage) || (orderFilter === "pending" && o.payment === "Pending" && !o.proofImage) || (orderFilter === "paid" && o.payment === "PAID"));
+                    return rows.length ? rows.map((o) => (
                       <tr key={o.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "10px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.text }}>{o.id}</td>
+                        <td style={{ padding: "10px 14px" }}>
+                          <button onClick={() => setDetailOrder(o)} title="Lihat detail pesanan" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.goldLight, textDecoration: "underline", textUnderlineOffset: 3 }}>{o.id}</button>
+                          {o.shippingAddress && <div style={{ marginTop: 4 }}><Badge tone={o.fulfillmentStatus === "Dikirim" || o.fulfillmentStatus === "Diterima" ? "green" : "muted"}><Truck size={10} />{o.fulfillmentStatus || "Fisik"}</Badge></div>}
+                        </td>
                         <td style={{ padding: "10px 14px", color: C.text }}>
                           <div>{o.customerName || "-"}</div>
                           {o.customerPhone && (
                             <a href={waLink(o.customerPhone, `Halo ${o.customerName || ""}, terkait pesanan ${o.id} di Gitar Sakti:`)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.gold }}>WA {o.customerPhone}</a>
                           )}
                         </td>
-                        <td style={{ padding: "10px 14px", color: C.muted }}>{o.items.join(", ")}</td>
+                        <td style={{ padding: "10px 14px", color: C.muted }}>{o.lines.map((l) => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ""}`).join(", ")}</td>
                         <td style={{ padding: "10px 14px", color: C.goldLight, fontFamily: "'JetBrains Mono',monospace" }}>{rp(o.total)}</td>
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.method}</td>
                         <td style={{ padding: "10px 14px" }}>
@@ -3644,7 +3677,8 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                         <td style={{ padding: "10px 14px", color: C.muted }}>{o.status}</td>
                         <td style={{ padding: "10px 14px", color: C.muted, whiteSpace: "nowrap" }}>{o.date}</td>
                       </tr>
-                    ))}
+                    )) : <tr><td colSpan={9} style={{ padding: "36px 14px", textAlign: "center", color: C.mutedDark, fontSize: 13 }}>Tidak ada pesanan di kategori ini. 🎉</td></tr>;
+                    })()}
                   </tbody>
                 </table>
                 </Card>
@@ -3888,6 +3922,18 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                 <ChevronRight size={16} color={C.muted} />
               </div>
             </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("pengiriman")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Truck size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>Pengiriman (Merchandise)</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Ongkir tetap per pesanan & batas gratis ongkir.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
             <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("keamanan")}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3955,6 +4001,13 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           </div>
         )}
 
+        {sub === "settings" && settingsSub === "pengiriman" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <ShippingSettingsForm value={siteContent.shipping || {}} onSave={(v) => updateSiteContent("shipping", v)} />
+          </div>
+        )}
+
         {sub === "settings" && settingsSub === "rekening" && (
           <div>
             <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
@@ -3985,6 +4038,16 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
           </div>
         )}
       </div>
+
+      {detailOrder && (
+        <OrderDetailModal
+          order={orders.find((o) => o.id === detailOrder.id) || detailOrder}
+          onClose={() => setDetailOrder(null)}
+          onShowProof={(o) => { setDetailOrder(null); setShowProofOrder(o); }}
+          onConfirmPaid={(o) => { setDetailOrder(null); setConfirmPaidOrder(o); }}
+          onUpdateFulfillment={updateFulfillment}
+        />
+      )}
 
       {merchForm && (
         <MerchFormModal
@@ -4381,6 +4444,125 @@ function YoutubeImportModal({ mode = "create", productName, onClose, onCreate, o
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function ShippingSettingsForm({ value, onSave }) {
+  const [flat, setFlat] = useState(value.flatFee !== undefined ? String(value.flatFee) : "20000");
+  const [free, setFree] = useState(value.freeAbove ? String(value.freeAbove) : "");
+  const [saving, setSaving] = useState(false);
+  const field = { width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 12, padding: "11px 13px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 14, boxSizing: "border-box" };
+  const save = async () => {
+    setSaving(true);
+    await onSave({ flatFee: Math.max(0, Number(flat) || 0), freeAbove: free ? Math.max(0, Number(free) || 0) : 0 });
+    setSaving(false);
+    toast.success("Pengaturan ongkir disimpan");
+  };
+  return (
+    <Card style={{ padding: 22, maxWidth: 480 }}>
+      <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 16, color: C.text, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 8 }}><Truck size={18} color={C.gold} />Ongkos Kirim Tetap</h3>
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginTop: 0, lineHeight: 1.6 }}>Berlaku sekali per pesanan yang berisi merchandise (kelas video tidak kena ongkir). Dihitung di server, jadi pembeli tidak bisa mengubahnya.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 10 }}>
+        <div>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, fontWeight: 600 }}>Ongkir per pesanan (Rp)</span>
+          <input type="number" min="0" value={flat} onChange={(e) => setFlat(e.target.value)} style={field} />
+        </div>
+        <div>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, fontWeight: 600 }}>Gratis ongkir jika belanja minimal (Rp) — kosongkan kalau tidak ada</span>
+          <input type="number" min="0" value={free} onChange={(e) => setFree(e.target.value)} placeholder="500000" style={field} />
+        </div>
+        <div style={{ padding: "10px 12px", borderRadius: 12, background: `${C.gold}12`, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+          Pembeli akan melihat: <b style={{ color: C.text }}>Ongkir {Number(flat) > 0 ? rp(Number(flat)) : "gratis"}</b>{Number(free) > 0 && Number(flat) > 0 ? <> · gratis ongkir belanja min. <b style={{ color: C.text }}>{rp(Number(free))}</b></> : ""}
+        </div>
+        <div><PrimaryBtn onClick={save} loading={saving} icon={Check}>Simpan</PrimaryBtn></div>
+      </div>
+    </Card>
+  );
+}
+
+// Pesanan yang sudah lunas, berisi barang fisik, tapi belum dikirim.
+const needsShipping = (o) => o.payment === "PAID" && !!o.shippingAddress && (!o.fulfillmentStatus || o.fulfillmentStatus === "Dikemas");
+
+function OrderDetailModal({ order: o, onClose, onShowProof, onConfirmPaid, onUpdateFulfillment }) {
+  const [fStatus, setFStatus] = useState(o.fulfillmentStatus || "Dikemas");
+  const [resi, setResi] = useState(o.trackingNumber || "");
+  const [saving, setSaving] = useState(false);
+  const a = o.shippingAddress;
+  const addrText = a ? `${a.name} (${a.phone})\n${a.address}\n${[a.city, a.province, a.postal].filter(Boolean).join(", ")}${a.note ? `\nCatatan: ${a.note}` : ""}` : "";
+  const row = (l, v, strong) => (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}><span style={{ color: C.muted }}>{l}</span><span style={{ color: strong ? C.goldLight : C.text, fontWeight: strong ? 800 : 500, fontFamily: strong ? "'JetBrains Mono',monospace" : undefined }}>{v}</span></div>
+  );
+  const save = async () => {
+    setSaving(true);
+    const ok = await onUpdateFulfillment(o.id, fStatus, resi);
+    setSaving(false);
+    if (ok) onClose();
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560 }}>
+      <Card className="gs-modal" style={{ padding: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.goldLight, fontWeight: 700 }}>{o.id}</div>
+            <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, marginTop: 2 }}>{o.date} · {o.method}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Badge tone={o.payment === "PAID" ? "gold" : o.payment === "Failed" ? "ember" : "muted"}>{o.payment === "PAID" ? "Lunas" : o.payment === "Failed" ? o.status : "Belum Lunas"}</Badge>
+            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: C.surface2 }}>
+          <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>{o.customerName}</div>
+          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{o.customerEmail}</div>
+          {o.customerPhone && <a href={waLink(o.customerPhone, `Halo ${o.customerName || ""}, terkait pesanan ${o.id} di Gitar Sakti:`)} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: "#2E9A4E" }}>Chat WhatsApp {o.customerPhone}</a>}
+        </div>
+
+        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+          {o.lines.map((l, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
+              <span style={{ color: C.text }}>{l.type === "physical" ? <Package size={12} style={{ verticalAlign: -1, marginRight: 5 }} color={C.gold} /> : <PlayCircle size={12} style={{ verticalAlign: -1, marginRight: 5 }} color={C.gold} />}{l.name}{l.qty > 1 ? <b> ×{l.qty}</b> : ""}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.text }}>{rp(l.price * (l.qty || 1))}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: `1px dashed ${C.border}`, margin: "4px 0" }} />
+          {o.discount > 0 && row(`Diskon${o.couponCode ? ` (${o.couponCode})` : ""}`, `-${rp(o.discount)}`)}
+          {o.shippingAddress && row("Ongkir", o.shippingFee ? rp(o.shippingFee) : "Gratis")}
+          {row("Total", rp(o.total), true)}
+        </div>
+
+        {o.proofImage && <div style={{ marginTop: 12 }}><GhostBtn small onClick={() => onShowProof(o)} icon={ImageIcon}>Lihat Bukti Transfer</GhostBtn></div>}
+        {o.payment === "Pending" && <div style={{ marginTop: 10 }}><PrimaryBtn small onClick={() => onConfirmPaid(o)} icon={Check}>Tandai Lunas</PrimaryBtn></div>}
+
+        {a && (
+          <div style={{ marginTop: 18, padding: 16, borderRadius: 16, border: `1px solid ${C.gold}55`, background: `${C.gold}0C` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.text, display: "flex", alignItems: "center", gap: 7 }}><Truck size={16} color={C.gold} />Kirim ke</span>
+              <button onClick={() => { try { navigator.clipboard.writeText(addrText); toast.success("Alamat disalin"); } catch (e) {} }} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 999, padding: "5px 11px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, fontWeight: 700, color: C.text }}><Copy size={12} />Salin alamat</button>
+            </div>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text, margin: "10px 0 0", lineHeight: 1.6 }}>{addrText}</pre>
+            {o.payment === "PAID" ? (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: "flex", gap: 6, background: C.surface2, borderRadius: 12, padding: 4 }}>
+                  {["Dikemas", "Dikirim", "Diterima"].map((st) => (
+                    <button key={st} onClick={() => setFStatus(st)} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: fStatus === st ? C.surface : "transparent", boxShadow: fStatus === st ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: fStatus === st ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer", transition: "all .25s ease" }}>{st}</button>
+                  ))}
+                </div>
+                <input value={resi} onChange={(e) => setResi(e.target.value)} placeholder="Nomor resi + kurir (mis. JNE 0123456789)" style={{ width: "100%", marginTop: 10, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "11px 13px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <PrimaryBtn small onClick={save} loading={saving} icon={Check}>Simpan Status</PrimaryBtn>
+                  {resi.trim() && a.phone && <GhostBtn small onClick={() => window.open(waLink(a.phone, `Halo ${a.name}, pesanan ${o.id} dari Gitar Sakti sudah dikirim 🎸\nNo. resi: ${resi.trim()}\nTerima kasih!`), "_blank")}>Kirim resi via WA</GhostBtn>}
+                </div>
+              </div>
+            ) : (
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, margin: "10px 0 0" }}>Status pengiriman bisa diatur setelah pesanan lunas.</p>
+            )}
+          </div>
+        )}
+      </Card>
+      </div>
     </div>
   );
 }
@@ -7391,7 +7573,12 @@ export default function App() {
   };
   const fetchSiteContent = async () => {
     const { data } = await supabase.from("site_content").select("*").eq("id", 1).maybeSingle();
-    if (data && data.content && Object.keys(data.content).length > 0) setSiteContent(data.content);
+    if (data && data.content && Object.keys(data.content).length > 0) {
+      // Gabung per bagian dengan default supaya bagian yang belum pernah disimpan tidak bikin halaman crash.
+      const merged = { ...DEFAULT_SITE_CONTENT };
+      for (const [k, v] of Object.entries(data.content)) merged[k] = v && typeof v === "object" && !Array.isArray(v) && DEFAULT_SITE_CONTENT[k] && typeof DEFAULT_SITE_CONTENT[k] === "object" && !Array.isArray(DEFAULT_SITE_CONTENT[k]) ? { ...DEFAULT_SITE_CONTENT[k], ...v } : v;
+      setSiteContent(merged);
+    }
   };
   const fetchCustomPages = async () => {
     const { data, error } = await supabase.from("custom_pages").select("*").order("created_at");
@@ -7979,6 +8166,14 @@ export default function App() {
   };
   // Perubahan status (terutama jadi PAID) lewat RPC di server — bukan UPDATE langsung — supaya
   // penambahan counter "sold" produk & "used" kupon konsisten dan tidak bisa dipalsukan dari client.
+  const updateFulfillment = async (id, status, tracking) => {
+    const { error } = await supabase.rpc("admin_update_fulfillment", { p_order_id: id, p_status: status, p_tracking: tracking || "" });
+    if (error) { toast.error(error.message); return false; }
+    if (status === "Dikirim") sendOrderEmail(id, "shipped");
+    toast.success(status === "Dikirim" ? "Status: Dikirim — pembeli dikabari lewat email" : `Status pengiriman: ${status}`);
+    fetchOrders();
+    return true;
+  };
   const updateOrderStatus = async (id, payment, status) => {
     const { error } = await supabase.rpc("admin_update_order_status", { p_order_id: id, p_payment: payment, p_status: status });
     if (error) { toast.error("Gagal mengubah status pesanan: " + error.message); return; }
@@ -8333,6 +8528,7 @@ export default function App() {
         .gs-progress-fill { animation: gsGrow 1.1s var(--gs-ease) both; transform-origin: left; }
         @keyframes gsGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
         @media (max-width: 760px) { .gs-continue { grid-template-columns: 1fr !important; } }
+        @media (max-width: 480px) { .gs-buy-row { flex-direction: column; } }
 
         .gs-next-card:hover .gs-btn-icon { transform: translateX(4px); }
         .gs-celebrate { animation: gsPopIn .6s var(--gs-spring) both; }
@@ -8478,7 +8674,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} updateFulfillment={updateFulfillment} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );

@@ -48,7 +48,9 @@ Deno.serve(async (req) => {
       if (caller?.role !== "admin") return json({ error: "Tidak diizinkan." }, 403);
     }
 
-    const itemNames = (Array.isArray(order.items) ? order.items : []).map((it: any) => it?.name).filter(Boolean).join(", ") || "-";
+    const itemNames = (Array.isArray(order.items) ? order.items : []).map((it: any) => it?.name ? `${it.name}${Number(it.qty) > 1 ? ` x${Number(it.qty)}` : ""}` : "").filter(Boolean).join(", ") || "-";
+    const a = order.shipping_address;
+    const shipText = a ? `\nKirim ke: ${a.name} (${a.phone}), ${a.address}, ${a.city}${a.province ? ", " + a.province : ""} ${a.postal || ""}\nOngkir: ${rupiah(order.shipping_fee)}` : "";
     const text =
       `${TITLE[kind] || "🔔 Update Pesanan"}\n\n` +
       `ID Pesanan: ${order.id}\n` +
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
       `Email: ${order.customer_email || "-"}\n` +
       `WhatsApp: ${order.customer_phone || "-"}\n` +
       `Produk: ${itemNames}\n` +
-      `Total: ${rupiah(order.total)}\n` +
+      `Total: ${rupiah(order.total)}${shipText}\n` +
       `Metode: ${order.method || "-"}\n\n` +
       `Buka Admin > Pesanan: ${SITE_URL}/?admin=1`;
 
