@@ -892,74 +892,72 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
   const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const isAdmin = role === "admin";
   const status = p.status || "published";
-  const thumb = youtubeThumb(p.previewVideo);
+  const physical = p.productType === "physical";
+  const img = productImage(p);
+  const stock = physical ? productStockTotal(p) : null;
+  const soldOut = physical && stock === 0;
   const curriculum = curriculumData?.[p.id];
   const completedCount = (videoProgress?.[p.id] || []).length;
   const pct = curriculum ? Math.round((completedCount / curriculum.length) * 100) : null;
+  const [justAdded, setJustAdded] = useState(false);
+  const handleAdd = (e) => {
+    e.stopPropagation();
+    if (physical && (p.variants || []).length > 0) { onOpen(p.slug); return; }
+    if (onAdd(p.id, { silent: false })) { setJustAdded(true); setTimeout(() => setJustAdded(false), 1400); }
+  };
   return (
-    <Card style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div onClick={() => onOpen(p.slug)} style={{ cursor: "pointer", height: 148, background: thumb ? `center / cover no-repeat url(${thumb})` : `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", borderBottom: `1px solid ${C.border}` }}>
-        {!thumb && <Music size={36} color={p.hue} strokeWidth={1.3} />}
-        {owned ? (
-          <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="gold">Dimiliki</Badge></div>
-        ) : pending ? (
-          <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone="ember">Menunggu Pembayaran</Badge></div>
-        ) : p.badge && <div style={{ position: "absolute", top: 10, left: 10 }}><Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge></div>}
-        {!owned && !pending && disc > 0 && <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.55)", color: C.goldLight, fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>-{disc}%</div>}
+    <Card className="gs-product-card gs-card-hover" onClick={() => onOpen(p.slug)} style={{ overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
+      <div className="gs-pc-media" style={{ position: "relative", aspectRatio: physical ? "1 / 1" : "16 / 10", overflow: "hidden", background: `linear-gradient(135deg, ${p.hue || C.gold}33, ${C.surface2})` }}>
+        {img ? <div className="gs-pc-img" style={{ position: "absolute", inset: 0, background: `center / cover no-repeat url("${img}")` }} /> : (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{physical ? <Package size={40} color={p.hue || C.gold} strokeWidth={1.3} /> : <Music size={40} color={p.hue || C.gold} strokeWidth={1.3} />}</div>
+        )}
+        <div className="gs-pc-shine" />
+        <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {owned ? <Badge tone="gold">Dimiliki</Badge> : pending ? <Badge tone="ember" dot>Menunggu Bayar</Badge> : p.badge ? <Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge> : null}
+          {physical && !owned && <span style={{ padding: "4px 9px", borderRadius: 999, background: "rgba(0,0,0,0.55)", color: "#fff", fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, backdropFilter: "blur(6px)" }}>MERCH</span>}
+        </div>
+        {!owned && !pending && disc > 0 && !soldOut && <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg, #FF6B4A, #C1442A)", color: "#fff", fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, fontFamily: "'JetBrains Mono',monospace", boxShadow: "0 4px 12px rgba(193,68,42,0.35)" }}>-{disc}%</div>}
+        {!physical && !owned && p.previewVideo && <div className="gs-pc-play" style={{ position: "absolute", left: "50%", top: "50%", width: 48, height: 48, margin: "-24px 0 0 -24px", borderRadius: "50%", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}><Play size={20} color="#fff" fill="#fff" style={{ marginLeft: 2 }} /></div>}
+        {soldOut && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Manrope',sans-serif", fontWeight: 800, letterSpacing: 2, color: "#fff", fontSize: 14 }}>STOK HABIS</div>}
+        {owned && curriculum && (
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 4, background: "rgba(0,0,0,0.3)" }}><div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #F3D27A, #D4A94A)" }} /></div>
+        )}
       </div>
-      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
-        <span style={{ fontSize: 11, color: C.muted, fontFamily: "'Manrope',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{p.category}</span>
-        <h3 onClick={() => onOpen(p.slug)} style={{ cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 15.5, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1.35 }}>{p.name}</h3>
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
+        <span style={{ fontSize: 10.5, color: C.gold, fontFamily: "'Manrope',sans-serif", fontWeight: 800, textTransform: "uppercase", letterSpacing: 1 }}>{p.category || (physical ? "Merchandise" : "Kelas")}</span>
+        <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15.5, fontWeight: 800, color: C.text, margin: 0, lineHeight: 1.3 }}>{p.name}</h3>
         {p.reviews > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <StarRow rating={p.rating} />
-            <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Manrope',sans-serif" }}>{p.rating} ({p.reviews})</span>
+            <StarRow rating={p.rating} size={12} />
+            <span style={{ fontSize: 11.5, color: C.muted, fontFamily: "'Manrope',sans-serif" }}>{p.rating} ({p.reviews})</span>
           </div>
         )}
         {owned ? (
-          curriculum ? (
-            <div style={{ marginTop: "auto" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, height: 6, borderRadius: 999, background: C.surface2, overflow: "hidden" }}>
-                  <div style={{ width: `${pct}%`, height: "100%", background: C.gold, borderRadius: 999 }} />
-                </div>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: C.goldLight, whiteSpace: "nowrap" }}>{pct}%</span>
-              </div>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark }}>{completedCount}/{curriculum.length} video selesai</span>
-            </div>
-          ) : (
-            <div style={{ marginTop: "auto" }} />
-          )
+          <span style={{ marginTop: "auto", fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{curriculum ? `${completedCount}/${curriculum.length} video selesai · ${pct}%` : "Materi segera hadir"}</span>
         ) : pending ? (
-          <div style={{ marginTop: "auto" }}>
-            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Pesanan sedang diverifikasi</span>
-          </div>
+          <span style={{ marginTop: "auto", fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Pesanan sedang diverifikasi</span>
         ) : (
-          <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: C.goldLight }}>{rp(p.price)}</span>
-            {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
+          <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 17, color: C.goldLight }}>{rp(p.price)}</span>
+            {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
           </div>
         )}
-        <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
           {isAdmin ? (
             <>
               <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Eye}>Detail</GhostBtn>
-              {status === "archived" ? (
-                <Badge tone="muted">Diarsipkan</Badge>
-              ) : (
-                <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} title="Klik untuk ubah status">
-                  <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Publish" : "Draft"}</Badge>
-                </button>
+              {status === "archived" ? <Badge tone="muted">Arsip</Badge> : (
+                <button onClick={() => onToggleStatus && onToggleStatus(p.id)} className={`gs-switch ${status === "published" ? "on" : ""}`} title={status === "published" ? "Tampil — klik jadikan Draft" : "Draft — klik untuk tampilkan"} style={{ border: "none", cursor: "pointer" }}><span className="gs-switch-knob" /></button>
               )}
             </>
           ) : owned ? (
-            <PrimaryBtn small full onClick={() => onAccess(p)} icon={PlayCircle}>Akses Produk</PrimaryBtn>
+            <PrimaryBtn small full onClick={() => onAccess(p)} icon={Play}>{pct === 100 ? "Tonton Ulang" : completedCount > 0 ? "Lanjutkan" : "Mulai Belajar"}</PrimaryBtn>
           ) : pending ? (
-            <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Clock}>Menunggu Pembayaran</GhostBtn>
+            <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Clock}>Lihat Status</GhostBtn>
           ) : (
             <>
-              <GhostBtn small full onClick={() => onOpen(p.slug)}>Detail</GhostBtn>
-              <PrimaryBtn small full onClick={() => onAdd(p.id)} icon={ShoppingCart}>{inCart ? "Ditambahkan" : "Keranjang"}</PrimaryBtn>
+              <GhostBtn small full onClick={() => onOpen(p.slug)}>{physical ? "Lihat" : "Detail"}</GhostBtn>
+              <PrimaryBtn small full disabled={soldOut} onClick={handleAdd} icon={justAdded || (inCart && !physical) ? Check : ShoppingCart}>{justAdded ? "Masuk!" : inCart && !physical ? "Di Keranjang" : physical && (p.variants || []).length > 0 ? "Pilih" : "Keranjang"}</PrimaryBtn>
             </>
           )}
         </div>
@@ -1506,17 +1504,22 @@ function FaqItem({ q, a }) {
 function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, content, role, onToggleStatus }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("Terbaru");
+  const [kind, setKind] = useState("all");
   const isAdmin = role === "admin";
+  const visible = isAdmin ? products : products.filter((p) => (p.status || "published") === "published");
+  const hasMerch = visible.some((p) => p.productType === "physical");
 
   const filtered = useMemo(() => {
-    let list = isAdmin ? products.slice() : products.filter((p) => (p.status || "published") === "published");
+    let list = visible.slice();
+    if (kind !== "all") list = list.filter((p) => (kind === "physical" ? p.productType === "physical" : p.productType !== "physical"));
     list = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
     if (sort === "Harga Terendah") list = [...list].sort((a, b) => a.price - b.price);
     if (sort === "Harga Tertinggi") list = [...list].sort((a, b) => b.price - a.price);
     if (sort === "Terlaris") list = [...list].sort((a, b) => b.sold - a.sold);
     if (sort === "Rating") list = [...list].sort((a, b) => b.rating - a.rating);
     return list;
-  }, [q, sort, products, isAdmin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, sort, products, isAdmin, kind]);
 
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "36px 20px 60px" }}>
@@ -1535,6 +1538,13 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
         </select>
       </div>
 
+      {hasMerch && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {[["all", "Semua", Sparkles], ["digital", "Kelas Video", PlayCircle], ["physical", "Merchandise", Shirt]].map(([k, l, Icon]) => (
+            <button key={k} onClick={() => setKind(k)} className="gs-chip" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 999, border: `1px solid ${kind === k ? C.gold : C.border}`, background: kind === k ? `linear-gradient(135deg, #F3D27A, ${C.gold})` : C.surface, color: kind === k ? "#1A140A" : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 800, cursor: "pointer" }}><Icon size={14} />{l}</button>
+          ))}
+        </div>
+      )}
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 16 }}>{filtered.length} produk ditemukan</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }} className="gs-grid-3">
@@ -1546,7 +1556,156 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
 }
 
 /* ---------------- PRODUCT DETAIL ---------------- */
-function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus }) {
+/* ---------------- HALAMAN PRODUK MERCHANDISE (barang fisik) ---------------- */
+function MerchProductPage({ p, go, addToCart, products, testimonials, role, shipping, onToggleStatus }) {
+  const images = (p.images || []).length ? p.images : [];
+  const [imgIdx, setImgIdx] = useState(0);
+  const variants = p.variants || [];
+  const firstAvail = variants.find((v) => v.stock === null || v.stock === undefined || v.stock === "" || Number(v.stock) > 0);
+  const [variant, setVariant] = useState(variants.length === 1 ? variants[0].name : (firstAvail && variants.length <= 1 ? firstAvail.name : null));
+  const [qty, setQty] = useState(1);
+  const isAdmin = role === "admin";
+  const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+  const stockOf = (v) => (v ? v.stock : p.stock);
+  const chosen = variants.find((v) => v.name === variant) || null;
+  const avail = variants.length ? (chosen ? stockOf(chosen) : null) : p.stock;
+  const unlimited = avail === null || avail === undefined || avail === "";
+  const total = productStockTotal(p);
+  const soldOut = total === 0;
+  const reviews = testimonials[p.id] || [];
+  const related = products.filter((x) => x.productType === "physical" && x.id !== p.id && (isAdmin || (x.status || "published") === "published")).slice(0, 4);
+  const flat = Number(shipping?.flatFee) || 0;
+  const freeAbove = Number(shipping?.freeAbove) || 0;
+
+  const doAdd = (thenCheckout) => {
+    if (variants.length && !variant) { toast("Pilih varian dulu ya."); return; }
+    const ok = addToCart(p.id, { variant, qty, silent: thenCheckout });
+    if (ok && thenCheckout) go("checkout");
+  };
+
+  return (
+    <div style={{ maxWidth: 1180, margin: "0 auto", padding: "28px 20px 60px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginBottom: 20 }}>
+        <span onClick={() => go("home")} style={{ cursor: "pointer" }}>Beranda</span><ChevronRight size={12} />
+        <span onClick={() => go("shop")} style={{ cursor: "pointer" }}>Merchandise</span><ChevronRight size={12} />
+        <span style={{ color: C.text }}>{p.name}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 36, alignItems: "start" }} className="gs-hero-grid gs-anim-in">
+        <div>
+          <div className="gs-gallery-main" style={{ position: "relative", aspectRatio: "1 / 1", borderRadius: 24, overflow: "hidden", background: C.surface2, border: `1px solid ${C.borderSoft}` }}>
+            {images.length ? (
+              <img key={images[imgIdx]} src={images[imgIdx]} alt={p.name} className="gs-gallery-img" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${p.hue || C.gold}33, ${C.surface2})` }}><Package size={80} color={p.hue || C.gold} strokeWidth={1.2} /></div>
+            )}
+            {disc > 0 && !soldOut && <div style={{ position: "absolute", top: 14, left: 14 }}><Badge tone="ember">-{disc}%</Badge></div>}
+            {soldOut && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: 2 }}>STOK HABIS</span></div>}
+          </div>
+          {images.length > 1 && (
+            <div style={{ display: "flex", gap: 10, marginTop: 12, overflowX: "auto", paddingBottom: 4 }}>
+              {images.map((src, i) => (
+                <button key={src + i} onClick={() => setImgIdx(i)} className="gs-thumb-btn" style={{ width: 72, height: 72, flexShrink: 0, borderRadius: 14, overflow: "hidden", padding: 0, cursor: "pointer", border: `2px solid ${i === imgIdx ? C.gold : "transparent"}`, background: C.surface2, opacity: i === imgIdx ? 1 : 0.7 }}>
+                  <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ position: "sticky", top: 90 }}>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.4, textTransform: "uppercase", color: C.gold }}>{p.category || "Merchandise"}</span>
+          <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "8px 0 10px", lineHeight: 1.15 }}>{p.name}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {reviews.length > 0 && <StarRow rating={reviews.reduce((a, t) => a + t.rating, 0) / reviews.length} />}
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{reviews.length > 0 ? `${reviews.length} ulasan · ` : ""}{p.sold || 0} terjual</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 16 }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 30, color: C.goldLight }}>{rp(p.price)}</span>
+            {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 15, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
+          </div>
+
+          {variants.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 10 }}>Pilih varian{variant ? <span style={{ color: C.muted, fontWeight: 500 }}> · {variant}</span> : ""}</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {variants.map((v) => {
+                  const out = !(v.stock === null || v.stock === undefined || v.stock === "") && Number(v.stock) <= 0;
+                  const on = variant === v.name;
+                  return (
+                    <button key={v.name} disabled={out} onClick={() => { setVariant(v.name); setQty(1); }} className="gs-chip gs-variant" style={{ minWidth: 52, padding: "10px 16px", borderRadius: 14, border: `1.5px solid ${on ? C.gold : C.border}`, background: on ? `${C.gold}1C` : C.surface, color: out ? C.mutedDark : on ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, cursor: out ? "not-allowed" : "pointer", textDecoration: out ? "line-through" : "none", opacity: out ? 0.55 : 1 }}>{v.name}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 20, flexWrap: "wrap" }}>
+            <QtyStepper value={qty} max={unlimited ? 99 : Math.max(1, Number(avail))} onChange={(q) => setQty(Math.max(1, Math.min(unlimited ? 99 : Number(avail), q)))} />
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: soldOut ? C.emberLight : !unlimited && Number(avail) <= 5 ? C.ember : "#2E9A4E" }}>
+              {soldOut ? "Stok habis" : variants.length && !variant ? "Pilih varian untuk cek stok" : unlimited ? "Stok tersedia" : Number(avail) <= 0 ? "Varian ini habis" : Number(avail) <= 5 ? `Tinggal ${avail} lagi!` : `Stok ${avail}`}
+            </span>
+          </div>
+
+          {isAdmin ? (
+            <div style={{ marginTop: 22, padding: 14, borderRadius: 14, background: C.surface2, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span>Mode admin — pembelian dinonaktifkan.</span>
+              <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}><Badge tone={(p.status || "published") === "published" ? "gold" : "muted"}>{(p.status || "published") === "published" ? "Tampil" : "Draft"}</Badge></button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+              <div style={{ flex: 1 }}><PrimaryBtn full disabled={soldOut} onClick={() => doAdd(false)} icon={ShoppingCart}>Tambah ke Keranjang</PrimaryBtn></div>
+              <div style={{ flex: 1 }}><GhostBtn full disabled={soldOut} onClick={() => doAdd(true)}>Beli Sekarang</GhostBtn></div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14, background: C.surface2, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+              <Truck size={17} color={C.gold} style={{ flexShrink: 0 }} />
+              <span>Ongkir {flat > 0 ? <b style={{ color: C.text }}>{rp(flat)}</b> : <b style={{ color: C.text }}>gratis</b>} ke seluruh Indonesia{freeAbove > 0 && flat > 0 ? <> · <b style={{ color: C.gold }}>gratis ongkir</b> belanja min. {rp(freeAbove)}</> : ""}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14, background: C.surface2, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+              <ShieldCheck size={17} color={C.gold} style={{ flexShrink: 0 }} />
+              <span>Nomor resi dikirim ke dashboard-mu setelah paket dikirim.</span>
+            </div>
+          </div>
+
+          {p.desc && (
+            <div style={{ marginTop: 22 }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, margin: "0 0 8px" }}>Deskripsi</h3>
+              <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7 }} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {reviews.length > 0 && (
+        <div style={{ marginTop: 40 }}>
+          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>Ulasan Pembeli</h3>
+          <TestimonialSection productId={p.id} owned={false} reviews={reviews} onSubmit={() => {}} emptyLabel="" />
+        </div>
+      )}
+
+      {related.length > 0 && (
+        <div style={{ marginTop: 44 }}>
+          <h3 style={{ fontFamily: "'Manrope',sans-serif", fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 14 }}>Merchandise lainnya</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }} className="gs-grid-4">
+            {related.map((r) => (
+              <Card key={r.id} onClick={() => go("product", r.slug)} style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{ aspectRatio: "1 / 1", background: productImage(r) ? `center / cover no-repeat url("${productImage(r)}")` : C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}>{!productImage(r) && <Package size={34} color={C.gold} />}</div>
+                <div style={{ padding: 12 }}>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 13, color: C.goldLight, marginTop: 4 }}>{rp(r.price)}</div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping }) {
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const p = products.find((x) => x.slug === slug);
   if (!p) {
@@ -1557,7 +1716,10 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
       </div>
     );
   }
-  const related = products.filter((x) => x.category === p.category && x.id !== p.id && (role === "admin" || (x.status || "published") === "published")).slice(0, 3);
+  if (p.productType === "physical") {
+    return <MerchProductPage p={p} go={go} addToCart={addToCart} products={products} testimonials={testimonials} role={role} shipping={shipping} onToggleStatus={onToggleStatus} />;
+  }
+  const related = products.filter((x) => x.category === p.category && x.id !== p.id && x.productType !== "physical" && (role === "admin" || (x.status || "published") === "published")).slice(0, 3);
   const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const isAdmin = role === "admin";
   const showAdminControls = isAdmin && !previewBuyer;
@@ -1807,47 +1969,83 @@ function CouponBox({ subtotal, coupon, setCoupon, validateCoupon }) {
   );
 }
 
-function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, validateCoupon, calcDiscount }) {
-  const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
+// Ongkir tetap (diatur admin di Pengaturan → Pengiriman). Hanya berlaku kalau ada barang fisik.
+// Angka final tetap dihitung server saat pesanan dibuat.
+const calcShipping = (shipping, cartProducts, subtotalAfterDiscount) => {
+  if (!cartProducts.some((p) => p.productType === "physical")) return 0;
+  const fee = Number(shipping?.flatFee) || 0;
+  const free = Number(shipping?.freeAbove) || 0;
+  return free > 0 && subtotalAfterDiscount >= free ? 0 : fee;
+};
+
+function QtyStepper({ value, onChange, max }) {
+  const btn = { width: 30, height: 30, borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.surface2, borderRadius: 12, padding: 3 }}>
+      <button onClick={() => onChange(value - 1)} disabled={value <= 1} className="gs-icon-btn" style={{ ...btn, opacity: value <= 1 ? 0.4 : 1 }} aria-label="Kurangi"><Minus size={14} color={C.text} /></button>
+      <span key={value} className="gs-qty-num" style={{ minWidth: 22, textAlign: "center", fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 13.5, color: C.text }}>{value}</span>
+      <button onClick={() => onChange(value + 1)} disabled={max !== null && max !== undefined && value >= max} className="gs-icon-btn" style={{ ...btn, opacity: max !== null && max !== undefined && value >= max ? 0.4 : 1 }} aria-label="Tambah"><Plus size={14} color={C.text} /></button>
+    </div>
+  );
+}
+
+function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, coupon, setCoupon, validateCoupon, calcDiscount }) {
+  const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
   const discount = calcDiscount(subtotal, coupon);
-  const total = subtotal - discount;
+  const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
+  const hasPhysical = cartProducts.some((p) => p.productType === "physical");
+  const total = subtotal - discount + shipFee;
+  const freeAbove = Number(shipping?.freeAbove) || 0;
 
   return (
-    <div className="gs-anim-in" style={{ maxWidth: 900, margin: "0 auto", padding: "36px 20px 60px" }}>
+    <div className="gs-anim-in" style={{ maxWidth: 960, margin: "0 auto", padding: "36px 20px 60px" }}>
       <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 32, color: C.text, margin: "0 0 24px" }}>KERANJANG BELANJA</h1>
       {cartProducts.length === 0 ? (
-        <Card style={{ padding: 40, textAlign: "center" }}>
-          <ShoppingCart size={32} color={C.muted} style={{ margin: "0 auto" }} />
-          <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted, marginTop: 12 }}>Keranjang kamu masih kosong.</p>
-          <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("shop")}>Jelajahi Produk</PrimaryBtn></div>
+        <Card style={{ padding: 48, textAlign: "center" }}>
+          <div className="gs-float" style={{ width: 72, height: 72, margin: "0 auto", borderRadius: "50%", background: `${C.gold}18`, display: "flex", alignItems: "center", justifyContent: "center" }}><ShoppingCart size={30} color={C.gold} /></div>
+          <p style={{ fontFamily: "'Manrope',sans-serif", color: C.muted, marginTop: 16 }}>Keranjang kamu masih kosong.</p>
+          <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("shop")} icon={ArrowRight}>Jelajahi Produk</PrimaryBtn></div>
         </Card>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 24 }} className="gs-hero-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 24, alignItems: "start" }} className="gs-hero-grid">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {cartProducts.map((p, i) => (
-              <Reveal key={p.id} delay={i * 0.05}>
-                <Card style={{ padding: 14, display: "flex", gap: 14, alignItems: "center" }}>
-                  <div style={{ width: 64, height: 64, borderRadius: 14, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Music size={22} color={p.hue} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
-                    <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{p.category} · Qty 1 (produk digital)</div>
-                  </div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 14 }}>{rp(p.price)}</div>
-                  <button onClick={() => removeFromCart(p.id)} className="gs-icon-btn" style={{ background: "none", border: "none", cursor: "pointer" }}><Trash2 size={16} color={C.muted} /></button>
-                </Card>
-              </Reveal>
-            ))}
+            {cartProducts.map((p, i) => {
+              const physical = p.productType === "physical";
+              const max = physical ? ((p.variants || []).length ? p.variants.find((v) => v.name === p.variant)?.stock : p.stock) : 1;
+              return (
+                <Reveal key={p.cartKey} delay={i * 0.05}>
+                  <Card style={{ padding: 12, display: "flex", gap: 14, alignItems: "center" }}>
+                    <ProductThumb p={p} size={72} radius={14} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, marginTop: 2 }}>
+                        {physical ? <>{p.variant ? <b style={{ color: C.text }}>{p.variant}</b> : null}{p.variant ? " · " : ""}Dikirim ke alamatmu</> : "Kelas digital · akses selamanya"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                        {physical && <QtyStepper value={p.qty} max={max === "" ? null : max} onChange={(q) => updateCartQty(p.cartKey, q)} />}
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 14 }}>{rp(p.price * (p.qty || 1))}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => removeFromCart(p.cartKey)} className="gs-icon-btn" title="Hapus" style={{ background: C.surface2, border: "none", cursor: "pointer", width: 36, height: 36, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-start" }}><Trash2 size={15} color={C.muted} /></button>
+                  </Card>
+                </Reveal>
+              );
+            })}
           </div>
-          <div>
-            <Card style={{ padding: 18 }}>
+          <div style={{ position: "sticky", top: 90 }}>
+            <Card style={{ padding: 20 }}>
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>Ringkasan Pesanan</h3>
               <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text, fontWeight: 700 }}>Total</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight }}>{rp(total)}</span></div>
+                {discount > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon</span><span style={{ color: C.gold }}>-{rp(discount)}</span></div>}
+                {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
+                {hasPhysical && freeAbove > 0 && shipFee > 0 && (
+                  <div style={{ fontSize: 11.5, color: C.mutedDark, background: C.surface2, borderRadius: 10, padding: "8px 10px" }}>
+                    <Truck size={12} style={{ verticalAlign: -2, marginRight: 4 }} />Belanja {rp(freeAbove - (subtotal - discount))} lagi untuk <b style={{ color: C.text }}>gratis ongkir</b>.
+                  </div>
+                )}
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ color: C.text, fontWeight: 700 }}>Total</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 18, color: C.goldLight }}>{rp(total)}</span></div>
               </div>
               <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={() => go("checkout")} icon={ArrowRight}>Checkout</PrimaryBtn></div>
             </Card>
@@ -1859,11 +2057,14 @@ function CartPage({ go, cartProducts, removeFromCart, coupon, setCoupon, validat
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
-  const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
+function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCoupon, validateCoupon, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
+  const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
   const discount = calcDiscount(subtotal, coupon);
-  const total = subtotal - discount;
+  const hasPhysical = cartProducts.some((p) => p.productType === "physical");
+  const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
+  const total = subtotal - discount + shipFee;
   const [form, setForm] = useState({ name: account.name, phone: account.phone });
+  const [addr, setAddr] = useState(() => ({ name: account.name || "", phone: account.phone || "", address: "", city: "", province: "", postal: "", note: "", ...(savedAddress || {}) }));
   const activeMethods = (paymentMethods || []).filter((m) => m.enabled);
   const [methodId, setMethodId] = useState(null);
   useEffect(() => { if (!methodId && activeMethods.length > 0) setMethodId(activeMethods[0].id); }, [activeMethods.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1876,6 +2077,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, cle
     if (!form.name.trim() || !form.phone.trim()) { setError("Lengkapi nama dan nomor WhatsApp terlebih dahulu."); return; }
     if (form.phone.replace(/\D/g, "").length < 9) { setError("Nomor WhatsApp sepertinya belum benar."); return; }
     if (cartProducts.length === 0) { setError("Keranjang kosong."); return; }
+    if (hasPhysical && (!addr.name.trim() || !addr.phone.trim() || !addr.address.trim() || !addr.city.trim())) { setError("Lengkapi alamat pengiriman (nama penerima, nomor HP, alamat, kota)."); return; }
     if (!methodId) { setError("Pilih metode pembayaran terlebih dahulu."); return; }
     setError("");
     setSubmitting(true);
@@ -1892,6 +2094,7 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, cle
       // tercatat ke akun yang benar dan tidak bisa dipalsukan ke email orang lain.
       customerEmail: account.email,
       customerPhone: form.phone.trim(),
+      shippingAddress: hasPhysical ? Object.fromEntries(Object.entries(addr).map(([k, v]) => [k, String(v || "").trim()])) : null,
     });
     setSubmitting(false);
     if (!result.ok) { setError(result.error || "Gagal membuat pesanan. Coba lagi."); return; }
@@ -1917,6 +2120,37 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, cle
               <input value={account.email} disabled style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.mutedDark, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", cursor: "not-allowed" }} />
             </div>
           </Card>
+
+          {hasPhysical && (
+            <Card className="gs-anim-in" style={{ padding: 18, border: `1px solid ${C.gold}55` }}>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}><Truck size={17} color={C.gold} />Alamat Pengiriman</h3>
+              <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark, marginTop: -6 }}>Untuk merchandise di keranjangmu. Alamat ini tersimpan untuk belanja berikutnya.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="gs-grid-2">
+                {[["name", "Nama Penerima"], ["phone", "No. HP Penerima"]].map(([k, l]) => (
+                  <div key={k}>
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</label>
+                    <input value={addr[k]} onChange={(e) => setAddr({ ...addr, [k]: e.target.value })} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Alamat Lengkap (jalan, no. rumah, RT/RW, kelurahan, kecamatan)</label>
+                <textarea value={addr.address} onChange={(e) => setAddr({ ...addr, address: e.target.value })} rows={2} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box", resize: "vertical" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr 0.8fr", gap: 10, marginTop: 10 }} className="gs-grid-3">
+                {[["city", "Kota / Kabupaten"], ["province", "Provinsi"], ["postal", "Kode Pos"]].map(([k, l]) => (
+                  <div key={k}>
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</label>
+                    <input value={addr[k]} onChange={(e) => setAddr({ ...addr, [k]: e.target.value })} inputMode={k === "postal" ? "numeric" : undefined} style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Catatan untuk kurir (opsional)</label>
+                <input value={addr.note} onChange={(e) => setAddr({ ...addr, note: e.target.value })} placeholder="Mis. titip ke satpam" style={{ width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" }} />
+              </div>
+            </Card>
+          )}
 
           <Card style={{ padding: 18 }}>
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Metode Pembayaran</h3>
@@ -1945,8 +2179,10 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, cle
             <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 0 }}>Ringkasan Pesanan</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {cartProducts.map((p) => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
-                  <span style={{ color: C.muted }}>{p.name}</span><span style={{ color: C.text }}>{rp(p.price)}</span>
+                <div key={p.cartKey} style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
+                  <ProductThumb p={p} size={36} radius={10} />
+                  <span style={{ color: C.muted, flex: 1, minWidth: 0 }}>{p.name}{p.variant ? ` (${p.variant})` : ""}{p.qty > 1 ? ` ×${p.qty}` : ""}</span>
+                  <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5 }}>{rp(p.price * (p.qty || 1))}</span>
                 </div>
               ))}
             </div>
@@ -1954,10 +2190,11 @@ function CheckoutPage({ go, cartProducts, coupon, setCoupon, validateCoupon, cle
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon{coupon ? ` (${coupon.code})` : ""}</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
-              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight }}>{rp(total)}</span></div>
+              {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 18, color: C.goldLight }}>{rp(total)}</span></div>
             </div>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
-            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder}>{submitting ? "Memproses..." : "Buat Pesanan"}</PrimaryBtn></div>
+            <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder} loading={submitting} icon={ShieldCheck}>{submitting ? "Memproses..." : "Buat Pesanan"}</PrimaryBtn></div>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi pembayaran. Produk masuk ke akunmu setelah admin memverifikasi bukti transfer.</p>
           </Card>
         </div>
@@ -3749,6 +3986,24 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
         )}
       </div>
 
+      {merchForm && (
+        <MerchFormModal
+          initial={merchForm.id ? merchForm : null}
+          onClose={() => setMerchForm(null)}
+          onSubmit={async (data) => {
+            if (merchForm.id) {
+              await updateProduct(merchForm.id, { ...merchForm, ...data }, []);
+              toast.success("Merchandise diperbarui");
+            } else {
+              const created = await addProduct(data, []);
+              if (!created) return;
+              toast.success("Merchandise ditambahkan");
+            }
+            setMerchForm(null);
+          }}
+        />
+      )}
+
       {showYoutubeImport && (
         <YoutubeImportModal
           mode="create"
@@ -4125,6 +4380,203 @@ function YoutubeImportModal({ mode = "create", productName, onClose, onCreate, o
             </div>
           </div>
         )}
+      </Card>
+    </div>
+  );
+}
+
+/* ---------------- FORM MERCHANDISE (barang fisik) ---------------- */
+const MERCH_CATEGORIES = ["Pick", "Senar", "Gitar", "Aksesoris Gitar", "Kaos & Apparel", "Lainnya"];
+
+// Foto diperkecil dulu di HP/laptop admin (maks 1600px, JPEG) sebelum diupload — lebih hemat
+// kuota & halaman toko lebih cepat dibuka.
+const resizeImage = (file, max = 1600) => new Promise((resolve) => {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob((b) => { URL.revokeObjectURL(url); resolve(b || file); }, "image/jpeg", 0.86);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+  img.src = url;
+});
+const uploadProductImage = async (file) => {
+  const blob = await resizeImage(file);
+  const path = `p/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await supabase.storage.from("product-images").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+  if (error) throw error;
+  return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+};
+
+function MerchFormModal({ initial, onClose, onSubmit }) {
+  const isEdit = !!initial?.id;
+  const [name, setName] = useState(initial?.name || "");
+  const [category, setCategory] = useState(initial?.category && MERCH_CATEGORIES.includes(initial.category) ? initial.category : MERCH_CATEGORIES[0]);
+  const [price, setPrice] = useState(initial?.price ? String(initial.price) : "");
+  const [oldPrice, setOldPrice] = useState(initial?.oldPrice && initial.oldPrice !== initial.price ? String(initial.oldPrice) : "");
+  const [desc, setDesc] = useState(initial?.desc || "");
+  const [images, setImages] = useState(initial?.images || []);
+  const [useVariants, setUseVariants] = useState((initial?.variants || []).length > 0);
+  const [variants, setVariants] = useState(() => (initial?.variants || []).map((v, i) => ({ key: `v${i}-${v.name}`, name: v.name, stock: v.stock === null || v.stock === undefined ? "" : String(v.stock) })));
+  const [stock, setStock] = useState(initial?.stock === null || initial?.stock === undefined ? "" : String(initial.stock));
+  const [weight, setWeight] = useState(initial?.weightGrams ? String(initial.weightGrams) : "");
+  const [status, setStatus] = useState(initial?.status || "published");
+  const [uploading, setUploading] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const fileRef = useRef(null);
+
+  const field = { width: "100%", marginTop: 5, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 12, padding: "11px 13px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, boxSizing: "border-box" };
+  const label = { fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, fontWeight: 600 };
+
+  const onFiles = async (files) => {
+    const list = Array.from(files || []).filter((f) => f.type.startsWith("image/")).slice(0, 8);
+    if (!list.length) return;
+    setUploading((n) => n + list.length);
+    for (const f of list) {
+      try {
+        const url = await uploadProductImage(f);
+        setImages((prev) => [...prev, url]);
+      } catch (e) {
+        toast.error("Gagal upload foto: " + (e?.message || ""));
+      }
+      setUploading((n) => n - 1);
+    }
+  };
+
+  const submit = async () => {
+    if (!name.trim()) { setError("Nama produk wajib diisi."); return; }
+    if (!price || Number(price) <= 0) { setError("Harga wajib diisi."); return; }
+    const cleanVariants = useVariants ? variants.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), stock: v.stock === "" ? null : Math.max(0, Number(v.stock) || 0) })) : [];
+    if (useVariants && cleanVariants.length === 0) { setError("Isi minimal 1 varian, atau matikan pilihan varian."); return; }
+    if (new Set(cleanVariants.map((v) => v.name.toLowerCase())).size !== cleanVariants.length) { setError("Nama varian tidak boleh kembar."); return; }
+    setError(""); setSaving(true);
+    await onSubmit({
+      productType: "physical", name: name.trim(), category, level: "Semua Level",
+      price: Number(price), oldPrice: oldPrice ? Number(oldPrice) : Number(price), desc: desc.trim(), status,
+      images, variants: cleanVariants, stock: useVariants ? null : (stock === "" ? null : Math.max(0, Number(stock) || 0)),
+      weightGrams: weight ? Number(weight) : null, previewVideo: "", benefits: [], learn: [], bonus: "",
+      duration: "", format: "Merchandise",
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}>
+      <Card className="gs-modal" style={{ width: "100%", maxWidth: 640, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 10 }}><Shirt size={22} color={C.gold} />{isEdit ? "EDIT MERCHANDISE" : "MERCHANDISE BARU"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.muted} /></button>
+        </div>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: "0 0 18px" }}>Pick, senar, gitar, kaos & aksesoris. Stok berkurang otomatis saat pesanan ditandai lunas.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <span style={label}>Foto produk (foto pertama = sampul)</span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10, marginTop: 8 }}>
+              {images.map((src, i) => (
+                <div key={src} className="gs-anim-in" style={{ position: "relative", aspectRatio: "1 / 1", borderRadius: 14, overflow: "hidden", border: `2px solid ${i === 0 ? C.gold : C.borderSoft}`, background: C.surface2 }}>
+                  <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {i === 0 && <span style={{ position: "absolute", left: 6, bottom: 6 }}><Badge tone="gold">Sampul</Badge></span>}
+                  <div style={{ position: "absolute", top: 5, right: 5, display: "flex", gap: 4 }}>
+                    {i > 0 && <button title="Jadikan sampul" onClick={() => setImages((prev) => [src, ...prev.filter((x) => x !== src)])} style={{ width: 26, height: 26, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.6)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Star size={13} color="#F3D27A" /></button>}
+                    <button title="Hapus foto" onClick={() => setImages((prev) => prev.filter((x) => x !== src))} style={{ width: 26, height: 26, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.6)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} color="#fff" /></button>
+                  </div>
+                </div>
+              ))}
+              {Array.from({ length: uploading }).map((_, i) => <div key={`up${i}`} className="gs-skeleton" style={{ aspectRatio: "1 / 1", borderRadius: 14 }} />)}
+              <button onClick={() => fileRef.current?.click()} className="gs-upload-tile" style={{ aspectRatio: "1 / 1", borderRadius: 14, border: `1.5px dashed ${C.gold}88`, background: `${C.gold}0D`, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, fontWeight: 700 }}>
+                <ImagePlus size={22} />Tambah foto
+              </button>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+          </div>
+
+          <div>
+            <span style={label}>Nama Produk</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Pick Gitar Sakti 0.73mm (isi 5)" style={field} />
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 150 }}>
+              <span style={label}>Kategori</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} style={field}>{MERCH_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <span style={label}>Harga Jual (Rp)</span>
+              <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="35000" style={{ ...field, fontFamily: "'JetBrains Mono',monospace" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <span style={label}>Harga Coret (ops.)</span>
+              <input type="number" min="0" value={oldPrice} onChange={(e) => setOldPrice(e.target.value)} placeholder="50000" style={{ ...field, fontFamily: "'JetBrains Mono',monospace" }} />
+            </div>
+          </div>
+
+          <div style={{ padding: 14, borderRadius: 16, background: C.surface2, border: `1px solid ${C.borderSoft}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, color: C.text }}>Punya varian?</div>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Ukuran kaos (S/M/L), ketebalan pick, warna, dll — stok per varian.</div>
+              </div>
+              <button onClick={() => { setUseVariants((v) => !v); if (!variants.length) setVariants([{ key: `v${Date.now()}`, name: "", stock: "" }]); }} className={`gs-switch ${useVariants ? "on" : ""}`} style={{ border: "none", cursor: "pointer" }}><span className="gs-switch-knob" /></button>
+            </div>
+            {useVariants ? (
+              <div style={{ marginTop: 12 }}>
+                <SortableList
+                  items={variants}
+                  getKey={(v) => v.key}
+                  gap={8}
+                  onReorder={setVariants}
+                  renderItem={(v) => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.surface, borderRadius: 12, padding: "6px 8px 6px 2px", border: `1px solid ${C.border}` }}>
+                      <DragHandle size={16} />
+                      <input value={v.name} onChange={(e) => setVariants((prev) => prev.map((x) => (x.key === v.key ? { ...x, name: e.target.value } : x)))} placeholder="Nama varian (mis. L)" style={{ ...field, marginTop: 0, flex: 2, minWidth: 0, padding: "9px 11px" }} />
+                      <input type="number" min="0" value={v.stock} onChange={(e) => setVariants((prev) => prev.map((x) => (x.key === v.key ? { ...x, stock: e.target.value } : x)))} placeholder="Stok" title="Kosongkan = tidak dibatasi" style={{ ...field, marginTop: 0, flex: 1, minWidth: 0, padding: "9px 11px", fontFamily: "'JetBrains Mono',monospace" }} />
+                      <button onClick={() => setVariants((prev) => prev.filter((x) => x.key !== v.key))} title="Hapus varian" style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}><Trash2 size={15} color={C.mutedDark} /></button>
+                    </div>
+                  )}
+                />
+                <div style={{ marginTop: 10 }}><GhostBtn small icon={Plus} onClick={() => setVariants((prev) => [...prev, { key: `v${Date.now()}`, name: "", stock: "" }])}>Tambah Varian</GhostBtn></div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12, maxWidth: 220 }}>
+                <span style={label}>Stok (kosongkan = tidak dibatasi)</span>
+                <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="∞" style={{ ...field, fontFamily: "'JetBrains Mono',monospace" }} />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <span style={label}>Deskripsi</span>
+            <div style={{ marginTop: 5 }}><RichTextEditor value={desc} onChange={setDesc} rows={4} placeholder="Bahan, ukuran, isi paket, cara perawatan..." /></div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 150 }}>
+              <span style={label}>Berat (gram, opsional)</span>
+              <input type="number" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="200" style={{ ...field, fontFamily: "'JetBrains Mono',monospace" }} />
+            </div>
+            <div style={{ flex: 1.4, minWidth: 200 }}>
+              <span style={label}>Status</span>
+              <div style={{ display: "flex", gap: 6, marginTop: 5, background: C.surface2, borderRadius: 12, padding: 4 }}>
+                {[["published", "Tampil di toko"], ["draft", "Draft"]].map(([k, l]) => (
+                  <button key={k} onClick={() => setStatus(k)} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: status === k ? C.surface : "transparent", boxShadow: status === k ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: status === k ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer", transition: "all .25s ease" }}>{l}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.emberLight, margin: 0 }}>{error}</p>}
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <GhostBtn full onClick={onClose}>Batal</GhostBtn>
+            <PrimaryBtn full onClick={submit} loading={saving} disabled={uploading > 0} icon={Check}>{uploading > 0 ? "Menunggu upload..." : isEdit ? "Simpan Perubahan" : "Simpan Produk"}</PrimaryBtn>
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -6835,6 +7287,8 @@ export default function App() {
     badge: row.badge, duration: row.duration, format: row.format, hue: row.hue,
     desc: row.description, benefits: row.benefits || [], learn: row.learn_points || [],
     bonus: row.bonus, previewVideo: row.preview_video || "", pricingTiers: row.pricing_tiers, status: row.status,
+    productType: row.product_type || "digital", stock: row.stock ?? null, variants: Array.isArray(row.variants) ? row.variants : [],
+    images: Array.isArray(row.images) ? row.images : [], weightGrams: row.weight_grams ?? null,
   });
   const mapCouponRow = (row) => ({
     code: row.code, type: row.type, value: row.value, minPurchase: row.min_purchase,
@@ -6860,6 +7314,12 @@ export default function App() {
     proofNote: row.proof_note,
     proofSubmittedAt: row.proof_submitted_at ? formatDateID(new Date(row.proof_submitted_at)) : null,
     paymentMethodId: row.payment_method_id || null,
+    lines: (row.items || []).map((it) => ({ id: it.id, name: it.name, price: it.price, qty: it.qty || 1, variant: it.variant || null, type: it.type || null })),
+    subtotal: row.subtotal,
+    shippingFee: row.shipping_fee || 0,
+    shippingAddress: row.shipping_address || null,
+    fulfillmentStatus: row.fulfillment_status || null,
+    trackingNumber: row.tracking_number || null,
   });
   const mapPaymentMethodRow = (row) => ({
     id: row.id, type: row.type, label: row.label, icon: row.icon, enabled: row.enabled, sortOrder: row.sort_order,
@@ -7335,13 +7795,15 @@ export default function App() {
   // PENTING: orders sudah otomatis terbatas ke milik customer yang login (lewat RLS di database),
   // jadi tidak perlu filter manual lagi di sini — beda dengan versi localStorage sebelumnya yang
   // rawan bocor data antar-customer kalau lupa difilter.
+  // Hanya produk DIGITAL yang "dimiliki" (akses materi). Barang fisik bisa dibeli berulang kali.
+  const physicalIds = new Set(products.filter((p) => p.productType === "physical").map((p) => p.id));
   const ownedIds = role === "customer" ? Array.from(new Set(
-    orders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter(Boolean)
+    orders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter((id) => id && !physicalIds.has(id))
   )) : [];
   // Produk yang sedang menunggu verifikasi pembayaran (belum PAID, belum juga Gagal) —
   // dipakai untuk mencegah customer checkout ganda untuk produk yang sama.
   const pendingIds = role === "customer" ? Array.from(new Set(
-    orders.filter((o) => o.payment === "Pending").flatMap((o) => o.itemIds).filter((id) => id && !ownedIds.includes(id))
+    orders.filter((o) => o.payment === "Pending").flatMap((o) => o.itemIds).filter((id) => id && !physicalIds.has(id) && !ownedIds.includes(id))
   )) : [];
   // Begitu admin memverifikasi pembayaran (pesanan jadi PAID lewat realtime), materi produk itu
   // langsung dimuat — member tidak perlu refresh halaman.
@@ -7354,7 +7816,9 @@ export default function App() {
     setPreAuthView({ view, slug: productSlug });
     go("auth");
   };
-  const addToCart = (id) => {
+  // Isi keranjang: [{ key, id, variant, qty }]. Produk digital selalu qty 1; barang fisik boleh
+  // beberapa buah & per varian (mis. Kaos L x2 + Kaos M x1).
+  const addToCart = (id, opts = {}) => {
     if (!role) {
       const prod = products.find((pr) => pr.id === id);
       setRedirectAfterAuth(prod ? { view: "product", slug: prod.slug } : null);
@@ -7363,11 +7827,37 @@ export default function App() {
       return false;
     }
     if (role === "admin") { toast("Akun admin tidak bisa membeli. Gunakan akun customer untuk uji coba pembelian."); return false; }
-    if (ownedIds.includes(id) || pendingIds.includes(id)) return false;
-    setCart((c) => (c.includes(id) ? c : [...c, id]));
     const prod = products.find((pr) => pr.id === id);
-    if (prod) trackEvent("AddToCart", { content_ids: [String(id)], content_name: prod.name, value: prod.price, currency: "IDR" });
+    if (!prod) return false;
+    if (prod.productType === "physical") {
+      const hasVariants = (prod.variants || []).length > 0;
+      const variant = opts.variant || null;
+      if (hasVariants && !variant) { go("product", prod.slug); toast("Pilih varian dulu ya (ukuran / tipe)."); return false; }
+      const avail = hasVariants ? (prod.variants.find((v) => v.name === variant)?.stock ?? null) : prod.stock;
+      const key = `${id}|${variant || ""}`;
+      const qty = Math.max(1, Number(opts.qty) || 1);
+      const inCartQty = cart.find((e) => e.key === key)?.qty || 0;
+      if (avail !== null && avail !== undefined && avail !== "" && inCartQty + qty > Number(avail)) {
+        toast.error(Number(avail) <= 0 ? "Stok habis." : `Stok tersisa ${avail}.`);
+        return false;
+      }
+      setCart((c) => (c.some((e) => e.key === key) ? c.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...c, { key, id, variant, qty }]));
+      if (!opts.silent) toast.success(`${prod.name}${variant ? ` (${variant})` : ""} masuk keranjang`);
+    } else {
+      if (ownedIds.includes(id) || pendingIds.includes(id)) return false;
+      setCart((c) => (c.some((e) => e.id === id) ? c : [...c, { key: `${id}|`, id, variant: null, qty: 1 }]));
+    }
+    trackEvent("AddToCart", { content_ids: [String(id)], content_name: prod.name, value: prod.price, currency: "IDR" });
     return true;
+  };
+  const updateCartQty = (key, qty) => {
+    const entry = cart.find((e) => e.key === key);
+    const prod = entry && products.find((p) => p.id === entry.id);
+    if (!prod) return;
+    const avail = (prod.variants || []).length > 0 ? prod.variants.find((v) => v.name === entry.variant)?.stock : prod.stock;
+    let q = Math.max(1, Math.min(99, Number(qty) || 1));
+    if (avail !== null && avail !== undefined && avail !== "" && q > Number(avail)) { q = Math.max(1, Number(avail)); toast(`Stok tersisa ${avail}.`); }
+    setCart((c) => c.map((e) => (e.key === key ? { ...e, qty: q } : e)));
   };
   const goOrAuth = (target, slug) => {
     if (!role) { setRedirectAfterAuth({ view: target, slug }); setPreAuthView({ view, slug: productSlug }); go("auth"); return; }
@@ -7399,7 +7889,7 @@ export default function App() {
     else go("home");
   };
   const accessProduct = (p) => {
-    if (curriculumData[p.id] && curriculumData[p.id].length > 0) { go("learn", p.slug); return; }
+    if (curriculumData[p.id] && curriculumData[p.id].length > 0) { resumeLesson(p); return; }
     // Produk tanpa video (mis. bundle atau ebook) belum punya halaman materinya sendiri.
     // Sebelumnya tombol ini diam-diam mengarahkan kembali ke halaman produk yang sama,
     // yang tampak seperti tidak berfungsi karena tidak ada perubahan tampilan.
@@ -7435,19 +7925,21 @@ export default function App() {
       .sort((a, b) => (b.at - a.at) || (a.pct === 100) - (b.pct === 100))
     : [];
 
-  const removeFromCart = (id) => {
-    setCart((c) => c.filter((x) => x !== id));
-    setCartPrices((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  const removeFromCart = (key) => {
+    const entry = cart.find((e) => e.key === key || e.id === key);
+    if (!entry) return;
+    setCart((c) => c.filter((e) => e.key !== entry.key));
+    if (!cart.some((e) => e.id === entry.id && e.key !== entry.key)) setCartPrices((prev) => { const n = { ...prev }; delete n[entry.id]; return n; });
   };
   const clearCart = () => { setCart([]); setCartPrices({}); setCoupon(null); };
 
   // Harga, diskon & total yang dikirim di sini hanya "permintaan" — database (trigger
   // orders_before_insert) menghitung ulang semuanya dari harga produk & kupon asli, jadi tidak
   // bisa dimanipulasi dari browser. "lp" = slug landing page asal (untuk harga promo).
-  const addOrder = async ({ cartProducts, total, discount, couponCode, method, paymentMethodId, customerName, customerEmail, customerPhone }) => {
+  const addOrder = async ({ cartProducts, total, discount, couponCode, method, paymentMethodId, customerName, customerEmail, customerPhone, shippingAddress }) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan, silakan masuk ulang." };
-    const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price, ...(p.lpSlug ? { lp: p.lpSlug } : {}) }));
-    const subtotal = cartProducts.reduce((s, p) => s + p.price, 0);
+    const items = cartProducts.map((p) => ({ id: p.id, name: p.name, price: p.price, qty: p.qty || 1, ...(p.variant ? { variant: p.variant } : {}), ...(p.lpSlug ? { lp: p.lpSlug } : {}) }));
+    const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
     const { data, error } = await supabase.from("orders").insert({
       customer_id: session.user.id,
       customer_name: customerName,
@@ -7455,6 +7947,7 @@ export default function App() {
       customer_phone: customerPhone,
       items, subtotal, discount, coupon_code: couponCode, total,
       payment: "Pending", status: "Menunggu Pembayaran", method, payment_method_id: paymentMethodId || null,
+      ...(shippingAddress ? { shipping_address: shippingAddress } : {}),
     }).select().single();
     if (error) return { ok: false, error: error.message };
     // Simpan juga nomor WA terbaru ke profil supaya checkout berikutnya otomatis terisi.
@@ -7462,7 +7955,13 @@ export default function App() {
       supabase.from("profiles").update({ phone: customerPhone }).eq("id", session.user.id).then(() => {});
       setProfile((prev) => (prev ? { ...prev, phone: customerPhone } : prev));
     }
+    // Alamat terakhir disimpan di profil supaya belanja merchandise berikutnya tinggal klik.
+    if (shippingAddress) {
+      supabase.from("profiles").update({ address: shippingAddress }).eq("id", session.user.id).then(() => {});
+      setProfile((prev) => (prev ? { ...prev, address: shippingAddress } : prev));
+    }
     await fetchOrders();
+    fetchProducts(); // stok terbaru
     sendOrderEmail(data.id, "created");
     sendTelegramNotify(data.id, "created");
     trackEvent("InitiateCheckout", { value: data.total, currency: "IDR", content_ids: items.map((i) => String(i.id)) });
@@ -7541,12 +8040,15 @@ export default function App() {
     setCustomerSub("overview");
     go("customer");
   };
-  const cartProducts = cart.map((id) => {
-    const p = products.find((x) => x.id === id);
+  const cartProducts = cart.map((e) => {
+    const p = products.find((x) => x.id === e.id);
     if (!p) return null;
-    const o = cartPrices[id];
-    return o ? { ...p, price: o.price, oldPrice: o.oldPrice, lpSlug: o.lpSlug } : p;
+    const o = p.productType !== "physical" ? cartPrices[e.id] : null;
+    const base = { ...p, cartKey: e.key, variant: e.variant, qty: p.productType === "physical" ? e.qty : 1 };
+    return o ? { ...base, price: o.price, oldPrice: o.oldPrice, lpSlug: o.lpSlug } : base;
   }).filter(Boolean);
+  const cartIds = cart.map((e) => e.id);
+  const cartCount = cart.reduce((sum, e) => sum + (e.qty || 1), 0);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
   const addProduct = async (data, items = []) => {
@@ -7558,10 +8060,12 @@ export default function App() {
     const { data: inserted, error } = await supabase.from("products").insert({
       slug, name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, rating: 0, reviews: 0, sold: 0,
-      badge: "New", duration: data.duration || `${videoCount} video`, format: data.format || "Video Course",
+      badge: "New", duration: data.productType === "physical" ? "" : (data.duration || `${videoCount} video`), format: data.format || "Video Course",
       hue: data.hue || "#C9A24B", description: data.desc || "", benefits: data.benefits || [], learn_points: data.learn || [],
       bonus: data.bonus || "", status: data.status || "draft", preview_video: data.previewVideo || "",
       sort_order: products.length,
+      product_type: data.productType === "physical" ? "physical" : "digital",
+      ...(data.productType === "physical" ? { stock: data.stock ?? null, variants: data.variants || [], images: data.images || [], weight_grams: data.weightGrams ?? null } : {}),
     }).select().single();
     if (error) { toast.error("Gagal menambah produk: " + error.message); return null; }
     if (items && items.length > 0) {
@@ -7583,6 +8087,9 @@ export default function App() {
       status: data.status || "published", preview_video: data.previewVideo || "",
       benefits: data.benefits || [], learn_points: data.learn || [], bonus: data.bonus || "",
     };
+    if (data.productType === "physical") {
+      Object.assign(payload, { stock: data.stock ?? null, variants: data.variants || [], images: data.images || [], weight_grams: data.weightGrams ?? null });
+    }
     if (videoCount > 0) payload.duration = `${videoCount} video`;
     const { error } = await supabase.from("products").update(payload).eq("id", id);
     if (error) { toast.error("Gagal menyimpan produk: " + error.message); return; }
@@ -7836,6 +8343,28 @@ export default function App() {
         .gs-lesson-row:hover { background: ${C.surface2}; }
         .gs-lesson-row:active { transform: scale(.98); }
 
+        .gs-qty-num { animation: gsPopIn .3s var(--gs-spring) both; }
+        .gs-float { animation: gsFloat 3.2s ease-in-out infinite; }
+        @keyframes gsFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+        .gs-gallery-img { animation: gsFadeIn .45s var(--gs-ease) both; transition: transform .8s var(--gs-ease); }
+        .gs-gallery-main:hover .gs-gallery-img { transform: scale(1.06); }
+        .gs-thumb-btn { transition: opacity .2s ease, border-color .2s ease, transform .2s var(--gs-spring); }
+        .gs-thumb-btn:hover { opacity: 1 !important; transform: translateY(-2px); }
+        .gs-variant:not(:disabled):active { transform: scale(.94); }
+
+        /* kartu produk */
+        .gs-pc-img { transition: transform .9s var(--gs-ease); }
+        .gs-product-card:hover .gs-pc-img { transform: scale(1.08); }
+        .gs-pc-shine { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.35) 48%, transparent 66%); transform: translateX(-120%); transition: transform 1s var(--gs-ease); pointer-events: none; }
+        .gs-product-card:hover .gs-pc-shine { transform: translateX(120%); }
+        .gs-pc-play { transition: transform .4s var(--gs-spring), background .3s ease; }
+        .gs-product-card:hover .gs-pc-play { transform: scale(1.15); background: rgba(212,169,74,0.85) !important; }
+
+        .gs-modal { animation: gsPopIn .4s var(--gs-spring) both; }
+        .gs-upload-tile { transition: background .25s ease, transform .25s var(--gs-spring); }
+        .gs-upload-tile:hover { background: ${C.gold}1F !important; transform: translateY(-2px); }
+
         /* sakelar on/off */
         .gs-switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: ${C.border}; transition: background .3s var(--gs-ease); padding: 0; flex-shrink: 0; }
         .gs-switch.on { background: linear-gradient(135deg, #F3D27A, ${C.gold}); }
@@ -7898,16 +8427,16 @@ export default function App() {
       `}</style>
 
       <ToastHost />
-      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cart.length} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
+      {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cartCount} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
-      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} />}
-      {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
+      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} shipping={siteContent.shipping} />}
+      {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} updateCartQty={updateCartQty} shipping={siteContent.shipping} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
-          <CheckoutPage go={go} cartProducts={cartProducts} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} paymentMethods={paymentMethods} />
+          <CheckoutPage go={go} cartProducts={cartProducts} shipping={siteContent.shipping} savedAddress={profile?.address} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} clearCart={clearCart} addOrder={addOrder} calcDiscount={calcDiscount} goToPaymentConfirm={goToPaymentConfirm} account={currentAccount} paymentMethods={paymentMethods} />
         ) : (
           <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Sesi kamu sudah berakhir. Silakan masuk kembali.</p>
@@ -7921,7 +8450,7 @@ export default function App() {
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
       {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
-      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cart} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
+      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
           <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} onCancelOrder={cancelOrder} continueItems={continueItems} onResume={resumeLesson} />
