@@ -9,7 +9,7 @@ import {
   Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon
 } from "lucide-react";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar,
 } from "recharts";
 
@@ -2749,7 +2749,7 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
-function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, moveProduct, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, movePaymentMethod, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
@@ -2777,14 +2777,73 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
     { key: "settings", label: "Pengaturan", icon: Settings },
   ];
 
-  const paidOrders = orders.filter((o) => o.payment === "PAID");
+  // ---- Filter periode Ringkasan: Hari Ini / Minggu Ini / Bulan Ini / Tahun Ini / Semua ----
+  // Semua angka, grafik & produk terlaris di Ringkasan mengikuti periode yang dipilih.
+  const [period, setPeriod] = useState("month");
+  const [periodVisits, setPeriodVisits] = useState(null);
+  const periodStart = (() => {
+    const n = new Date();
+    if (period === "today") return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    if (period === "week") {
+      const d = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // mulai hari Senin
+      return d;
+    }
+    if (period === "month") return new Date(n.getFullYear(), n.getMonth(), 1);
+    if (period === "year") return new Date(n.getFullYear(), 0, 1);
+    return null; // semua
+  })();
+  const periodStartKey = periodStart ? periodStart.getTime() : 0;
+  useEffect(() => {
+    if (sub !== "overview" || !countVisitsSince) return;
+    let active = true;
+    setPeriodVisits(null);
+    countVisitsSince(periodStart).then((c) => { if (active) setPeriodVisits(c); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodStartKey, sub]);
+  const inPeriod = (iso) => !periodStart || (iso && new Date(iso) >= periodStart);
+  const periodOrders = orders.filter((o) => inPeriod(o.createdAt));
+  const paidOrders = periodOrders.filter((o) => o.payment === "PAID");
   const totalRevenue = paidOrders.reduce((s, o) => s + o.total, 0);
-  const uniqueCustomers = Array.from(new Set(orders.map((o) => o.customerEmail).filter(Boolean)));
-  const revenueByDate = {};
-  paidOrders.forEach((o) => {
-    revenueByDate[o.date] = (revenueByDate[o.date] || 0) + o.total;
-  });
-  const revenueChartData = Object.entries(revenueByDate).map(([day, revenue]) => ({ day, revenue }));
+  const periodMembers = (members || []).filter((m) => m.role !== "admin" && inPeriod(m.created_at));
+  const visitsShown = periodVisits ?? (period === "all" ? totalVisits : null);
+
+  // Grafik: per jam (hari ini), per hari (minggu/bulan ini), per bulan (tahun ini / semua).
+  // Slot tanpa penjualan tetap tampil sebagai 0 supaya tren terbaca jujur, urut dari lama ke baru.
+  const revenueChartData = (() => {
+    const now = new Date();
+    const buckets = [];
+    if (period === "today") {
+      for (let h = 0; h <= now.getHours(); h++) buckets.push({ key: `h${h}`, day: `${String(h).padStart(2, "0")}:00`, revenue: 0 });
+    } else if (period === "week" || period === "month") {
+      const d = new Date(periodStart);
+      while (d <= now) {
+        buckets.push({ key: `d${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`, day: `${d.getDate()} ${MONTHS_ID[d.getMonth()]}`, revenue: 0 });
+        d.setDate(d.getDate() + 1);
+      }
+    } else {
+      const first = period === "year"
+        ? new Date(now.getFullYear(), 0, 1)
+        : (paidOrders.length ? new Date(Math.min(...paidOrders.map((o) => new Date(o.createdAt).getTime()))) : new Date(now.getFullYear(), now.getMonth(), 1));
+      const d = new Date(first.getFullYear(), first.getMonth(), 1);
+      while (d <= now) {
+        buckets.push({ key: `m${d.getFullYear()}-${d.getMonth()}`, day: `${MONTHS_ID[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, revenue: 0 });
+        d.setMonth(d.getMonth() + 1);
+      }
+    }
+    const idx = Object.fromEntries(buckets.map((b, i) => [b.key, i]));
+    paidOrders.forEach((o) => {
+      const t = new Date(o.createdAt);
+      const key = period === "today" ? `h${t.getHours()}`
+        : (period === "week" || period === "month") ? `d${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`
+        : `m${t.getFullYear()}-${t.getMonth()}`;
+      if (idx[key] !== undefined) buckets[idx[key]].revenue += o.total;
+    });
+    return buckets;
+  })();
+  const periodLabel = { today: "Hari Ini", week: "Minggu Ini", month: "Bulan Ini", year: "Tahun Ini", all: "Semua Waktu" }[period];
+  const chartTitle = period === "today" ? "Omzet per Jam — Hari Ini" : (period === "week" || period === "month") ? `Omzet per Hari — ${periodLabel}` : `Omzet per Bulan — ${periodLabel}`;
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
@@ -2802,36 +2861,41 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
 
         {sub === "overview" && (
           <div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+              {[["today", "Hari Ini"], ["week", "Minggu Ini"], ["month", "Bulan Ini"], ["year", "Tahun Ini"], ["all", "Semua"]].map(([k, l]) => (
+                <button key={k} onClick={() => setPeriod(k)} style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${period === k ? C.gold : C.border}`, background: period === k ? C.surface2 : "transparent", color: period === k ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+              ))}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }} className="gs-grid-4">
-              <StatCard label="Total Revenue" value={rp(totalRevenue)} icon={DollarSign} />
-              <StatCard label="Total Orders" value={String(orders.length)} icon={ClipboardList} />
-              <StatCard label="Total Order Berhasil" value={String(paidOrders.length)} icon={Check} />
-              <StatCard label="Total Kunjungan Web" value={String(totalVisits)} icon={Eye} />
-              <StatCard label="Member Terdaftar" value={String((members || []).filter((m) => m.role !== "admin").length || uniqueCustomers.length)} icon={Users} />
-              <StatCard label="Conversion Rate" value={totalVisits > 0 ? ((paidOrders.length / totalVisits) * 100).toFixed(1) + "%" : "-"} icon={TrendingUp} />
+              <StatCard label={`Omzet (Lunas) · ${periodLabel}`} value={rp(totalRevenue)} icon={DollarSign} />
+              <StatCard label={`Pesanan Masuk · ${periodLabel}`} value={String(periodOrders.length)} icon={ClipboardList} />
+              <StatCard label={`Pesanan Lunas · ${periodLabel}`} value={String(paidOrders.length)} icon={Check} />
+              <StatCard label={`Kunjungan Web · ${periodLabel}`} value={visitsShown === null ? "…" : String(visitsShown)} icon={Eye} />
+              <StatCard label={`Member Baru · ${periodLabel}`} value={String(periodMembers.length)} icon={Users} />
+              <StatCard label={`Konversi · ${periodLabel}`} value={visitsShown > 0 ? ((paidOrders.length / visitsShown) * 100).toFixed(1) + "%" : "-"} icon={TrendingUp} />
             </div>
             <Card style={{ padding: 18, marginTop: 20 }}>
-              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>Revenue per Hari</h3>
-              {revenueChartData.length === 0 ? (
-                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, marginTop: 12, marginBottom: 4 }}>Belum ada transaksi tercatat.</p>
+              <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, marginTop: 0 }}>{chartTitle}</h3>
+              {paidOrders.length === 0 ? (
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, marginTop: 12, marginBottom: 4 }}>Belum ada pesanan lunas pada periode ini.</p>
               ) : (
                 <div style={{ height: 220, marginTop: 8 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={revenueChartData}>
-                      <CartesianGrid stroke={C.border} strokeDasharray="3 3" />
-                      <XAxis dataKey="day" stroke={C.muted} fontSize={11} />
-                      <YAxis stroke={C.muted} fontSize={11} tickFormatter={(v) => (v / 1000).toFixed(0) + "rb"} />
-                      <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} formatter={(v) => rp(v)} />
-                      <Line type="monotone" dataKey="revenue" stroke={C.gold} strokeWidth={2.5} dot={{ r: 3, fill: C.gold }} />
-                    </LineChart>
+                    <BarChart data={revenueChartData}>
+                      <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" stroke={C.muted} fontSize={11} tickLine={false} />
+                      <YAxis stroke={C.muted} fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => (v >= 1000000 ? (v / 1000000).toFixed(1) + "jt" : (v / 1000).toFixed(0) + "rb")} />
+                      <Tooltip cursor={{ fill: `${C.gold}14` }} contentStyle={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, fontFamily: "Manrope", fontSize: 12 }} formatter={(v) => [rp(v), "Omzet"]} />
+                      <Bar dataKey="revenue" fill={C.gold} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </Card>
-            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 24, marginBottom: 12 }}>Produk Terlaris</h3>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, marginTop: 24, marginBottom: 12 }}>Produk Terlaris · {periodLabel}</h3>
             {(() => {
               const salesCount = {};
-              orders.filter((o) => o.payment === "PAID").forEach((o) => {
+              paidOrders.forEach((o) => {
                 o.items.forEach((itemName) => {
                   salesCount[itemName] = (salesCount[itemName] || 0) + 1;
                 });
@@ -2840,7 +2904,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               if (ranked.length === 0) {
                 return (
                   <Card style={{ padding: 24, textAlign: "center" }}>
-                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada penjualan tercatat.</p>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada penjualan pada periode ini.</p>
                   </Card>
                 );
               }
@@ -6386,6 +6450,7 @@ export default function App() {
     customerEmail: row.customer_email,
     customerPhone: row.customer_phone,
     customerId: row.customer_id,
+    createdAt: row.created_at,
     proofImage: row.proof_image_url,
     proofNote: row.proof_note,
     proofSubmittedAt: row.proof_submitted_at ? formatDateID(new Date(row.proof_submitted_at)) : null,
@@ -6504,6 +6569,13 @@ export default function App() {
   const fetchTotalVisits = async () => {
     const { count } = await supabase.from("site_visits").select("*", { count: "exact", head: true });
     setTotalVisits(count || 0);
+  };
+  // Jumlah kunjungan sejak tanggal tertentu (dipakai filter periode di Ringkasan admin).
+  const countVisitsSince = async (since) => {
+    let q = supabase.from("site_visits").select("*", { count: "exact", head: true });
+    if (since) q = q.gte("visited_at", since.toISOString());
+    const { count } = await q;
+    return count || 0;
   };
 
   // Data toko (produk, kurikulum, kupon, testimoni, rekening, konten situs, halaman kustom) — publik,
@@ -7339,7 +7411,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
+      {view === "admin" && <AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} moveProduct={moveProduct} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} movePaymentMethod={movePaymentMethod} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} />}
       </div>
     </div>
   );
