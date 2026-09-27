@@ -29,16 +29,19 @@ const SUBJECT: Record<string, (id: string) => string> = {
   created: (id) => `Pesanan Diterima — ${id}`,
   proof_uploaded: (id) => `Bukti Pembayaran Diterima — Pesanan ${id}`,
   paid: (id) => `Pembayaran Dikonfirmasi — Pesanan ${id}`,
+  shipped: (id) => `Pesanan ${id} Sudah Dikirim`,
 };
 const HEADING: Record<string, string> = {
   created: "Terima Kasih, Pesanan Kamu Diterima",
   proof_uploaded: "Bukti Pembayaran Kamu Sudah Kami Terima",
   paid: "Pembayaran Kamu Sudah Dikonfirmasi",
+  shipped: "Paketmu Sedang Dalam Perjalanan",
 };
 const INTRO: Record<string, string> = {
   created: "Kami sudah menerima pesanan kamu. Silakan selesaikan pembayaran sesuai instruksi di halaman konfirmasi, lalu unggah bukti transfernya.",
   proof_uploaded: "Bukti transfer kamu sudah kami terima dan sedang dicek oleh tim kami. Kami akan kirim email lagi begitu pembayaran terverifikasi.",
-  paid: "Pembayaran untuk pesanan berikut sudah kami verifikasi. Materi sudah bisa diakses di dashboard kamu — selamat berlatih!",
+  paid: "Pembayaran untuk pesanan berikut sudah kami verifikasi. Kelas video sudah bisa diakses di dashboard kamu, dan merchandise segera kami kemas — selamat berlatih!",
+  shipped: "Pesanan merchandise kamu sudah kami serahkan ke kurir. Nomor resi ada di bawah dan juga di menu Pesanan di dashboard.",
 };
 
 Deno.serve(async (req) => {
@@ -60,13 +63,14 @@ Deno.serve(async (req) => {
     if (!order) return json({ error: "Pesanan tidak ditemukan." }, 404);
     const { data: caller } = await db.from("profiles").select("role").eq("id", uid).maybeSingle();
     const isAdmin = caller?.role === "admin";
-    if (kind === "paid" ? !(isAdmin && order.payment === "PAID") : !(isAdmin || order.customer_id === uid)) {
+    const adminOnly = kind === "paid" || kind === "shipped";
+    if (adminOnly ? !(isAdmin && order.payment === "PAID") : !(isAdmin || order.customer_id === uid)) {
       return json({ error: "Tidak diizinkan." }, 403);
     }
 
     const items = Array.isArray(order.items) ? order.items : [];
     const itemsRows = items.map((it: any) =>
-      `<tr><td style="padding:8px 0;color:#1D1D1F;font-size:13.5px;">${esc(it?.name)}</td><td style="padding:8px 0;text-align:right;color:#1D1D1F;font-size:13.5px;">${rupiah(it?.price)}</td></tr>`
+      `<tr><td style="padding:8px 0;color:#1D1D1F;font-size:13.5px;">${esc(it?.name)}${Number(it?.qty) > 1 ? ` ×${Number(it.qty)}` : ""}</td><td style="padding:8px 0;text-align:right;color:#1D1D1F;font-size:13.5px;">${rupiah((Number(it?.price) || 0) * (Number(it?.qty) || 1))}</td></tr>`
     ).join("");
 
     const html = `
@@ -81,9 +85,12 @@ Deno.serve(async (req) => {
           <div style="border-top:1px solid #E5E5EA;margin-top:10px;padding-top:12px;">
             <table style="width:100%;">
               <tr><td style="color:#6E6E73;font-size:13px;">Diskon</td><td style="text-align:right;color:#1D1D1F;font-size:13px;">-${rupiah(order.discount)}</td></tr>
+              ${order.shipping_address ? `<tr><td style="color:#6E6E73;font-size:13px;">Ongkir</td><td style="text-align:right;color:#1D1D1F;font-size:13px;">${order.shipping_fee ? rupiah(order.shipping_fee) : "Gratis"}</td></tr>` : ""}
               <tr><td style="color:#1D1D1F;font-weight:700;padding-top:6px;">Total</td><td style="text-align:right;color:#8A6416;font-weight:700;padding-top:6px;">${rupiah(order.total)}</td></tr>
             </table>
           </div>
+          ${kind === "shipped" && order.tracking_number ? `<p style="background:#FBF6EA;border:1px solid #E8D29B;border-radius:10px;padding:12px 14px;color:#1D1D1F;font-size:14px;margin-top:16px;">No. resi: <b>${esc(order.tracking_number)}</b></p>` : ""}
+          ${order.shipping_address ? `<p style="color:#6E6E73;font-size:12.5px;margin-top:12px;line-height:1.6;">Dikirim ke: <b style="color:#1D1D1F;">${esc(order.shipping_address.name)}</b>, ${esc(order.shipping_address.address)}, ${esc(order.shipping_address.city)}</p>` : ""}
           <p style="color:#6E6E73;font-size:12.5px;margin-top:16px;">ID Pesanan: <b style="color:#1D1D1F;">${esc(order.id)}</b> &nbsp;•&nbsp; Status: <b style="color:#1D1D1F;">${esc(order.status)}</b></p>
           <a href="${esc(SITE_URL)}" style="display:inline-block;margin-top:18px;background:#1D1D1F;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:14px;font-weight:700;">Masuk ke Akun</a>
           <p style="color:#86868B;font-size:11px;margin-top:24px;">Email ini dikirim otomatis oleh Gitar Sakti. Kalau kamu merasa tidak melakukan pemesanan ini, abaikan email ini.</p>
