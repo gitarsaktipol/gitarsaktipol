@@ -4674,6 +4674,11 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   const curIdx = Math.min(current[product.id] ?? (firstUndone === -1 ? 0 : firstUndone), Math.max(0, curriculum.length - 1));
   const video = curriculum[curIdx];
   const [showImport, setShowImport] = useState(false);
+  // Catat kelas ini sebagai "terakhir dibuka" begitu halaman materi dibuka (untuk kartu Lanjutkan Belajar).
+  useEffect(() => {
+    if (product.id && curriculum.length > 0 && current[product.id] === undefined) setCurrent((prev) => ({ ...prev, [product.id]: curIdx }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id, curriculum.length]);
   const isLast = curIdx === curriculum.length - 1;
   const isCurrentDone = video ? completed.includes(curIdx) : false;
 
@@ -4767,9 +4772,9 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
         {curriculum.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
             <div style={{ flex: 1, height: 8, borderRadius: 999, background: C.surface2, overflow: "hidden" }}>
-              <div style={{ width: `${(completed.length / curriculum.length) * 100}%`, height: "100%", background: C.gold, borderRadius: 999 }} />
+              <div style={{ width: `${(completed.length / curriculum.length) * 100}%`, height: "100%", background: "linear-gradient(90deg, #F3D27A, #B8892E)", borderRadius: 999, transition: "width .8s var(--gs-spring)" }} />
             </div>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, fontWeight: 700, color: C.muted, whiteSpace: "nowrap" }}>{completed.length}/{curriculum.length} selesai</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, color: C.muted, whiteSpace: "nowrap" }}>{Math.round((completed.length / curriculum.length) * 100)}% · {completed.length}/{curriculum.length}</span>
           </div>
         )}
       </div>
@@ -4794,23 +4799,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
             </div>
           </div>
 
-          <div style={{ marginTop: 16, marginBottom: 18, display: "flex", gap: 10 }}>
-            {curIdx > 0 && (
-              <div style={{ flex: 1 }}><GhostBtn full onClick={() => selectVideo(curIdx - 1)} icon={ArrowLeft}>Video Sebelumnya</GhostBtn></div>
-            )}
-            <div style={{ flex: 1 }}>
-              {!isLast ? (
-                <PrimaryBtn full onClick={markCompleteAndNext} icon={ArrowRight}>{isCurrentDone ? "Lanjut ke Video Berikutnya" : "Tandai Selesai & Lanjut"}</PrimaryBtn>
-              ) : !isCurrentDone ? (
-                <PrimaryBtn full onClick={markCompleteAndNext} icon={Check}>Tandai Selesai</PrimaryBtn>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: `linear-gradient(180deg, ${C.goldLight}, ${C.gold})`, color: "#1A140A", fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 0.3, padding: "13px 24px", borderRadius: 8, lineHeight: 1 }}>
-                  <Check size={16} />Kursus Selesai
-                </div>
-              )}
-            </div>
-          </div>
-
+          <div style={{ height: 14 }} />
           <LpVideoEditable url={video.url} admin={admin} onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "url", v)}>
             {(() => {
               const embedUrl = toLessonEmbedUrl(video.url);
@@ -4849,6 +4838,53 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               );
             })()}
           </LpVideoEditable>
+
+          {(() => {
+            const next = !isLast ? curriculum[curIdx + 1] : null;
+            const allDone = completed.length >= curriculum.length && curriculum.length > 0;
+            const nextThumb = next ? youtubeThumb(next.url) : null;
+            return (
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+                  <button onClick={() => curIdx > 0 && selectVideo(curIdx - 1)} disabled={curIdx === 0} title="Video sebelumnya" className="gs-btn gs-btn-ghost" style={{ width: 52, flexShrink: 0, borderRadius: 16, border: `1px solid ${C.border}`, background: C.surface, cursor: curIdx === 0 ? "default" : "pointer", opacity: curIdx === 0 ? 0.35 : 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                    <SkipBack size={18} color={C.text} />
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    {!isLast ? (
+                      <PrimaryBtn full onClick={markCompleteAndNext} icon={SkipForward}>{isCurrentDone ? "Lanjut ke Video Berikutnya" : "Selesai & Lanjut"}</PrimaryBtn>
+                    ) : !isCurrentDone ? (
+                      <PrimaryBtn full onClick={markCompleteAndNext} icon={Check}>Tandai Selesai</PrimaryBtn>
+                    ) : (
+                      <GhostBtn full onClick={() => selectVideo(0)} icon={RotateCcw}>Ulangi dari Video 1</GhostBtn>
+                    )}
+                  </div>
+                </div>
+                {next && (
+                  <Card onClick={() => selectVideo(curIdx + 1)} className="gs-next-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ position: "relative", width: 112, aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", flexShrink: 0, background: nextThumb ? `center / cover no-repeat url("${nextThumb}")` : `linear-gradient(135deg, ${product.hue || C.gold}44, ${C.surface2})` }}>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)" }}><Play size={18} color="#fff" fill="#fff" /></div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: C.gold }}>Berikutnya · Video {curIdx + 2}</span>
+                      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, color: C.text, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{next.title}</div>
+                      {next.duration && next.duration !== "—" && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark }}>{next.duration}</span>}
+                    </div>
+                    <ChevronRight size={18} color={C.muted} className="gs-btn-icon" />
+                  </Card>
+                )}
+                {allDone && (
+                  <div className="gs-celebrate" style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: "22px 20px", background: "linear-gradient(135deg, #2A2112, #16120B)", border: `1px solid ${C.gold}66`, textAlign: "center" }}>
+                    {Array.from({ length: 14 }).map((_, i) => (
+                      <span key={i} className="gs-confetti" style={{ left: `${(i * 7.3) % 100}%`, animationDelay: `${(i % 7) * 0.18}s`, background: i % 3 === 0 ? "#F3D27A" : i % 3 === 1 ? "#E0553A" : "#FFFFFF" }} />
+                    ))}
+                    <div style={{ fontSize: 34 }}>🎸</div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: "#F3D27A", margin: "6px 0 4px" }}>Selamat, kelas selesai!</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0 }}>Semua {curriculum.length} video sudah kamu tuntaskan. Ulangi latihan favoritmu kapan saja.</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <VideoDescription
             desc={video.desc}
@@ -4895,7 +4931,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
                 const done = completed.includes(idx);
                 const active = idx === curIdx;
                 return (
-                  <div key={`v-${i}`} onClick={() => selectVideo(idx)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 10px", borderRadius: 8, cursor: "pointer", background: active ? C.surface2 : "transparent" }}>
+                  <div key={`v-${i}`} onClick={() => selectVideo(idx)} className="gs-lesson-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 10px", borderRadius: 12, cursor: "pointer", background: active ? `linear-gradient(90deg, ${C.gold}22, transparent)` : "transparent", boxShadow: active ? `inset 3px 0 0 ${C.gold}` : "none" }}>
                     <div style={{ width: 22, height: 22, borderRadius: "50%", border: `1px solid ${done ? C.gold : C.border}`, background: done ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {done ? <Check size={13} color="#1A140A" /> : <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: C.muted }}>{idx + 1}</span>}
                     </div>
@@ -7790,6 +7826,15 @@ export default function App() {
         .gs-progress-fill { animation: gsGrow 1.1s var(--gs-ease) both; transform-origin: left; }
         @keyframes gsGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
         @media (max-width: 760px) { .gs-continue { grid-template-columns: 1fr !important; } }
+
+        .gs-next-card:hover .gs-btn-icon { transform: translateX(4px); }
+        .gs-celebrate { animation: gsPopIn .6s var(--gs-spring) both; }
+        .gs-confetti { position: absolute; top: -10px; width: 7px; height: 12px; border-radius: 2px; opacity: 0; animation: gsConfetti 2.6s ease-in infinite; }
+        @keyframes gsConfetti { 0% { opacity: 1; transform: translateY(0) rotate(0); } 100% { opacity: 0; transform: translateY(170px) rotate(540deg); } }
+
+        .gs-lesson-row { transition: background .25s ease, transform .2s var(--gs-spring); }
+        .gs-lesson-row:hover { background: ${C.surface2}; }
+        .gs-lesson-row:active { transform: scale(.98); }
 
         /* sakelar on/off */
         .gs-switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: ${C.border}; transition: background .3s var(--gs-ease); padding: 0; flex-shrink: 0; }
