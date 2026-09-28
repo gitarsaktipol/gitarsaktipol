@@ -5640,8 +5640,9 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark }}>{totalVideoCount} video{sectionCount ? ` · ${sectionCount} bab` : ""}</span>
-        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Tahan & geser untuk mengurutkan</span>
+        {onImportYoutube && outline.length > 0 && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import dari YouTube</PrimaryBtn>}
       </div>
+      {outline.length > 0 && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: "0 0 10px" }}>Tahan & geser untuk mengurutkan</p>}
       {outline.length === 0 ? (
         <Card style={{ padding: 28, textAlign: "center" }}>
           <Youtube size={30} color={C.gold} style={{ margin: "0 auto 10px" }} />
@@ -5719,7 +5720,6 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
       />
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-        {onImportYoutube && outline.length > 0 && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import YouTube</PrimaryBtn>}
         <GhostBtn small onClick={addVideoRow} icon={Plus}>Video</GhostBtn>
         <GhostBtn small onClick={addSectionRow} icon={Type}>Judul Bab</GhostBtn>
       </div>
