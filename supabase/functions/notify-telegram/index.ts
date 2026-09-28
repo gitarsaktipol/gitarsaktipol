@@ -11,8 +11,11 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
-const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID") || "";
+// .trim(): spasi/baris baru yang ikut tertempel saat mengisi secret sering bikin gagal diam-diam.
+const TELEGRAM_BOT_TOKEN = (Deno.env.get("TELEGRAM_BOT_TOKEN") || "").trim();
+const TELEGRAM_CHAT_ID = (Deno.env.get("TELEGRAM_CHAT_ID") || "").trim();
+// Jangan pernah menulis token ke log — samarkan kalau muncul di pesan error.
+const redact = (msg: string) => (TELEGRAM_BOT_TOKEN ? msg.split(TELEGRAM_BOT_TOKEN).join("***") : msg);
 const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsaktipol.vercel.app";
 
 const corsHeaders = {
@@ -23,15 +26,20 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const rupiah = (n: unknown) => "Rp" + (Number(n) || 0).toLocaleString("id-ID");
 
+// Owner hanya ingin notifikasi saat pembeli sudah bayar (upload bukti transfer).
+// Pesanan yang baru dibuat (belum bayar) tidak dikirim ke Telegram.
 const TITLE: Record<string, string> = {
-  created: "🛒 Pesanan Baru Masuk",
   proof_uploaded: "💰 Bukti Transfer Diupload -- Cek Sekarang!",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return json({ error: "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum di-set." }, 500);
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+      console.error(`secret kosong: token=${!!TELEGRAM_BOT_TOKEN} chat_id=${!!TELEGRAM_CHAT_ID}`);
+      return json({ error: "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum di-set." }, 500);
+    }
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(TELEGRAM_BOT_TOKEN)) console.error(`format token tidak valid (panjang ${TELEGRAM_BOT_TOKEN.length})`);
 
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -41,6 +49,7 @@ Deno.serve(async (req) => {
 
     const { orderId, kind } = await req.json();
     if (!orderId) return json({ error: "orderId wajib diisi." }, 400);
+    if (!TITLE[kind]) return json({ ok: true, skipped: true });
     const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (!order) return json({ error: "Pesanan tidak ditemukan." }, 404);
     if (order.customer_id !== uid) {
@@ -52,7 +61,7 @@ Deno.serve(async (req) => {
     const a = order.shipping_address;
     const shipText = a ? `\nKirim ke: ${a.name} (${a.phone}), ${a.address}, ${a.city}${a.province ? ", " + a.province : ""} ${a.postal || ""}\nOngkir: ${rupiah(order.shipping_fee)}` : "";
     const text =
-      `${TITLE[kind] || "🔔 Update Pesanan"}\n\n` +
+      `${TITLE[kind]}\n\n` +
       `ID Pesanan: ${order.id}\n` +
       `Pembeli: ${order.customer_name || "-"}\n` +
       `Email: ${order.customer_email || "-"}\n` +
@@ -67,9 +76,15 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, disable_web_page_preview: true }),
     });
-    if (!res.ok) return json({ error: await res.text() }, 502);
+    if (!res.ok) {
+      const detail = redact(await res.text());
+      console.error(`Telegram menolak (${res.status}): ${detail}`);
+      return json({ error: detail }, 502);
+    }
     return json({ ok: true });
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    const msg = redact((e as Error).message);
+    console.error(`notify-telegram error: ${msg}`);
+    return json({ error: msg }, 500);
   }
 });

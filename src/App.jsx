@@ -8150,7 +8150,7 @@ export default function App() {
     await fetchOrders();
     fetchProducts(); // stok terbaru
     sendOrderEmail(data.id, "created");
-    sendTelegramNotify(data.id, "created");
+    // Telegram admin sengaja hanya dikirim saat bukti transfer diupload (bukan saat pesanan dibuat).
     trackEvent("InitiateCheckout", { value: data.total, currency: "IDR", content_ids: items.map((i) => String(i.id)) });
     return { ok: true, orderId: data.id };
   };
