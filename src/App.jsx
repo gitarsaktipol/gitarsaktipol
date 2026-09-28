@@ -7718,6 +7718,14 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const role = profile?.role || null;
+  // Admin sering membiarkan tab terbuka lama (terutama di HP). Saat tab aktif lagi, ambil materi
+  // terbaru supaya editor tidak menyimpan ulang salinan lama.
+  useEffect(() => {
+    if (role !== "admin") return;
+    const onVisible = () => { if (document.visibilityState === "visible") fetchCurriculum(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [role]);
 
   // Daftar semua member terdaftar (hanya admin yang bisa membaca semua profil lewat RLS).
   const [members, setMembers] = useState([]);
@@ -7969,6 +7977,9 @@ export default function App() {
   // Buka LearnPage (tampilan pembeli/member) langsung dalam Mode Edit -- ini yang dipakai setelah
   // produk baru dibuat, dan lewat tombol "Kelola Materi" di daftar produk admin.
   const openLearnEditor = (slug) => {
+    // Editor menyimpan SELURUH daftar materi sekaligus, jadi harus mulai dari data terbaru di
+    // server — kalau tidak, salinan lama di browser bisa menimpa perubahan yang lebih baru.
+    fetchCurriculum();
     setProductSlug(slug);
     setLearnEditMode(true);
     setView("learn");
