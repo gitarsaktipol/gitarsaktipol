@@ -26,8 +26,9 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const rupiah = (n: unknown) => "Rp" + (Number(n) || 0).toLocaleString("id-ID");
 
+// Owner hanya ingin notifikasi saat pembeli sudah bayar (upload bukti transfer).
+// Pesanan yang baru dibuat (belum bayar) tidak dikirim ke Telegram.
 const TITLE: Record<string, string> = {
-  created: "🛒 Pesanan Baru Masuk",
   proof_uploaded: "💰 Bukti Transfer Diupload -- Cek Sekarang!",
 };
 
@@ -48,6 +49,7 @@ Deno.serve(async (req) => {
 
     const { orderId, kind } = await req.json();
     if (!orderId) return json({ error: "orderId wajib diisi." }, 400);
+    if (!TITLE[kind]) return json({ ok: true, skipped: true });
     const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (!order) return json({ error: "Pesanan tidak ditemukan." }, 404);
     if (order.customer_id !== uid) {
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
     const a = order.shipping_address;
     const shipText = a ? `\nKirim ke: ${a.name} (${a.phone}), ${a.address}, ${a.city}${a.province ? ", " + a.province : ""} ${a.postal || ""}\nOngkir: ${rupiah(order.shipping_fee)}` : "";
     const text =
-      `${TITLE[kind] || "🔔 Update Pesanan"}\n\n` +
+      `${TITLE[kind]}\n\n` +
       `ID Pesanan: ${order.id}\n` +
       `Pembeli: ${order.customer_name || "-"}\n` +
       `Email: ${order.customer_email || "-"}\n` +
