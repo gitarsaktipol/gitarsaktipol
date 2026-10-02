@@ -17,6 +17,10 @@ import {
 // Publishable key AMAN ditaruh di kode frontend (bukan rahasia) — akses data
 // sesungguhnya dikontrol oleh RLS policy di database, bukan oleh key ini.
 // Kunci rahasia (service_role) TIDAK BOLEH pernah ditaruh di sini.
+// Banner "sedang dalam penyempurnaan" di atas header. Aktif secara default; untuk mematikannya saat
+// launch, isi VITE_MODE_PERSIAPAN=0 di Vercel → Environment Variables lalu redeploy.
+const SHOW_MAINTENANCE_BANNER = import.meta.env.VITE_MODE_PERSIAPAN !== "0";
+
 const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
@@ -210,16 +214,16 @@ const SECTION_MARKER = "__section__";
 const FAQ_HOME = [
   { q: "Apakah materi bisa diakses selamanya?", a: "Ya. Setelah pembayaran terverifikasi, produk masuk ke akun kamu dan dapat diakses kapan saja tanpa batas waktu." },
   { q: "Apakah cocok untuk yang belum pernah pegang gitar?", a: "Cocok. Tersedia kategori Beginner Guitar yang disusun dari nol tanpa asumsi kemampuan sebelumnya." },
-  { q: "Metode pembayaran apa saja yang tersedia?", a: "Transfer bank, QRIS, dan e-wallet (sesuai pilihan di halaman checkout). Setelah transfer, unggah bukti pembayaran — akses materi otomatis terbuka di akunmu begitu pembayaran diverifikasi admin." },
-  { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti melalui WhatsApp yang tertera di halaman kontak." },
+  { q: "Metode pembayaran apa saja yang tersedia?", a: "Sesuai metode yang tersedia di halaman checkout (mis. transfer bank atau QRIS). Setelah membayar, unggah bukti pembayaran — materi terbuka di akunmu begitu pembayaran diverifikasi admin, biasanya dalam 1x24 jam pada hari kerja." },
+  { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman." },
 ];
 
 // Nilai awal (default) rekening tujuan pembayaran. Bisa diganti admin lewat
 // Pengaturan → Rekening — perubahan tersimpan di localStorage lewat state `bankInfo` di App().
 const DEFAULT_BANK_INFO = {
   bankName: "Bank BCA",
-  accountNumber: "1234567890",
-  accountHolder: "Nama Pemilik GitarSakti",
+  accountNumber: "-",
+  accountHolder: "-",
 };
 
 
@@ -235,7 +239,7 @@ const ADMIN_CUSTOMERS = [];
 
 const DEFAULT_SITE_CONTENT = {
   home: {
-    heroBadge: "Sudah dipercaya 8.200+ pelajar gitar di Indonesia",
+    heroBadge: "Kursus gitar online terstruktur — dari pemula hingga mahir",
     heroTitleLine: "KUASAI GITAR. KUASAI MELODI.",
     heroTitleHighlight: "JADI GITARIS",
     heroTitleEnd: "YANG KAMU IMPIKAN.",
@@ -243,19 +247,19 @@ const DEFAULT_SITE_CONTENT = {
     heroVideoUrl: "",
     heroCta1: "Lihat Semua Produk",
     heroCta2: "Lihat Contoh Materi",
-    stat1Num: "8.200+", stat1Label: "Siswa aktif",
-    stat2Num: "96%", stat2Label: "Rating positif",
-    stat3Num: "6", stat3Label: "Kategori kursus",
-    featuredEyebrow: "Pilihan Terpopuler", featuredTitle: "Produk Unggulan",
-    featuredSub: "Kursus dan materi yang paling banyak dipilih siswa Gitar Sakti bulan ini.",
+    stat1Num: "24/7", stat1Label: "Akses materi kapan saja",
+    stat2Num: "Dari Nol", stat2Label: "Jalur untuk pemula",
+    stat3Num: "Video", stat3Label: "Kursus terstruktur",
+    featuredEyebrow: "Pilihan Kami", featuredTitle: "Produk Unggulan",
+    featuredSub: "Kursus dan materi pilihan dari Gitar Sakti untuk mulai belajar.",
     categoryEyebrow: "Jelajahi", categoryTitle: "Kategori Belajar",
-    categorySub: "Dari nol sampai teknik lanjutan, semua level tersedia.",
+    categorySub: "Pilih kategori sesuai level dan tujuan belajarmu.",
     whyEyebrow: "Kenapa Gitar Sakti", whyTitle: "Belajar dengan Jalur yang Jelas",
     whySub: "Materi disusun rapi dari dasar sampai mahir, dengan target yang jelas di setiap tahap.",
     whyItems: [
       { title: "Fondasi kuat", desc: "Materi disusun bertahap, tidak melompat sebelum dasar benar-benar melekat." },
-      { title: "Latihan terarah", desc: "Setiap course punya target latihan mingguan yang jelas dan bisa diukur." },
-      { title: "Praktik nyata", desc: "Belajar lewat lagu dan backing track, bukan cuma teori di atas kertas." },
+      { title: "Latihan terarah", desc: "Materi disusun berurutan supaya mudah diikuti dan dilatih sesuai ritme kamu." },
+      { title: "Praktik langsung", desc: "Belajar lewat contoh permainan di video, bukan cuma teori." },
       { title: "Akses selamanya", desc: "Satu kali beli, materi dapat diputar ulang kapan pun kamu butuh." },
       { title: "Dari pemula ke mahir", desc: "Jalur lengkap dari chord pertama sampai teknik shredding lanjutan." },
     ],
@@ -277,19 +281,39 @@ const DEFAULT_SITE_CONTENT = {
   },
   footer: {
     description: "Platform edukasi gitar digital untuk pemula hingga mahir. Belajar terstruktur, akses selamanya.",
-    instagramUrl: "https://instagram.com/",
-    youtubeUrl: "https://youtube.com/",
+    instagramUrl: "",
+    youtubeUrl: "",
+    whatsapp: "",
+    email: "",
     copyrightText: "© 2026 Gitar Sakti. Seluruh hak cipta dilindungi.",
   },
   about: {
     eyebrow: "Tentang Kami",
     title: "Gitar Sakti",
     sub: "Platform edukasi gitar digital yang dibangun untuk membantu siapa pun belajar gitar secara mandiri, terstruktur, dan bisa diukur progresnya.",
-    body: "Kami percaya belajar gitar tidak harus mahal atau membingungkan. Setiap course di Gitar Sakti disusun oleh instruktur berpengalaman, dengan jalur belajar yang jelas dari fondasi dasar hingga teknik lanjutan seperti shredding dan improvisasi.",
+    body: "Kami percaya belajar gitar tidak harus membingungkan. Setiap course di Gitar Sakti disusun dengan jalur belajar yang jelas, dari fondasi dasar hingga teknik lanjutan seperti shredding dan improvisasi.",
     ctaLabel: "Mulai Belajar",
   },
 };
 
+// Teks contoh lama (berisi klaim yang tidak bisa dibuktikan, mis. "8.200+ siswa") mungkin sudah
+// tersimpan di database dari versi awal. Kalau nilainya masih PERSIS sama dengan teks contoh lama
+// (belum pernah diedit admin), ganti otomatis dengan teks baru yang jujur.
+const LEGACY_PLACEHOLDER_TEXT = {
+  home: {
+    heroBadge: "Sudah dipercaya 8.200+ pelajar gitar di Indonesia",
+    stat1Num: "8.200+", stat1Label: "Siswa aktif",
+    stat2Num: "96%", stat2Label: "Rating positif",
+    stat3Num: "6", stat3Label: "Kategori kursus",
+    featuredEyebrow: "Pilihan Terpopuler",
+    featuredSub: "Kursus dan materi yang paling banyak dipilih siswa Gitar Sakti bulan ini.",
+    categorySub: "Dari nol sampai teknik lanjutan, semua level tersedia.",
+  },
+  about: {
+    body: "Kami percaya belajar gitar tidak harus mahal atau membingungkan. Setiap course di Gitar Sakti disusun oleh instruktur berpengalaman, dengan jalur belajar yang jelas dari fondasi dasar hingga teknik lanjutan seperti shredding dan improvisasi.",
+  },
+  footer: { instagramUrl: "https://instagram.com/", youtubeUrl: "https://youtube.com/" },
+};
 const REVENUE_7D = [];
 
 const FUNNEL = [];
@@ -1001,6 +1025,11 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
   );
   return (
     <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: C.headerBg, backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
+      {SHOW_MAINTENANCE_BANNER && (
+        <div style={{ background: C.gold, color: "#1D1D1F", textAlign: "center", padding: "7px 16px", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, lineHeight: 1.4 }}>
+          🔧 Website sedang dalam penyempurnaan — kamu tetap bisa melihat-lihat. Pembelian segera dibuka!
+        </div>
+      )}
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
           <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
@@ -1118,14 +1147,31 @@ function Footer({ go, content, admin, onSave }) {
           ) : (
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginTop: 10, lineHeight: 1.6, maxWidth: 280 }}>{f.description}</p>
           )}
+          {admin ? (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>WhatsApp:</span>
+              <EditableText value={f.whatsapp || "(isi nomor, mis. 0812xxxxxxx)"} admin onSave={(v) => onSave({ whatsapp: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Email:</span>
+              <EditableText value={f.email || "(isi email kontak)"} admin onSave={(v) => onSave({ email: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Instagram (kosongkan kalau belum ada):</span>
+              <EditableText value={f.instagramUrl || "(isi link Instagram)"} admin onSave={(v) => onSave({ instagramUrl: /^https?:\/\//i.test(v) ? v : "" })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link YouTube (kosongkan kalau belum ada):</span>
+              <EditableText value={f.youtubeUrl || "(isi link YouTube)"} admin onSave={(v) => onSave({ youtubeUrl: /^https?:\/\//i.test(v) ? v : "" })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
+            </div>
+          ) : (f.whatsapp || f.email) ? (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4, fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>
+              {f.whatsapp && <a href={waLink(f.whatsapp, "Halo Gitar Sakti, saya mau tanya...")} target="_blank" rel="noopener noreferrer" style={{ color: C.muted, textDecoration: "none" }}>WhatsApp: {f.whatsapp}</a>}
+              {f.email && <a href={`mailto:${f.email}`} style={{ color: C.muted, textDecoration: "none" }}>Email: {f.email}</a>}
+            </div>
+          ) : null}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <a href={f.instagramUrl || "#"} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Instagram size={15} color={C.goldLight} /></a>
-            <a href={f.youtubeUrl || "#"} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Youtube size={15} color={C.goldLight} /></a>
+            {f.instagramUrl && <a href={f.instagramUrl} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Instagram size={15} color={C.goldLight} /></a>}
+            {f.youtubeUrl && <a href={f.youtubeUrl} target="_blank" rel="noreferrer" style={{ width: 32, height: 32, borderRadius: 8, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center" }}><Youtube size={15} color={C.goldLight} /></a>}
           </div>
         </div>
         {[
-          { h: "Produk", items: ["Semua Produk", "Beginner Guitar", "Speed & Shredding", "Bundle"], target: "shop" },
-          { h: "Perusahaan", items: ["Tentang Kami", "Blog", "FAQ", "Kontak"], target: "about" },
+          { h: "Produk", items: ["Semua Produk"], target: "shop" },
+          { h: "Perusahaan", items: ["Tentang Kami"], target: "about" },
           { h: "Akun", items: ["Masuk", "Daftar", "Dashboard Saya"], target: "auth" },
         ].map((col) => (
           <div key={col.h}>
@@ -1160,27 +1206,29 @@ const LEGAL_PAGES = {
   privacy: {
     title: "KEBIJAKAN PRIVASI",
     body: [
-      "GitarSakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, serta bukti transfer yang diunggah saat konfirmasi pembayaran.",
-      "Data ini digunakan semata untuk memproses pesanan, memverifikasi pembayaran, dan memberikan akses ke produk yang kamu beli — tidak dijual atau dibagikan ke pihak ketiga untuk keperluan iklan.",
-      "Bukti transfer yang kamu unggah hanya dapat dilihat oleh admin GitarSakti untuk keperluan verifikasi pembayaran.",
+      "Gitar Sakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, serta bukti transfer yang diunggah saat konfirmasi pembayaran.",
+      "Data ini digunakan untuk memproses pesanan, memverifikasi pembayaran, memberikan akses ke produk yang kamu beli, dan menghubungi kamu terkait pesanan. Data pribadi kamu tidak kami jual.",
+      "Kami memakai penyedia layanan pihak ketiga (hosting, database, dan pengiriman email) yang memproses data atas nama kami. Kami juga dapat memakai alat pengukur iklan seperti Meta Pixel, yang mengirim data aktivitas di situs (mis. halaman atau produk yang dilihat, dimasukkan ke keranjang, atau checkout) ke penyedia tersebut untuk mengukur dan menyempurnakan iklan. Nama, email, nomor WhatsApp, dan bukti transfer kamu tidak kami bagikan untuk keperluan iklan.",
+      "Bukti transfer yang kamu unggah hanya dapat dilihat oleh admin Gitar Sakti untuk keperluan verifikasi pembayaran.",
       "Kamu bisa menghubungi kami kapan saja untuk meminta data pribadimu dihapus dari sistem, selama tidak melanggar kewajiban pencatatan transaksi.",
     ],
   },
   terms: {
     title: "SYARAT & KETENTUAN",
     body: [
-      "Dengan membeli produk di GitarSakti, kamu menyetujui bahwa seluruh materi (video, PDF, backing track) adalah untuk penggunaan pribadi dan tidak boleh dibagikan, dijual ulang, atau diunggah ulang ke platform lain.",
+      "Dengan membeli produk di Gitar Sakti, kamu menyetujui bahwa seluruh materi (video, PDF, backing track) adalah untuk penggunaan pribadi dan tidak boleh dibagikan, dijual ulang, atau diunggah ulang ke platform lain.",
       "Akses ke materi diberikan setelah pembayaran diverifikasi oleh admin, biasanya dalam 1x24 jam pada hari kerja setelah bukti transfer diunggah.",
       "Harga yang tertera pada saat checkout adalah harga final yang berlaku untuk transaksi tersebut, termasuk apabila sedang berlaku harga promo/early bird.",
-      "GitarSakti berhak menangguhkan akses akun yang terindikasi melakukan pelanggaran, termasuk pembagian materi tanpa izin.",
+      "Gitar Sakti berhak menangguhkan akses akun yang terindikasi melakukan pelanggaran, termasuk pembagian materi tanpa izin.",
+      "Hasil belajar setiap orang berbeda dan bergantung pada kemauan serta konsistensi latihan masing-masing. Kami tidak menjamin hasil atau tingkat kemampuan tertentu.",
     ],
   },
   refund: {
     title: "KEBIJAKAN REFUND",
     body: [
       "Karena produk berupa materi digital yang langsung bisa diakses setelah pembayaran diverifikasi, pembelian yang sudah selesai secara umum tidak dapat dikembalikan (non-refundable).",
-      "Pengecualian berlaku apabila terjadi kesalahan dari pihak GitarSakti, misalnya pembayaran sudah diverifikasi tetapi materi tidak dapat diakses karena kendala teknis dari sistem.",
-      "Untuk kendala seperti itu, silakan hubungi admin melalui kontak yang tertera di halaman Tentang Kami dengan menyertakan Order ID, dan akan kami proses secepatnya.",
+      "Pengecualian berlaku apabila terjadi kesalahan dari pihak Gitar Sakti, misalnya pembayaran sudah diverifikasi tetapi materi tidak dapat diakses karena kendala teknis dari sistem.",
+      "Untuk kendala seperti itu, silakan hubungi admin lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman dengan menyertakan Order ID, dan akan kami proses secepatnya.",
       "Pembatalan pesanan yang masih berstatus Menunggu (belum diverifikasi) bisa dilakukan dengan menghubungi admin sebelum bukti transfer diverifikasi.",
     ],
   },
@@ -1370,7 +1418,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
                 ))}
                 <div style={{ position: "relative", zIndex: 2, textAlign: "center" }}>
                   <Music size={64} color="#E0B24A" strokeWidth={1} />
-                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.7)", marginTop: 12 }}>Video course + tab interaktif</p>
+                  <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.7)", marginTop: 12 }}>Kursus video terstruktur</p>
                 </div>
               </>
             )}
@@ -1617,7 +1665,7 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
           <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "8px 0 10px", lineHeight: 1.15 }}>{p.name}</h1>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {reviews.length > 0 && <StarRow rating={reviews.reduce((a, t) => a + t.rating, 0) / reviews.length} />}
-            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{reviews.length > 0 ? `${reviews.length} ulasan · ` : ""}{p.sold || 0} terjual</span>
+            <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{[reviews.length > 0 ? `${reviews.length} ulasan` : "", p.sold > 0 ? `${p.sold} terjual` : ""].filter(Boolean).join(" · ")}</span>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 16 }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 30, color: C.goldLight }}>{rp(p.price)}</span>
@@ -1783,7 +1831,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
             <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "10px 0 8px" }}>{p.name.toUpperCase()}</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <StarRow rating={liveRating} />
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{liveReviewCount > 0 ? `${liveRating.toFixed(1)} · ${liveReviewCount} ulasan · ` : ""}{p.sold} terjual</span>
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>{[liveReviewCount > 0 ? `${liveRating.toFixed(1)} · ${liveReviewCount} ulasan` : "", p.sold > 0 ? `${p.sold} terjual` : ""].filter(Boolean).join(" · ")}</span>
             </div>
             <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14.5, color: C.muted, lineHeight: 1.7, marginTop: 16, maxWidth: 620 }} />
           </div>
@@ -5734,10 +5782,8 @@ const LP_GENERIC_PROBLEMS = [
 ];
 
 const LP_COMPARISON = [
-  { label: "Struktur Materi", us: true, other: false },
-  { label: "Bisa Ditonton Ulang", us: true, other: false },
-  { label: "Bonus Materi Tambahan", us: true, other: false },
-  { label: "Harga Terjangkau", us: true, other: "partial" },
+  { label: "Materi Berurutan dari Dasar", us: true, other: "partial" },
+  { label: "Bisa Ditonton Ulang", us: true, other: true },
 ];
 
 const LP_GENERIC_FAQ = [
@@ -5750,7 +5796,7 @@ const LP_GENERIC_FAQ = [
 // per-halaman lewat kolom extra (jsonb) -- ini nilai baku kalau belum pernah diedit.
 const LP_EXTRA_DEFAULTS = {
   ctaText: "Ya, Saya Mau Belajar Sekarang",
-  heroNote: "Akses langsung setelah pembayaran",
+  heroNote: "Akses terbuka setelah pembayaran diverifikasi",
   problemTitle: "Belajar Sendiri Itu ||Sering Bikin Stuck?",
   problemSubtitle: "Mari kita jujur sama diri sendiri...",
   problems: LP_GENERIC_PROBLEMS,
@@ -5761,9 +5807,9 @@ const LP_EXTRA_DEFAULTS = {
   faqTitle: "Masih Ragu? ||Ini Jawabannya",
   faq: LP_GENERIC_FAQ,
   closingTitle: "Masih Mau ||Belajar Sendirian Tanpa Arah?",
-  closingSubtitle: "Atau kamu mau mulai belajar dengan cara yang benar dan melihat progress nyata dalam hitungan minggu?",
+  closingSubtitle: "Atau kamu mau mulai belajar dengan jalur yang jelas dan terukur, sesuai ritme kamu sendiri?",
   closingCtaText: "Ya, Saya Mau Mulai Sekarang",
-  closingFooterNote: "Bergabung dengan pelajar gitar lainnya di Gitar Sakti",
+  closingFooterNote: "Mulai belajar gitar bersama Gitar Sakti",
   // Teks-teks di blok harga + countdown (section "Harga Spesial"). Bagian jumlah slot & harga
   // itu sendiri diatur lewat "Edit Promo" di Pengaturan Landing Page, bukan di sini -- ini
   // cuma teksnya saja, silakan sesuaikan gaya bahasanya lewat pensil di halaman.
@@ -5776,7 +5822,7 @@ const LP_EXTRA_DEFAULTS = {
   promoActivePriceLabel: "Harga Spesial Terbatas",
   promoNormalPriceLabel: "Harga Normal",
   trustBadge1: "Pembayaran Aman",
-  trustBadge2: "Akses Instan",
+  trustBadge2: "Akses Setelah Verifikasi",
 };
 
 // Judul dua-warna (mis. "Belajar Sendiri Itu SERING BIKIN STUCK?") disimpan sebagai 1 string
@@ -6235,9 +6281,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* SOCIAL PROOF */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px" }}>
-          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Dipercaya oleh pelajar gitar di seluruh Indonesia</p>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Sekilas tentang kursus ini</p>
           <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[[`${p.sold || 0}+`, "Pembeli"], [p.rating > 0 ? String(p.rating) : "Baru", "Rating Rata-rata"], [p.duration || "-", "Materi"]].map(([n, l]) => (
+            {[p.sold > 0 ? [String(p.sold), "Pembeli"] : ["Baru", "Kelas Baru Dibuka"], p.rating > 0 ? [String(p.rating), "Rating Rata-rata"] : [p.level || "Semua Level", "Level"], [p.duration || "-", "Materi"]].map(([n, l]) => (
               <div key={l} style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.goldLight }}>{n}</div>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
@@ -6623,7 +6669,7 @@ function Lp2DelBtn({ onClick, title }) {
 
 const LP2_DEFAULTS = {
   ...LP_EXTRA_DEFAULTS,
-  proofCaption: "Dipercaya oleh pelajar gitar di seluruh Indonesia",
+  proofCaption: "Sekilas tentang kursus ini",
   faqSubtitle: "Pertanyaan yang sering muncul dari calon member",
   mainSubtitle: "Video pembelajaran lengkap",
 };
@@ -6675,8 +6721,8 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
   const removeFeature = (idx) => saveExtra("features")(featureItems.filter((_, i) => i !== idx));
 
   const statItems = extra.stats !== undefined && extra.stats !== null ? extra.stats : [
-    { num: `${p.sold || 0}+`, label: "Pembeli" },
-    { num: p.rating > 0 ? String(p.rating) : "Baru", label: "Rating Rata-rata" },
+    p.sold > 0 ? { num: String(p.sold), label: "Pembeli" } : { num: "Baru", label: "Kelas Baru Dibuka" },
+    p.rating > 0 ? { num: String(p.rating), label: "Rating Rata-rata" } : { num: p.level || "Semua Level", label: "Level" },
     { num: p.duration || "-", label: "Materi" },
   ];
   const updateStat = (idx, patch) => saveExtra("stats")(statItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -7577,6 +7623,12 @@ export default function App() {
       // Gabung per bagian dengan default supaya bagian yang belum pernah disimpan tidak bikin halaman crash.
       const merged = { ...DEFAULT_SITE_CONTENT };
       for (const [k, v] of Object.entries(data.content)) merged[k] = v && typeof v === "object" && !Array.isArray(v) && DEFAULT_SITE_CONTENT[k] && typeof DEFAULT_SITE_CONTENT[k] === "object" && !Array.isArray(DEFAULT_SITE_CONTENT[k]) ? { ...DEFAULT_SITE_CONTENT[k], ...v } : v;
+      for (const [section, legacy] of Object.entries(LEGACY_PLACEHOLDER_TEXT)) {
+        if (!merged[section] || typeof merged[section] !== "object") continue;
+        const fixed = { ...merged[section] };
+        for (const [key, oldVal] of Object.entries(legacy)) if (fixed[key] === oldVal) fixed[key] = DEFAULT_SITE_CONTENT[section][key];
+        merged[section] = fixed;
+      }
       setSiteContent(merged);
     }
   };
