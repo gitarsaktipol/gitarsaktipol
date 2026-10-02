@@ -17,6 +17,10 @@ import {
 // Publishable key AMAN ditaruh di kode frontend (bukan rahasia) — akses data
 // sesungguhnya dikontrol oleh RLS policy di database, bukan oleh key ini.
 // Kunci rahasia (service_role) TIDAK BOLEH pernah ditaruh di sini.
+// Banner "sedang dalam penyempurnaan" di atas header. Aktif secara default; untuk mematikannya saat
+// launch, isi VITE_MODE_PERSIAPAN=0 di Vercel → Environment Variables lalu redeploy.
+const SHOW_MAINTENANCE_BANNER = import.meta.env.VITE_MODE_PERSIAPAN !== "0";
+
 const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
@@ -1001,6 +1005,11 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
   );
   return (
     <div className="gs-header" style={{ position: "sticky", top: 0, zIndex: 40, background: C.headerBg, backdropFilter: "saturate(180%) blur(20px)", WebkitBackdropFilter: "saturate(180%) blur(20px)", borderBottom: `1px solid ${C.borderSoft}` }}>
+      {SHOW_MAINTENANCE_BANNER && (
+        <div style={{ background: C.gold, color: "#1D1D1F", textAlign: "center", padding: "7px 16px", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, lineHeight: 1.4 }}>
+          🔧 Website sedang dalam penyempurnaan — kamu tetap bisa melihat-lihat. Pembelian segera dibuka!
+        </div>
+      )}
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
           <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
