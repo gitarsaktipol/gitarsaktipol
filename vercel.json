@@ -1,12 +1,28 @@
 {
+  "redirects": [
+    { "source": "/fertune", "destination": "/fertune/", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/fertune/", "destination": "https://gitarsaktipol.github.io/yuner/" },
+    { "source": "/fertune/:path*", "destination": "https://gitarsaktipol.github.io/yuner/:path*" }
+  ],
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/((?!fertune).*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
+    {
+      "source": "/fertune/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" }
       ]
     },
     {
