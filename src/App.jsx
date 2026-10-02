@@ -93,7 +93,7 @@ const C = new Proxy({}, {
 const LOGO_URL = "/gitar-sakti-logo.png";
 // Menu alat musik (FerTune: tuner, latihan baca not, partitur). Disajikan di /fertune/ lewat
 // rewrite di vercel.json. Nama menu belum final -- cukup ubah teks di bawah ini.
-const FERTUNE_LABEL = "Studio Musik";
+const FERTUNE_LABEL = "FerTune";
 const FERTUNE_URL = "/fertune/";
 const HERO_BG_URL = "/gitar-sakti-bg.jpg";
 
