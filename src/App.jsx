@@ -91,6 +91,10 @@ const C = new Proxy({}, {
 
 // Aset brand — taruh file gambar ini di folder "public" project (public/), path di bawah akan otomatis ketemu.
 const LOGO_URL = "/gitar-sakti-logo.png";
+// Menu alat musik (FerTune: tuner, latihan baca not, partitur). Disajikan di /fertune/ lewat
+// rewrite di vercel.json. Nama menu belum final -- cukup ubah teks di bawah ini.
+const FERTUNE_LABEL = "FerTune";
+const FERTUNE_URL = "/fertune/";
 const HERO_BG_URL = "/gitar-sakti-bg.jpg";
 
 const rp = (n) => "Rp" + (Number(n) || 0).toLocaleString("id-ID");
@@ -1043,6 +1047,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
         <div style={{ display: "flex", gap: 24, alignItems: "center" }} className="gs-desktop-nav">
           {navItem(h.navBeranda, "home", "navBeranda")}
           {navItem(h.navProduk, "shop", "navProduk")}
+          {role !== "admin" && <a href={FERTUNE_URL} className="gs-nav-link" style={{ color: C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, textDecoration: "none", padding: "6px 2px" }}>{FERTUNE_LABEL}</a>}
           {customPages && customPages.map((p) => (
             <button key={p.id} onClick={() => openCustomPage(p.slug)} style={{ background: "none", border: "none", color: view === "custompage" && customPageSlug === p.slug ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{p.title}</button>
           ))}
@@ -1101,6 +1106,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
           <div className="gs-mobile-toggle" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {navItem(h.navBeranda, "home", "navBeranda")}
             {navItem(h.navProduk, "shop", "navProduk")}
+            {role !== "admin" && <a href={FERTUNE_URL} style={{ textAlign: "center", color: C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, textDecoration: "none", padding: "6px 2px" }}>{FERTUNE_LABEL}</a>}
             {customPages && customPages.map((p) => (
               <button key={p.id} onClick={() => { openCustomPage(p.slug); setMobileOpen(false); }} style={{ width: "100%", background: "none", border: "none", textAlign: "center", color: view === "custompage" && customPageSlug === p.slug ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 2px" }}>{p.title}</button>
             ))}
@@ -2966,11 +2972,13 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
     { key: "overview", label: "Ringkasan", icon: LayoutDashboard },
     { key: "orders", label: "Pesanan", icon: ClipboardList },
     { key: "profile", label: "Profil", icon: User },
+    { key: "fertune", label: FERTUNE_LABEL, icon: Music },
   ];
 
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "30px 20px 60px", display: "flex", gap: 28 }} className="gs-dash-layout">
-      <DashSidebar items={items} active={sub} onSelect={setSub} footer={
+      {/* "fertune" bukan sub-halaman dasbor: membuka aplikasi terpisah di /fertune/ (halaman penuh, bisa dipasang sebagai PWA) */}
+      <DashSidebar items={items} active={sub} onSelect={(k) => (k === "fertune" ? window.location.assign(FERTUNE_URL) : setSub(k))} footer={
         <button className="gs-sidebar-logout" onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 13.5, cursor: "pointer", marginTop: 14 }}>
           <LogOut size={16} />Keluar
         </button>
