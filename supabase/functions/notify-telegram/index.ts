@@ -2,7 +2,7 @@
 // Secrets (Supabase Dashboard -> Edge Functions -> Secrets):
 //   TELEGRAM_BOT_TOKEN=123456:ABC...   (token dari @BotFather)
 //   TELEGRAM_CHAT_ID=123456789         (chat id admin)
-//   SITE_URL=https://domainkamu.com
+//   SITE_URL=https://gitarsakti.com
 // JANGAN taruh token bot di kode yang di-commit ke GitHub.
 //
 // Keamanan: data pesanan dibaca dari database (bukan dari kiriman browser), dan hanya pemilik
@@ -16,7 +16,7 @@ const TELEGRAM_BOT_TOKEN = (Deno.env.get("TELEGRAM_BOT_TOKEN") || "").trim();
 const TELEGRAM_CHAT_ID = (Deno.env.get("TELEGRAM_CHAT_ID") || "").trim();
 // Jangan pernah menulis token ke log — samarkan kalau muncul di pesan error.
 const redact = (msg: string) => (TELEGRAM_BOT_TOKEN ? msg.split(TELEGRAM_BOT_TOKEN).join("***") : msg);
-const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsaktipol.vercel.app";
+const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsakti.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

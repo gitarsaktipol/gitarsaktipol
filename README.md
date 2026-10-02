@@ -14,7 +14,7 @@ npm run dev      # buka http://localhost:5173
 npm run build    # cek build produksi
 ```
 
-Halaman login admin: tambahkan `?admin=1` di URL (mis. `https://domainkamu.com/?admin=1`).
+Halaman login admin: tambahkan `?admin=1` di URL (mis. `https://gitarsakti.com/?admin=1`).
 
 ## Upload produk langsung dari link YouTube
 
@@ -35,12 +35,12 @@ Edge Functions → Secrets → `YOUTUBE_API_KEY`.
 ## Deploy (Vercel) & domain
 
 1. Vercel → Add New Project → pilih repo ini (preset Vite terdeteksi otomatis) → Deploy.
-2. Vercel → Settings → Domains → tambahkan domain kamu, ikuti instruksi DNS.
+2. Vercel → Settings → Domains → tambahkan domain (gitarsakti.com), ikuti instruksi DNS.
 3. **Supabase Dashboard → Authentication → URL Configuration**: ganti *Site URL* ke domain
-   baru dan tambahkan `https://domainkamu.com/**` ke *Redirect URLs* (kalau tidak, link
+   baru dan tambahkan `https://gitarsakti.com/**` ke *Redirect URLs* (kalau tidak, link
    reset password & verifikasi email mengarah ke alamat lama).
 4. Supabase → Edge Functions → Secrets, isi:
-   - `SITE_URL` = `https://domainkamu.com`
+   - `SITE_URL` = `https://gitarsakti.com`
    - `RESEND_API_KEY`, `FROM_EMAIL` (email pesanan; domain diverifikasi di Resend)
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (notifikasi pesanan ke HP admin)
    - `YOUTUBE_API_KEY` (opsional, disarankan)

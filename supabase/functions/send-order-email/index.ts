@@ -1,8 +1,8 @@
 // Edge Function: kirim email konfirmasi/invoice pesanan lewat Resend.
 // Secrets yang dipakai (Supabase Dashboard -> Edge Functions -> Secrets):
 //   RESEND_API_KEY=re_xxxxxxxxxxxx                       (wajib)
-//   SITE_URL=https://domainkamu.com                       (link tombol "Masuk ke Akun")
-//   FROM_EMAIL="Gitar Sakti <no-reply@domainkamu.com>"    (domain harus diverifikasi di Resend)
+//   SITE_URL=https://gitarsakti.com                       (link tombol "Masuk ke Akun")
+//   FROM_EMAIL="Gitar Sakti <no-reply@gitarsakti.com>"    (domain harus diverifikasi di Resend)
 //
 // Keamanan: isi email TIDAK diambil dari data kiriman browser. Function ini hanya menerima
 // { orderId, kind }, lalu membaca pesanan langsung dari database. Email hanya dikirim ke
@@ -12,7 +12,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsaktipol.vercel.app";
+const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsakti.com";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Gitar Sakti <onboarding@resend.dev>";
 
 const corsHeaders = {
