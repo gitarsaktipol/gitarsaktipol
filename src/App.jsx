@@ -1036,7 +1036,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
       )}
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div onClick={() => !admin && go("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: admin ? "default" : "pointer" }}>
-          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 34, height: 34, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
+          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: "clamp(36px, 10.5vw, 48px)", height: "clamp(36px, 10.5vw, 48px)", borderRadius: 12, objectFit: "cover", flexShrink: 0 }} />
           {admin ? (
             <EditableText value={h.brandName} admin onSave={(v) => onSaveHeader({ brandName: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }} />
           ) : (
@@ -1145,7 +1145,7 @@ function Footer({ go, content, admin, onSave }) {
       <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }} className="gs-footer-grid">
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+            <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
             <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
           </div>
           {admin ? (
@@ -6141,7 +6141,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* top bar minimal, tanpa menu navigasi supaya fokus konversi */}
       <div style={{ borderBottom: `1px solid ${C.borderSoft}`, padding: "14px 20px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 30, height: 30, borderRadius: 7, objectFit: "cover", flexShrink: 0 }} />
+          <img src={LOGO_URL} alt="Gitar Sakti" style={{ width: 38, height: 38, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
           <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, letterSpacing: 1, color: C.text }}>GITAR SAKTI</span>
         </div>
       </div>
