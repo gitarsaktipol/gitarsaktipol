@@ -457,6 +457,7 @@ function Badge({ children, tone = "gold", dot }) {
     ember: { bg: `linear-gradient(135deg, ${C.emberLight}, ${C.ember})`, fg: "#FFFFFF", bd: "transparent" },
     green: { bg: "rgba(52,168,83,0.14)", fg: "#2E9A4E", bd: "rgba(52,168,83,0.35)" },
     muted: { bg: C.surface2, fg: C.muted, bd: C.border },
+    red: { bg: "linear-gradient(135deg, #E5484D, #C62828)", fg: "#FFFFFF", bd: "transparent" },
   };
   const t = map[tone] || map.gold;
   return (
@@ -1352,7 +1353,7 @@ function ContinueLearning({ items, onResume, compact }) {
             <b style={{ color: C.text }}>Video {main.idx + 1} dari {main.total}</b>{main.video?.title ? ` · ${main.video.title}` : ""}
           </p>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>{main.done} dari {main.total} video selesai</span>
-          <div style={{ marginTop: 4 }}><PrimaryBtn onClick={(e) => { e.stopPropagation(); onResume(main.p); }} icon={finished ? RotateCcw : Play}>{finished ? "Tonton Ulang" : main.done === 0 ? "Mulai Belajar" : "Lanjutkan"}</PrimaryBtn></div>
+          <div style={{ marginTop: 6, display: "flex", justifyContent: "center" }}><div className="gs-attn"><PrimaryBtn onClick={(e) => { e.stopPropagation(); onResume(main.p); }} icon={finished ? RotateCcw : Play}>{finished ? "Tonton Ulang" : main.done === 0 ? "Mulai Belajar" : "Lanjutkan"}</PrimaryBtn></div></div>
         </div>
       </Card>
       {rest.length > 0 && (
@@ -1987,11 +1988,11 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               </div>
             ) : pending ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.ember}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px" }}>
                   <Clock size={15} color={C.emberLight} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu belum selesai diproses. Lanjutkan lewat tombol di bawah.</span>
                 </div>
-                <GhostBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</GhostBtn>
+                <div className="gs-attn"><PrimaryBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</PrimaryBtn></div>
               </div>
             ) : (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2614,8 +2615,16 @@ function ProofImage({ path, alt, style }) {
   return <img src={url} alt={alt || "Bukti transfer"} style={style} />;
 }
 
-function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview, onPayOnline, refreshOrders }) {
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview, onPrepareOnline, onOpenSnap, refreshOrders }) {
   const [paying, setPaying] = useState(false);
+  const prepRef = useRef(null);
+  // Siapkan token Snap + snap.js di latar belakang begitu halaman dibuka, supaya tombol "Bayar Sekarang" langsung responsif.
+  useEffect(() => {
+    const m = (paymentMethods || []).find((x) => x.id === order?.paymentMethodId);
+    if (order && order.payment === "Pending" && m?.type === "midtrans" && onPrepareOnline) {
+      prepRef.current = onPrepareOnline(order.id);
+    }
+  }, [order?.id, order?.paymentMethodId, order?.payment, (paymentMethods || []).length]);
   const [checking, setChecking] = useState(false);
   const [payMsg, setPayMsg] = useState("");
   // Setelah jendela Midtrans ditutup dengan sukses/pending, cek status pesanan tiap 3 detik (maks 90 detik).
@@ -2648,12 +2657,17 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
 
   const handlePayOnline = async () => {
     setError(""); setPayMsg(""); setPaying(true);
-    const r = await onPayOnline(order.id);
-    setPaying(false);
-    if (!r.ok) { setError(r.error || "Gagal membuka pembayaran. Coba lagi."); return; }
-    if (r.result === "closed") { setPayMsg("Pembayaran belum selesai. Tekan \"Bayar Sekarang\" lagi kapan saja untuk melanjutkan."); return; }
+    let r = await (prepRef.current || onPrepareOnline(order.id));
+    if (!r.ok) { prepRef.current = null; r = await onPrepareOnline(order.id); }   // coba sekali lagi bila persiapan awal gagal
+    if (!r.ok) { setPaying(false); setError(r.error || "Gagal membuka pembayaran. Coba lagi."); return; }
+    prepRef.current = Promise.resolve(r);    // token masih berlaku; dipakai lagi kalau popup ditutup lalu dibuka kembali
+    const pay = onOpenSnap(r.token);
+    setTimeout(() => setPaying(false), 700); // popup Midtrans punya layar loading sendiri; layar kita dilepas setelah ia muncul
+    const res = await pay;
+    if (!res.ok) { setError(res.error || "Pembayaran gagal. Coba lagi."); return; }
+    if (res.result === "closed") { setPayMsg("Pembayaran belum selesai. Tekan \"Bayar Sekarang\" lagi kapan saja untuk melanjutkan."); return; }
     setChecking(true);
-    setPayMsg(r.result === "pending"
+    setPayMsg(res.result === "pending"
       ? "Menunggu pembayaranmu masuk. Selesaikan sesuai instruksi yang tampil; halaman ini memperbarui status otomatis. Produk aktif sendiri begitu pembayaran diterima."
       : "Memeriksa pembayaran…");
   };
@@ -2723,6 +2737,13 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "36px 20px 60px" }}>
+      {paying && (
+        <div role="alert" aria-live="assertive" style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, cursor: "wait", padding: 24, textAlign: "center" }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", border: `4px solid ${C.gold}33`, borderTopColor: C.gold, animation: "gsSpin .8s linear infinite" }} />
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 16, color: "#FFFFFF", margin: 0 }}>Membuka pembayaran Midtrans…</p>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0, maxWidth: 300, lineHeight: 1.6 }}>Mohon tunggu sebentar. Jangan tutup atau klik halaman ini sampai jendela pembayaran muncul.</p>
+        </div>
+      )}
       <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "0 0 6px" }}>KONFIRMASI PEMBAYARAN</h1>
       <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginBottom: 22 }}>Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah dibuat. {isMidtrans ? "Selesaikan pembayaran lewat tombol di bawah." : "Silakan transfer ke rekening berikut, lalu unggah bukti pembayarannya."}</p>
 
@@ -3072,7 +3093,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.goldLight }}>{rp(o.total)}</span>
-                      <Badge>{o.status}</Badge>
+                      <Badge tone={o.payment === "Failed" ? "red" : o.payment === "Pending" ? "ember" : "gold"}>{o.status}</Badge>
                     </div>
                   </div>
                 ))}
@@ -3136,7 +3157,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
               const steps = ["Dikemas", "Dikirim", "Diterima"];
               const stepIdx = o.fulfillmentStatus ? steps.indexOf(o.fulfillmentStatus) : -1;
               const paid = o.payment === "PAID";
-              const tone = paid ? "gold" : o.payment === "Failed" ? "muted" : "ember";
+              const tone = paid ? "gold" : o.payment === "Failed" ? "red" : "ember";
               return (
                 <Reveal key={o.id} delay={Math.min(i, 6) * 0.04}>
                   <Card style={{ padding: 16 }}>
@@ -3148,7 +3169,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <Badge tone={tone} dot={o.payment === "Pending"}>{paid ? "Lunas" : o.payment === "Failed" ? o.status : o.proofImage ? "Sedang dicek" : "Belum dibayar"}</Badge>
+                        <Badge tone={tone} dot={o.payment === "Pending"}>{paid ? "Lunas" : o.payment === "Failed" ? o.status : o.proofImage ? "Sedang dicek" : "Menunggu untuk dibayar"}</Badge>
                         <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 15, color: C.goldLight, marginTop: 8 }}>{rp(o.total)}</div>
                       </div>
                     </div>
@@ -3177,7 +3198,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                       <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
                         {!o.proofImage ? (
                           <>
-                            <PrimaryBtn small onClick={() => goToPaymentConfirm(o.id)} icon={Upload}>Bayar & Upload Bukti</PrimaryBtn>
+                            <PrimaryBtn small onClick={() => goToPaymentConfirm(o.id)} icon={CreditCard}>Bayar Sekarang</PrimaryBtn>
                             <button onClick={() => { if (window.confirm(`Batalkan pesanan ${o.id}? Kamu bisa checkout ulang setelahnya.`)) onCancelOrder(o.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>Batalkan</button>
                           </>
                         ) : (
@@ -6535,9 +6556,12 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
             </div>
             <div style={{ padding: 20 }}>
               {pending ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.ember}` }}>
-                  <Clock size={15} color={C.emberLight} />
-                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px" }}>
+                    <Clock size={15} color={C.emberLight} />
+                    <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight }}>Pesananmu belum selesai diproses. Lanjutkan lewat tombol di bawah.</span>
+                  </div>
+                  <div className="gs-attn"><PrimaryBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</PrimaryBtn></div>
                 </div>
               ) : owned ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
@@ -7332,9 +7356,12 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
 
             <div style={{ padding: "0 32px 32px" }}>
               {pending ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 12px", borderRadius: 12, background: V.card, border: `1px solid ${V.red}66` }}>
-                  <Lp2Icon d={V_PATH.clock} size={16} color={V.red} />
-                  <span style={{ fontFamily: V_BODY, fontSize: 13.5, fontWeight: 600, color: V.red }}>Pesananmu sedang menunggu verifikasi pembayaran</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "4px 8px" }}>
+                    <Lp2Icon d={V_PATH.clock} size={16} color={V.red} />
+                    <span style={{ fontFamily: V_BODY, fontSize: 13.5, fontWeight: 600, color: V.red }}>Pesananmu belum selesai diproses. Lanjutkan lewat tombol di bawah.</span>
+                  </div>
+                  <div className="gs-attn"><button className="lp2-btn lp2-glow-btn" onClick={() => go("customer")} style={{ ...btnStyle, display: "block", width: "100%", textAlign: "center" }}>Lihat Status Pesanan</button></div>
                 </div>
               ) : owned ? (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 12px", borderRadius: 12, background: V.card, border: `1px solid ${V.accent}` }}>
@@ -8315,23 +8342,26 @@ export default function App() {
   };
   // Upload foto ke Storage privat, lalu catat path-nya ke order lewat RPC (bukan UPDATE langsung,
   // supaya customer hanya bisa mengisi kolom bukti transfer, bukan kolom lain seperti payment/status).
-  // Pembayaran online Midtrans: Edge Function membuat token Snap dari data pesanan di database,
-  // lalu popup Midtrans dibuka. Hasil resolve: success | pending | closed.
-  const payOnline = async (orderId) => {
+  // Pembayaran online Midtrans, dua tahap supaya tombol terasa cepat:
+  //  1) prepareOnline: Edge Function membuat (atau memakai ulang) token Snap dari data pesanan di database,
+  //     lalu snap.js dimuat. Dipanggil di latar belakang begitu halaman pembayaran dibuka.
+  //  2) openSnap: membuka popup Midtrans. Hasil resolve: success | pending | closed.
+  const prepareOnline = async (orderId) => {
     const r = await invokeFn("midtrans-create-transaction", { orderId });
     if (!r.ok) return { ok: false, error: r.error };
     const { token, clientKey, snapUrl } = r.data || {};
     if (!token || !clientKey || !snapUrl) return { ok: false, error: "Pembayaran online belum aktif. Hubungi admin atau pilih metode lain." };
     try { await loadSnap(snapUrl, clientKey); } catch (e) { return { ok: false, error: e.message }; }
-    return new Promise((resolve) => {
-      window.snap.pay(token, {
-        onSuccess: () => resolve({ ok: true, result: "success" }),
-        onPending: () => resolve({ ok: true, result: "pending" }),
-        onError: () => resolve({ ok: false, error: "Pembayaran gagal. Silakan coba lagi." }),
-        onClose: () => resolve({ ok: true, result: "closed" }),
-      });
-    });
+    return { ok: true, token };
   };
+  const openSnap = (token) => new Promise((resolve) => {
+    window.snap.pay(token, {
+      onSuccess: () => resolve({ ok: true, result: "success" }),
+      onPending: () => resolve({ ok: true, result: "pending" }),
+      onError: () => resolve({ ok: false, error: "Pembayaran gagal. Silakan coba lagi." }),
+      onClose: () => resolve({ ok: true, result: "closed" }),
+    });
+  });
   const attachPaymentProof = async (orderId, file, note) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan." };
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -8607,6 +8637,9 @@ export default function App() {
         @keyframes gsFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes gsPopIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
         @keyframes gsSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes gsZoomPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+        .gs-attn { animation: gsZoomPulse 1.5s ease-in-out infinite; transform-origin: center; will-change: transform; }
+        .gs-attn:hover { animation-play-state: paused; }
         @keyframes gsPulseRing { 0% { box-shadow: 0 0 0 0 ${C.gold}55; } 70% { box-shadow: 0 0 0 10px ${C.gold}00; } 100% { box-shadow: 0 0 0 0 ${C.gold}00; } }
 
         .gs-anim-in { animation: gsFadeInUp .6s var(--gs-ease) both; }
@@ -8747,6 +8780,7 @@ export default function App() {
         .gs-page-enter { animation: gsFadeIn .45s var(--gs-ease) backwards; }
 
         @media (prefers-reduced-motion: reduce) {
+          .gs-attn { animation: none; }
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
         }
         @media (max-width: 860px) {
@@ -8788,7 +8822,7 @@ export default function App() {
           </div>
         )
       )}
-      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPayOnline={payOnline} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPrepareOnline={prepareOnline} onOpenSnap={openSnap} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}

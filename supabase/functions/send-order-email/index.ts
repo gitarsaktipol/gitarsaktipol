@@ -51,9 +51,15 @@ Deno.serve(async (req) => {
 
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-    const { data: userData } = await db.auth.getUser(jwt);
-    const uid = userData?.user?.id;
-    if (!uid) return json({ error: "Tidak terautentikasi." }, 401);
+    // Panggilan internal dari Edge Function lain (mis. midtrans-webhook) memakai service role key.
+    // Itu bukan JWT pengguna, jadi dianggap setara admin dan melewati pemeriksaan pengguna.
+    const isService = jwt !== "" && jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    let uid: string | undefined;
+    if (!isService) {
+      const { data: userData } = await db.auth.getUser(jwt);
+      uid = userData?.user?.id;
+      if (!uid) return json({ error: "Tidak terautentikasi." }, 401);
+    }
 
     const { orderId, kind: rawKind } = await req.json();
     const kind = SUBJECT[rawKind] ? rawKind : "created";
@@ -61,26 +67,45 @@ Deno.serve(async (req) => {
 
     const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (!order) return json({ error: "Pesanan tidak ditemukan." }, 404);
-    const { data: caller } = await db.from("profiles").select("role").eq("id", uid).maybeSingle();
-    const isAdmin = caller?.role === "admin";
+    const { data: caller } = isService ? { data: null } : await db.from("profiles").select("role").eq("id", uid).maybeSingle();
+    const isAdmin = isService || caller?.role === "admin";
     const adminOnly = kind === "paid" || kind === "shipped";
     if (adminOnly ? !(isAdmin && order.payment === "PAID") : !(isAdmin || order.customer_id === uid)) {
       return json({ error: "Tidak diizinkan." }, 403);
     }
 
     const items = Array.isArray(order.items) ? order.items : [];
+
+    // Kalimat pembuka menyesuaikan isi pesanan (produk digital / merchandise / campuran) dan metode bayar,
+    // supaya tidak menyebut hal yang tidak dibeli (mis. "merchandise" untuk pembeli kelas saja).
+    const hasPhysical = items.some((it: any) => it?.type === "physical");
+    const hasDigital = items.some((it: any) => (it?.type || "digital") !== "physical");
+    const { data: payMethod } = order.payment_method_id
+      ? await db.from("payment_methods").select("type").eq("id", order.payment_method_id).maybeSingle()
+      : { data: null };
+    let intro = INTRO[kind];
+    if (kind === "paid") {
+      intro = hasPhysical && hasDigital
+        ? "Pembayaran untuk pesanan berikut sudah kami terima. Produk digital kamu sudah bisa diakses di dashboard, dan merchandise segera kami kemas — terima kasih!"
+        : hasPhysical
+          ? "Pembayaran untuk pesanan berikut sudah kami terima. Pesananmu segera kami kemas dan kirim — terima kasih!"
+          : "Pembayaran untuk pesanan berikut sudah kami terima. Produk kamu sudah bisa diakses di dashboard — selamat belajar!";
+    } else if (kind === "created" && payMethod?.type === "midtrans") {
+      intro = "Kami sudah menerima pesanan kamu. Silakan selesaikan pembayaran lewat tombol \"Bayar Sekarang\" di halaman konfirmasi atau di menu Pesanan pada dashboard kamu.";
+    }
     const itemsRows = items.map((it: any) =>
       `<tr><td style="padding:8px 0;color:#1D1D1F;font-size:13.5px;">${esc(it?.name)}${Number(it?.qty) > 1 ? ` ×${Number(it.qty)}` : ""}</td><td style="padding:8px 0;text-align:right;color:#1D1D1F;font-size:13.5px;">${rupiah((Number(it?.price) || 0) * (Number(it?.qty) || 1))}</td></tr>`
     ).join("");
 
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;">
-        <div style="background:#1D1D1F;padding:24px;text-align:center;">
+        <div style="background:#1D1D1F;padding:22px 24px;text-align:center;">
+          <img src="${esc(SITE_URL)}/gitar-sakti-logo.png" width="64" height="64" alt="Gitar Sakti" style="display:block;margin:0 auto 10px;width:64px;height:64px;border-radius:14px;border:0;">
           <span style="color:#fff;font-size:20px;font-weight:800;letter-spacing:1px;">GITAR SAKTI</span>
         </div>
         <div style="padding:28px 24px;">
           <h2 style="color:#1D1D1F;margin:0 0 10px;">${HEADING[kind]}</h2>
-          <p style="color:#6E6E73;font-size:14px;line-height:1.6;">Halo ${esc(order.customer_name)}, ${INTRO[kind]}</p>
+          <p style="color:#6E6E73;font-size:14px;line-height:1.6;">Halo ${esc(order.customer_name)}, ${intro}</p>
           ${itemsRows ? `<table style="width:100%;border-collapse:collapse;margin-top:16px;border-top:1px solid #E5E5EA;">${itemsRows}</table>` : ""}
           <div style="border-top:1px solid #E5E5EA;margin-top:10px;padding-top:12px;">
             <table style="width:100%;">
