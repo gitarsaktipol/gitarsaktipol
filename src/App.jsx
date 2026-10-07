@@ -17,9 +17,9 @@ import {
 // Publishable key AMAN ditaruh di kode frontend (bukan rahasia) — akses data
 // sesungguhnya dikontrol oleh RLS policy di database, bukan oleh key ini.
 // Kunci rahasia (service_role) TIDAK BOLEH pernah ditaruh di sini.
-// Banner "sedang dalam penyempurnaan" di atas header. Aktif secara default; untuk mematikannya saat
-// launch, isi VITE_MODE_PERSIAPAN=0 di Vercel → Environment Variables lalu redeploy.
-const SHOW_MAINTENANCE_BANNER = import.meta.env.VITE_MODE_PERSIAPAN !== "0";
+// Banner "sedang dalam penyempurnaan" di atas header. Nonaktif secara default; untuk menampilkannya
+// lagi (mis. saat maintenance), isi VITE_MODE_PERSIAPAN=1 di Vercel → Environment Variables lalu redeploy.
+const SHOW_MAINTENANCE_BANNER = import.meta.env.VITE_MODE_PERSIAPAN === "1";
 
 const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
