@@ -3492,6 +3492,132 @@ function TampilanHalamanList({ customPages, onBack, onAdd, onEdit, onDelete }) {
   );
 }
 
+/* ---------------- ADMIN > PENGATURAN > FERTUNE ----------------
+   Info = jawaban "kenapa menghapus akun" dari aplikasi FerTune (anonim).
+   Dari Play Store / Dari Web = catatan pembelian FerTune per sumber (tabel fertune_purchases; ditulis oleh
+   Edge Function saat pembayaran FerTune terpasang. Selama FerTune masih gratis, angkanya 0). */
+function AdminFertune() {
+  const [tab, setTab] = useState("info"); // info | playstore | web
+  const [feedback, setFeedback] = useState(null);
+  const [purchases, setPurchases] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [f, p] = await Promise.all([
+        supabase.from("fertune_feedback").select("*").order("created_at", { ascending: false }).limit(500),
+        supabase.from("fertune_purchases").select("*").order("created_at", { ascending: false }).limit(2000),
+      ]);
+      if (!alive) return;
+      if (f.error || p.error) setError("Gagal memuat data FerTune: " + (f.error?.message || p.error?.message));
+      setFeedback(f.data || []);
+      setPurchases(p.data || []);
+    })();
+    return () => { alive = false; };
+  }, []);
+  const sansBold = { fontFamily: "'Manrope',sans-serif", fontWeight: 700 };
+  const loading = feedback === null || purchases === null;
+  const bySource = (src) => (purchases || []).filter((x) => x.source === src);
+  const tabBtn = (key, label) => (tab === key
+    ? <PrimaryBtn small onClick={() => setTab(key)}>{label}</PrimaryBtn>
+    : <GhostBtn small onClick={() => setTab(key)}>{label}</GhostBtn>);
+
+  const reasonCounts = {};
+  (feedback || []).forEach((x) => { reasonCounts[x.reason] = (reasonCounts[x.reason] || 0) + 1; });
+  const reasonList = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]);
+  const maxReason = reasonList.length ? reasonList[0][1] : 1;
+
+  const renderPurchases = (src, label) => {
+    const rows = bySource(src);
+    const paid = rows.filter((x) => x.status === "paid");
+    const refunded = rows.filter((x) => x.status === "refunded");
+    const income = paid.reduce((a, x) => a + (x.amount || 0), 0);
+    return (
+      <div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }} className="gs-grid-3">
+          <StatCard label={`Pembelian lunas (${label})`} value={paid.length} icon={ShoppingBag} />
+          <StatCard label="Total pendapatan" value={rp(income)} icon={DollarSign} />
+          <StatCard label="Dikembalikan (refund)" value={refunded.length} icon={RotateCcw} />
+        </div>
+        {rows.length === 0 ? (
+          <Card style={{ padding: 22, marginTop: 16, textAlign: "center" }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.6 }}>
+              Belum ada pembelian FerTune dari {label}. FerTune saat ini masih gratis; angka di sini terisi otomatis setelah FerTune berbayar dan pembayarannya
+              {src === "playstore" ? " lewat Google Play Billing" : " lewat website"} tersambung.
+            </p>
+          </Card>
+        ) : (
+          <Card style={{ padding: 4, marginTop: 16 }}>
+            {rows.slice(0, 50).map((x, i) => (
+              <div key={x.id} style={{ padding: "11px 14px", borderBottom: i < Math.min(rows.length, 50) - 1 ? `1px solid ${C.border}` : "none", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ ...sansBold, fontSize: 13, color: C.text }}>{x.product}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>{formatDateID(new Date(x.created_at))}{x.ref ? ` · ${String(x.ref).slice(0, 18)}` : ""}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.goldLight }}>{rp(x.amount)}</span>
+                  <Badge tone={x.status === "paid" ? "gold" : "red"}>{x.status === "paid" ? "Lunas" : "Refund"}</Badge>
+                </div>
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        {tabBtn("info", `Info${feedback ? ` (${feedback.length})` : ""}`)}
+        {tabBtn("playstore", "Dari Play Store")}
+        {tabBtn("web", "Dari Web")}
+      </div>
+      {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.emberLight, marginBottom: 12 }}>{error}</p>}
+      {loading ? (
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Memuat…</p>
+      ) : tab === "info" ? (
+        <div>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginTop: 0, marginBottom: 14, lineHeight: 1.6 }}>
+            Jawaban pengguna FerTune yang menghapus akun ("Kenapa kamu menghapus akun?"). Anonim: tidak terhubung ke nama atau email.
+          </p>
+          {feedback.length === 0 ? (
+            <Card style={{ padding: 22, textAlign: "center" }}><p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: 0 }}>Belum ada umpan balik.</p></Card>
+          ) : (
+            <>
+              <Card style={{ padding: 18, marginBottom: 16 }}>
+                <h3 style={{ ...sansBold, fontSize: 14, color: C.text, margin: "0 0 12px" }}>Alasan terbanyak</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {reasonList.map(([reason, n]) => (
+                    <div key={reason}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.text, marginBottom: 4 }}><span>{reason}</span><b>{n}</b></div>
+                      <div style={{ height: 6, borderRadius: 999, background: C.surface2, overflow: "hidden" }}><div style={{ width: `${Math.round((n / maxReason) * 100)}%`, height: "100%", background: C.gold }} /></div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card style={{ padding: 4 }}>
+                {feedback.map((x, i) => (
+                  <div key={x.id} style={{ padding: "12px 14px", borderBottom: i < feedback.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <span style={{ ...sansBold, fontSize: 13, color: C.text }}>{x.reason}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Badge tone="muted">{x.source === "playstore" ? "Play Store" : "Web"}</Badge>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.muted }}>{formatDateID(new Date(x.created_at))}</span>
+                      </span>
+                    </div>
+                    {x.note && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, margin: "6px 0 0", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{x.note}</p>}
+                  </div>
+                ))}
+              </Card>
+            </>
+          )}
+        </div>
+      ) : tab === "playstore" ? renderPurchases("playstore", "Play Store") : renderPurchases("web", "Web")}
+    </div>
+  );
+}
+
 function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, updateFulfillment, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -4095,6 +4221,18 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                 <ChevronRight size={16} color={C.muted} />
               </div>
             </Card>
+            <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("fertune")}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Music size={18} color={C.gold} />
+                  <div>
+                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>FerTune</h3>
+                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, margin: "3px 0 0" }}>Umpan balik hapus akun, serta pembelian dari Play Store dan dari Web.</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} color={C.muted} />
+              </div>
+            </Card>
             <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => setSettingsSub("marketing")}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4114,6 +4252,13 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
               </div>
             </Card>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Credential sensitif tidak pernah ditulis di source code — semua diambil dari environment variables saat aplikasi berjalan.</p>
+          </div>
+        )}
+
+        {sub === "settings" && settingsSub === "fertune" && (
+          <div>
+            <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
+            <AdminFertune />
           </div>
         )}
 
