@@ -42,6 +42,22 @@ const invokeFn = async (name, body) => {
   }
 };
 
+// Muat snap.js Midtrans (jendela pembayaran). Client Key berasal dari baris payment_methods (publik, aman di browser);
+// Server Key hanya ada di Edge Function. Script dimuat sekali per kombinasi alamat+kunci.
+const loadSnap = (src, clientKey) => new Promise((resolve, reject) => {
+  if (typeof window === "undefined") { reject(new Error("no window")); return; }
+  const tag = `${src}|${clientKey}`;
+  if (window.snap && window.__snapTag === tag) { resolve(window.snap); return; }
+  document.querySelectorAll("script[data-midtrans-snap]").forEach((el) => el.remove());
+  const el = document.createElement("script");
+  el.src = src;
+  el.setAttribute("data-client-key", clientKey);
+  el.setAttribute("data-midtrans-snap", "1");
+  el.onload = () => { window.__snapTag = tag; window.snap ? resolve(window.snap) : reject(new Error("snap tidak tersedia")); };
+  el.onerror = () => reject(new Error("Gagal memuat Midtrans. Cek koneksi internet."));
+  document.head.appendChild(el);
+});
+
 /* ---------------- design tokens (gaya iOS: putih bersih, aksen emas & terracotta) ---------------- */
 const LIGHT_THEME = {
   bg: "#FFFFFF",
@@ -2598,7 +2614,18 @@ function ProofImage({ path, alt, style }) {
   return <img src={url} alt={alt || "Bukti transfer"} style={style} />;
 }
 
-function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview }) {
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview, onPayOnline, refreshOrders }) {
+  const [paying, setPaying] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [payMsg, setPayMsg] = useState("");
+  // Setelah jendela Midtrans ditutup dengan sukses/pending, cek status pesanan tiap 3 detik (maks 90 detik).
+  // Status LUNAS sendiri datang dari webhook Midtrans -> database, bukan dari browser.
+  useEffect(() => {
+    if (!checking) return undefined;
+    const t = setInterval(() => { refreshOrders && refreshOrders(); }, 3000);
+    const stop = setTimeout(() => setChecking(false), 90000);
+    return () => { clearInterval(t); clearTimeout(stop); };
+  }, [checking]);
   const [note, setNote] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -2618,6 +2645,36 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
   const alreadySubmitted = !!order.proofImage;
   const chosenMethod = (paymentMethods || []).find((m) => m.id === order.paymentMethodId) || null;
   const isMidtrans = chosenMethod?.type === "midtrans";
+
+  const handlePayOnline = async () => {
+    setError(""); setPayMsg(""); setPaying(true);
+    const r = await onPayOnline(order.id);
+    setPaying(false);
+    if (!r.ok) { setError(r.error || "Gagal membuka pembayaran. Coba lagi."); return; }
+    if (r.result === "closed") { setPayMsg("Pembayaran belum selesai. Tekan \"Bayar Sekarang\" lagi kapan saja untuk melanjutkan."); return; }
+    setChecking(true);
+    setPayMsg(r.result === "pending"
+      ? "Menunggu pembayaranmu masuk. Selesaikan sesuai instruksi yang tampil; halaman ini memperbarui status otomatis. Produk aktif sendiri begitu pembayaran diterima."
+      : "Memeriksa pembayaran…");
+  };
+
+  if (order.payment === "PAID") {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+        <div style={{ width: 60, height: 60, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+          <Check size={26} color={C.gold} />
+        </div>
+        <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, marginTop: 20 }}>PEMBAYARAN BERHASIL</h1>
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>
+          Terima kasih! Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah lunas. Produknya sekarang aktif di dashboard kamu.
+        </p>
+        <div style={{ marginTop: 26, display: "flex", gap: 12, justifyContent: "center" }}>
+          <GhostBtn onClick={() => go("shop")}>Lanjut Belanja</GhostBtn>
+          <PrimaryBtn onClick={goToCustomerOverview} icon={ArrowRight}>Ke Dashboard</PrimaryBtn>
+        </div>
+      </div>
+    );
+  }
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -2667,7 +2724,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "36px 20px 60px" }}>
       <h1 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 30, color: C.text, margin: "0 0 6px" }}>KONFIRMASI PEMBAYARAN</h1>
-      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginBottom: 22 }}>Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah dibuat. Silakan transfer ke rekening berikut, lalu unggah bukti pembayarannya.</p>
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, marginBottom: 22 }}>Pesanan <b style={{ color: C.text }}>{order.id}</b> sudah dibuat. {isMidtrans ? "Selesaikan pembayaran lewat tombol di bawah." : "Silakan transfer ke rekening berikut, lalu unggah bukti pembayarannya."}</p>
 
       <Card style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -2675,8 +2732,11 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
           <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: 0 }}>{chosenMethod ? chosenMethod.label : "Transfer ke Rekening Ini"}</h3>
         </div>
         {isMidtrans ? (
-          <div style={{ padding: "14px 0" }}>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, lineHeight: 1.6 }}>Pembayaran otomatis lewat Midtrans untuk metode ini belum sepenuhnya aktif. Silakan hubungi admin untuk menyelesaikan pembayaran, atau kembali ke keranjang dan pilih metode manual.</p>
+          <div style={{ padding: "10px 0 4px" }}>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, lineHeight: 1.6, margin: "0 0 12px" }}>Bayar online dengan QRIS, virtual account bank, atau e-wallet. Total <b style={{ color: C.text }}>{rp(order.total)}</b>. Produk aktif otomatis begitu pembayaran diterima, tanpa perlu unggah bukti.</p>
+            <PrimaryBtn full onClick={handlePayOnline} icon={CreditCard}>{paying ? "Membuka pembayaran..." : "Bayar Sekarang"}</PrimaryBtn>
+            {payMsg && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginTop: 12, lineHeight: 1.6 }}>{payMsg}</p>}
+            {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
           </div>
         ) : (
           <>
@@ -2697,7 +2757,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
         )}
       </Card>
 
-      <Card style={{ padding: 20, marginTop: 16 }}>
+      {!isMidtrans && <Card style={{ padding: 20, marginTop: 16 }}>
         <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: "0 0 12px" }}>Unggah Bukti Transfer</h3>
         <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, border: `1px dashed ${C.border}`, borderRadius: 10, padding: preview ? 12 : 28, cursor: "pointer", background: C.surface2 }}>
           {preview ? (
@@ -2722,7 +2782,7 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
         {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
         <div style={{ marginTop: 14 }}><PrimaryBtn full onClick={handleSubmit} icon={Check}>{submitting ? "Mengunggah..." : "Kirim Konfirmasi Pembayaran"}</PrimaryBtn></div>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Belum sempat transfer? Kamu bisa kembali ke halaman ini lewat menu Pesanan di dashboard.</p>
-      </Card>
+      </Card>}
     </div>
   );
 }
@@ -8255,6 +8315,23 @@ export default function App() {
   };
   // Upload foto ke Storage privat, lalu catat path-nya ke order lewat RPC (bukan UPDATE langsung,
   // supaya customer hanya bisa mengisi kolom bukti transfer, bukan kolom lain seperti payment/status).
+  // Pembayaran online Midtrans: Edge Function membuat token Snap dari data pesanan di database,
+  // lalu popup Midtrans dibuka. Hasil resolve: success | pending | closed.
+  const payOnline = async (orderId) => {
+    const r = await invokeFn("midtrans-create-transaction", { orderId });
+    if (!r.ok) return { ok: false, error: r.error };
+    const { token, clientKey, snapUrl } = r.data || {};
+    if (!token || !clientKey || !snapUrl) return { ok: false, error: "Pembayaran online belum aktif. Hubungi admin atau pilih metode lain." };
+    try { await loadSnap(snapUrl, clientKey); } catch (e) { return { ok: false, error: e.message }; }
+    return new Promise((resolve) => {
+      window.snap.pay(token, {
+        onSuccess: () => resolve({ ok: true, result: "success" }),
+        onPending: () => resolve({ ok: true, result: "pending" }),
+        onError: () => resolve({ ok: false, error: "Pembayaran gagal. Silakan coba lagi." }),
+        onClose: () => resolve({ ok: true, result: "closed" }),
+      });
+    });
+  };
   const attachPaymentProof = async (orderId, file, note) => {
     if (!session) return { ok: false, error: "Sesi tidak ditemukan." };
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -8711,7 +8788,7 @@ export default function App() {
           </div>
         )
       )}
-      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPayOnline={payOnline} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
