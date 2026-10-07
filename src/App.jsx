@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
-  Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
+  Bell, Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
@@ -1782,6 +1782,50 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
   );
 }
 
+function SoonNotify({ p, role, defaultEmail }) {
+  const [email, setEmail] = useState(defaultEmail || "");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [list, setList] = useState(null);
+  const isAdmin = role === "admin";
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("product_waitlist").select("email,created_at").eq("product_id", p.id).order("created_at", { ascending: false }).then(({ data }) => setList(data || []));
+  }, [isAdmin, p.id]);
+  const submit = async () => {
+    const v = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { toast("Isi email yang valid ya.", "error"); return; }
+    setBusy(true);
+    const { error } = await supabase.from("product_waitlist").insert({ product_id: p.id, email: v });
+    setBusy(false);
+    if (error && error.code !== "23505") { toast("Gagal menyimpan. Coba lagi ya.", "error"); return; }
+    setDone(true);
+  };
+  if (isAdmin) {
+    return (
+      <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+        <b style={{ color: C.text }}>Daftar tunggu: {list ? list.length : "…"} orang</b>
+        {list && list.length > 0 && <div style={{ marginTop: 6, maxHeight: 140, overflowY: "auto", wordBreak: "break-all" }}>{list.map((x) => <div key={x.email}>{x.email}</div>)}</div>}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 14, fontFamily: "'Manrope',sans-serif" }}>
+      {done ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
+          <Check size={15} color={C.gold} />
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Siap! Kami akan kabari saat kelas ini dibuka.</span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email kamu" style={{ padding: "11px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, fontSize: 13, fontFamily: "'Manrope',sans-serif" }} />
+          <PrimaryBtn full disabled={busy} onClick={submit} icon={Bell}>Beri tahu saya</PrimaryBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping }) {
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const p = products.find((x) => x.slug === slug);
@@ -1985,6 +2029,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
             {showAdminControls ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
                 <PrimaryBtn full onClick={() => setPreviewBuyer(true)} icon={Eye}>Lihat Tampilan Pembeli</PrimaryBtn>
+                {status === "soon" && <SoonNotify p={p} role={role} />}
               </div>
             ) : owned ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2003,10 +2048,13 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                 <div className="gs-attn"><PrimaryBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</PrimaryBtn></div>
               </div>
             ) : status === "soon" ? (
+              <>
               <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
                 <Clock size={15} color={C.gold} />
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Kelas ini segera hadir. Pantau terus ya!</span>
               </div>
+              <SoonNotify p={p} role={role} />
+              </>
             ) : (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
                 <PrimaryBtn full onClick={() => { if (addToCart(p.id)) go("checkout"); }}>Beli Sekarang</PrimaryBtn>
