@@ -51,9 +51,15 @@ Deno.serve(async (req) => {
 
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-    const { data: userData } = await db.auth.getUser(jwt);
-    const uid = userData?.user?.id;
-    if (!uid) return json({ error: "Tidak terautentikasi." }, 401);
+    // Panggilan internal dari Edge Function lain (mis. midtrans-webhook) memakai service role key.
+    // Itu bukan JWT pengguna, jadi dianggap setara admin dan melewati pemeriksaan pengguna.
+    const isService = jwt !== "" && jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    let uid: string | undefined;
+    if (!isService) {
+      const { data: userData } = await db.auth.getUser(jwt);
+      uid = userData?.user?.id;
+      if (!uid) return json({ error: "Tidak terautentikasi." }, 401);
+    }
 
     const { orderId, kind: rawKind } = await req.json();
     const kind = SUBJECT[rawKind] ? rawKind : "created";
@@ -61,8 +67,8 @@ Deno.serve(async (req) => {
 
     const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
     if (!order) return json({ error: "Pesanan tidak ditemukan." }, 404);
-    const { data: caller } = await db.from("profiles").select("role").eq("id", uid).maybeSingle();
-    const isAdmin = caller?.role === "admin";
+    const { data: caller } = isService ? { data: null } : await db.from("profiles").select("role").eq("id", uid).maybeSingle();
+    const isAdmin = isService || caller?.role === "admin";
     const adminOnly = kind === "paid" || kind === "shipped";
     if (adminOnly ? !(isAdmin && order.payment === "PAID") : !(isAdmin || order.customer_id === uid)) {
       return json({ error: "Tidak diizinkan." }, 403);

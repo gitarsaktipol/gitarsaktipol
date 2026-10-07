@@ -103,6 +103,15 @@ Deno.serve(async (req) => {
       const { data: newly, error } = await db.rpc("system_mark_order_paid", { p_order_id: order.id, p_via: via });
       if (error) { console.error(`Gagal menandai lunas ${order.id}: ${error.message}`); return json({ ok: false, error: "Gagal memproses." }, 500); }
       if (newly) {
+        // Email "Pembayaran Dikonfirmasi" ke pembeli lewat send-order-email (Resend), dipanggil dengan service role key.
+        try {
+          const er = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-order-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({ orderId: order.id, kind: "paid" }),
+          });
+          if (!er.ok) console.error(`Email pembayaran ditolak (${er.status}) untuk ${order.id}: ${(await er.text()).slice(0, 200)}`);
+        } catch (e) { console.error(`Email pembayaran gagal untuk ${order.id}: ${(e as Error).message}`); }
         await notifyTelegram(
           `💳 Pembayaran Online Masuk!\n\nID Pesanan: ${order.id}\nPembeli: ${order.customer_name || "-"}\nTotal: ${rupiah(order.total)}\nMetode: ${via || "Midtrans"}\n\nProduk sudah otomatis aktif di akun pembeli.`,
         );
