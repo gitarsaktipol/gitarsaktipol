@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
-  Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
+  Bell, Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
@@ -933,6 +933,8 @@ function VideoDescription({ desc, admin, onSave }) {
 }
 
 /* ---------------- product card ---------------- */
+const isShown = (p) => ["published", "soon"].includes(p.status || "published");
+
 function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, videoProgress, curriculumData, role, onToggleStatus }) {
   const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const isAdmin = role === "admin";
@@ -981,6 +983,8 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
           <span style={{ marginTop: "auto", fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{curriculum ? `${completedCount}/${curriculum.length} video selesai · ${pct}%` : "Materi segera hadir"}</span>
         ) : pending ? (
           <span style={{ marginTop: "auto", fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>Pesanan sedang diverifikasi</span>
+        ) : status === "soon" && !isAdmin ? (
+          <span style={{ marginTop: "auto", fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 800, color: C.goldLight }}>Segera Hadir</span>
         ) : (
           <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 17, color: C.goldLight }}>{rp(p.price)}</span>
@@ -992,13 +996,15 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
             <>
               <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Eye}>Detail</GhostBtn>
               {status === "archived" ? <Badge tone="muted">Arsip</Badge> : (
-                <button onClick={() => onToggleStatus && onToggleStatus(p.id)} className={`gs-switch ${status === "published" ? "on" : ""}`} title={status === "published" ? "Tampil — klik jadikan Draft" : "Draft — klik untuk tampilkan"} style={{ border: "none", cursor: "pointer" }}><span className="gs-switch-knob" /></button>
+                <button onClick={() => onToggleStatus && onToggleStatus(p.id)} className={`gs-switch ${status !== "draft" ? "on" : ""}`} title={status === "soon" ? "Segera Hadir — klik untuk buka penjualan" : status === "published" ? "Tampil — klik jadikan Draft" : "Draft — klik untuk tampilkan"} style={{ border: "none", cursor: "pointer" }}><span className="gs-switch-knob" /></button>
               )}
             </>
           ) : owned ? (
             <PrimaryBtn small full onClick={() => onAccess(p)} icon={Play}>{pct === 100 ? "Tonton Ulang" : completedCount > 0 ? "Lanjutkan" : "Mulai Belajar"}</PrimaryBtn>
           ) : pending ? (
             <GhostBtn small full onClick={() => onOpen(p.slug)} icon={Clock}>Lihat Status</GhostBtn>
+          ) : status === "soon" ? (
+            <GhostBtn small full onClick={() => onOpen(p.slug)}>Lihat Info</GhostBtn>
           ) : (
             <>
               <GhostBtn small full onClick={() => onOpen(p.slug)}>{physical ? "Lihat" : "Detail"}</GhostBtn>
@@ -1385,7 +1391,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const [heroVideoEditing, setHeroVideoEditing] = useState(false);
   const [heroVideoDraft, setHeroVideoDraft] = useState(home.heroVideoUrl || "");
   const T = (key, area) => (admin ? <EditableText value={home[key]} admin onSave={(v) => onSaveHome({ [key]: v })} tag="span" area={area} /> : home[key]);
-  const featured = (role === "admin" ? products : products.filter((p) => (p.status || "published") === "published")).slice(0, 3);
+  const featured = (role === "admin" ? products : products.filter(isShown)).slice(0, 3);
   // Testimoni di beranda diambil dari ulasan ASLI pembeli (rating 4-5, terbaru), bukan contoh
   // karangan — menampilkan testimoni fiktif berisiko melanggar UU Perlindungan Konsumen.
   const realTestimonials = Object.entries(testimonials || {})
@@ -1577,7 +1583,7 @@ function ShopPage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
   const [sort, setSort] = useState("Terbaru");
   const [kind, setKind] = useState("all");
   const isAdmin = role === "admin";
-  const visible = isAdmin ? products : products.filter((p) => (p.status || "published") === "published");
+  const visible = isAdmin ? products : products.filter(isShown);
   const hasMerch = visible.some((p) => p.productType === "physical");
 
   const filtered = useMemo(() => {
@@ -1644,7 +1650,7 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
   const total = productStockTotal(p);
   const soldOut = total === 0;
   const reviews = testimonials[p.id] || [];
-  const related = products.filter((x) => x.productType === "physical" && x.id !== p.id && (isAdmin || (x.status || "published") === "published")).slice(0, 4);
+  const related = products.filter((x) => x.productType === "physical" && x.id !== p.id && (isAdmin || isShown(x))).slice(0, 4);
   const flat = Number(shipping?.flatFee) || 0;
   const freeAbove = Number(shipping?.freeAbove) || 0;
 
@@ -1776,6 +1782,50 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
   );
 }
 
+function SoonNotify({ p, role, defaultEmail }) {
+  const [email, setEmail] = useState(defaultEmail || "");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [list, setList] = useState(null);
+  const isAdmin = role === "admin";
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("product_waitlist").select("email,created_at").eq("product_id", p.id).order("created_at", { ascending: false }).then(({ data }) => setList(data || []));
+  }, [isAdmin, p.id]);
+  const submit = async () => {
+    const v = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { toast("Isi email yang valid ya.", "error"); return; }
+    setBusy(true);
+    const { error } = await supabase.from("product_waitlist").insert({ product_id: p.id, email: v });
+    setBusy(false);
+    if (error && error.code !== "23505") { toast("Gagal menyimpan. Coba lagi ya.", "error"); return; }
+    setDone(true);
+  };
+  if (isAdmin) {
+    return (
+      <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}`, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>
+        <b style={{ color: C.text }}>Daftar tunggu: {list ? list.length : "…"} orang</b>
+        {list && list.length > 0 && <div style={{ marginTop: 6, maxHeight: 140, overflowY: "auto", wordBreak: "break-all" }}>{list.map((x) => <div key={x.email}>{x.email}</div>)}</div>}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 14, fontFamily: "'Manrope',sans-serif" }}>
+      {done ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
+          <Check size={15} color={C.gold} />
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Siap! Kami akan kabari saat kelas ini dibuka.</span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email kamu" style={{ padding: "11px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, fontSize: 13, fontFamily: "'Manrope',sans-serif" }} />
+          <PrimaryBtn full disabled={busy} onClick={submit} icon={Bell}>Beri tahu saya</PrimaryBtn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping }) {
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const p = products.find((x) => x.slug === slug);
@@ -1790,7 +1840,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
   if (p.productType === "physical") {
     return <MerchProductPage p={p} go={go} addToCart={addToCart} products={products} testimonials={testimonials} role={role} shipping={shipping} onToggleStatus={onToggleStatus} />;
   }
-  const related = products.filter((x) => x.category === p.category && x.id !== p.id && x.productType !== "physical" && (role === "admin" || (x.status || "published") === "published")).slice(0, 3);
+  const related = products.filter((x) => x.category === p.category && x.id !== p.id && x.productType !== "physical" && (role === "admin" || isShown(x))).slice(0, 3);
   const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const isAdmin = role === "admin";
   const showAdminControls = isAdmin && !previewBuyer;
@@ -1923,7 +1973,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                   <Badge tone="muted">Diarsipkan</Badge>
                 ) : (
                   <button onClick={() => onToggleStatus && onToggleStatus(p.id)} style={{ border: "none", cursor: "pointer", padding: 0, background: "none" }} title="Klik untuk ubah status">
-                    <Badge tone={status === "published" ? "gold" : "muted"}>{status === "published" ? "Publish" : "Draft"}</Badge>
+                    <Badge tone={status === "draft" ? "muted" : "gold"}>{status === "published" ? "Publish" : status === "soon" ? "Segera hadir" : "Draft"}</Badge>
                   </button>
                 )}
               </div>
@@ -1951,6 +2001,8 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                 </div>
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Menunggu verifikasi pembayaran</span>
               </div>
+            ) : status === "soon" ? (
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 22, color: C.goldLight }}>Segera Hadir</span>
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -1977,6 +2029,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
             {showAdminControls ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
                 <PrimaryBtn full onClick={() => setPreviewBuyer(true)} icon={Eye}>Lihat Tampilan Pembeli</PrimaryBtn>
+                {status === "soon" && <SoonNotify p={p} role={role} />}
               </div>
             ) : owned ? (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1994,6 +2047,14 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                 </div>
                 <div className="gs-attn"><PrimaryBtn full onClick={() => go("customer")} icon={ClipboardList}>Lihat Status Pesanan</PrimaryBtn></div>
               </div>
+            ) : status === "soon" ? (
+              <>
+              <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 8, background: C.surface2, border: `1px solid ${C.gold}` }}>
+                <Clock size={15} color={C.gold} />
+                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.goldLight }}>Kelas ini segera hadir. Pantau terus ya!</span>
+              </div>
+              <SoonNotify p={p} role={role} />
+              </>
             ) : (
               <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
                 <PrimaryBtn full onClick={() => { if (addToCart(p.id)) go("checkout"); }}>Beli Sekarang</PrimaryBtn>
@@ -3859,7 +3920,7 @@ function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updat
                       {status === "archived" ? (
                         <Badge tone="muted">Arsip</Badge>
                       ) : (
-                        <button onClick={() => toggleProductStatus(p.id)} title={status === "published" ? "Tampil di toko — klik untuk jadikan Draft" : "Draft — klik untuk tampilkan di toko"} className={`gs-switch ${status === "published" ? "on" : ""}`} style={{ border: "none", cursor: "pointer" }}>
+                        <button onClick={() => toggleProductStatus(p.id)} title={status === "soon" ? "Segera Hadir — klik untuk buka penjualan" : status === "published" ? "Tampil di toko — klik untuk jadikan Draft" : "Draft — klik untuk tampilkan di toko"} className={`gs-switch ${status !== "draft" ? "on" : ""}`} style={{ border: "none", cursor: "pointer" }}>
                           <span className="gs-switch-knob" />
                         </button>
                       )}
@@ -5028,7 +5089,7 @@ function MerchFormModal({ initial, onClose, onSubmit }) {
             <div style={{ flex: 1.4, minWidth: 200 }}>
               <span style={label}>Status</span>
               <div style={{ display: "flex", gap: 6, marginTop: 5, background: C.surface2, borderRadius: 12, padding: 4 }}>
-                {[["published", "Tampil di toko"], ["draft", "Draft"]].map(([k, l]) => (
+                {[["published", "Tampil di toko"], ["soon", "Segera hadir"], ["draft", "Draft"]].map(([k, l]) => (
                   <button key={k} onClick={() => setStatus(k)} style={{ flex: 1, padding: "9px 0", borderRadius: 9, border: "none", background: status === k ? C.surface : "transparent", boxShadow: status === k ? "0 2px 8px rgba(0,0,0,0.08)" : "none", color: status === k ? C.text : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 12.5, cursor: "pointer", transition: "all .25s ease" }}>{l}</button>
                 ))}
               </div>
@@ -5263,6 +5324,7 @@ function ProductFormModal({ onClose, onSubmit, initialProduct, initialItems }) {
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setStatus("draft")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "draft" ? C.gold : C.border}`, background: status === "draft" ? C.surface2 : "transparent", color: status === "draft" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Draft</button>
               <button onClick={() => setStatus("published")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "published" ? C.gold : C.border}`, background: status === "published" ? C.surface2 : "transparent", color: status === "published" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Published</button>
+              <button onClick={() => setStatus("soon")} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${status === "soon" ? C.gold : C.border}`, background: status === "soon" ? C.surface2 : "transparent", color: status === "soon" ? C.goldLight : C.muted, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Segera Hadir</button>
             </div>
           </div>
 
@@ -6700,7 +6762,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
-              {pending ? (
+              {p.status === "soon" && role !== "admin" ? (
+                <div style={{ textAlign: "center", padding: "14px 10px", fontWeight: 800, fontSize: 16 }}>Segera Hadir</div>
+              ) : pending ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px" }}>
                     <Clock size={15} color={C.emberLight} />
@@ -7500,7 +7564,9 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
             </div>
 
             <div style={{ padding: "0 32px 32px" }}>
-              {pending ? (
+              {p.status === "soon" && role !== "admin" ? (
+                <div style={{ textAlign: "center", padding: "14px 10px", fontWeight: 800, fontSize: 16 }}>Segera Hadir</div>
+              ) : pending ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "4px 8px" }}>
                     <Lp2Icon d={V_PATH.clock} size={16} color={V.red} />
@@ -8319,6 +8385,7 @@ export default function App() {
     if (role === "admin") { toast("Akun admin tidak bisa membeli. Gunakan akun customer untuk uji coba pembelian."); return false; }
     const prod = products.find((pr) => pr.id === id);
     if (!prod) return false;
+    if (prod.status === "soon") { toast("Kelas ini belum dibuka. Segera hadir!"); return false; }
     if (prod.productType === "physical") {
       const hasVariants = (prod.variants || []).length > 0;
       const variant = opts.variant || null;
@@ -8621,7 +8688,8 @@ export default function App() {
   const toggleProductStatus = async (id) => {
     const current = products.find((p) => p.id === id);
     if (!current) return;
-    const next = (current.status || "published") === "published" ? "draft" : "published";
+    const cur = current.status || "published";
+    const next = cur === "published" ? "draft" : "published";
     await supabase.from("products").update({ status: next }).eq("id", id);
     fetchProducts();
   };
