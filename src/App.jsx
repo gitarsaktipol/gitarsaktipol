@@ -457,6 +457,7 @@ function Badge({ children, tone = "gold", dot }) {
     ember: { bg: `linear-gradient(135deg, ${C.emberLight}, ${C.ember})`, fg: "#FFFFFF", bd: "transparent" },
     green: { bg: "rgba(52,168,83,0.14)", fg: "#2E9A4E", bd: "rgba(52,168,83,0.35)" },
     muted: { bg: C.surface2, fg: C.muted, bd: C.border },
+    red: { bg: "linear-gradient(135deg, #E5484D, #C62828)", fg: "#FFFFFF", bd: "transparent" },
   };
   const t = map[tone] || map.gold;
   return (
@@ -1352,7 +1353,7 @@ function ContinueLearning({ items, onResume, compact }) {
             <b style={{ color: C.text }}>Video {main.idx + 1} dari {main.total}</b>{main.video?.title ? ` · ${main.video.title}` : ""}
           </p>
           <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>{main.done} dari {main.total} video selesai</span>
-          <div style={{ marginTop: 4 }}><PrimaryBtn onClick={(e) => { e.stopPropagation(); onResume(main.p); }} icon={finished ? RotateCcw : Play}>{finished ? "Tonton Ulang" : main.done === 0 ? "Mulai Belajar" : "Lanjutkan"}</PrimaryBtn></div>
+          <div style={{ marginTop: 6, display: "flex", justifyContent: "center" }}><div className="gs-attn"><PrimaryBtn onClick={(e) => { e.stopPropagation(); onResume(main.p); }} icon={finished ? RotateCcw : Play}>{finished ? "Tonton Ulang" : main.done === 0 ? "Mulai Belajar" : "Lanjutkan"}</PrimaryBtn></div></div>
         </div>
       </Card>
       {rest.length > 0 && (
@@ -3092,7 +3093,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.goldLight }}>{rp(o.total)}</span>
-                      <Badge>{o.status}</Badge>
+                      <Badge tone={o.payment === "Failed" ? "red" : o.payment === "Pending" ? "ember" : "gold"}>{o.status}</Badge>
                     </div>
                   </div>
                 ))}
@@ -3156,7 +3157,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
               const steps = ["Dikemas", "Dikirim", "Diterima"];
               const stepIdx = o.fulfillmentStatus ? steps.indexOf(o.fulfillmentStatus) : -1;
               const paid = o.payment === "PAID";
-              const tone = paid ? "gold" : o.payment === "Failed" ? "muted" : "ember";
+              const tone = paid ? "gold" : o.payment === "Failed" ? "red" : "ember";
               return (
                 <Reveal key={o.id} delay={Math.min(i, 6) * 0.04}>
                   <Card style={{ padding: 16 }}>
