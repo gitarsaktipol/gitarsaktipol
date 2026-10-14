@@ -1182,15 +1182,18 @@ function Footer({ go, content, admin, onSave }) {
               <EditableText value={f.whatsapp || "(isi nomor, mis. 0812xxxxxxx)"} admin onSave={(v) => onSave({ whatsapp: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Email:</span>
               <EditableText value={f.email || "(isi email kontak)"} admin onSave={(v) => onSave({ email: v })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Alamat usaha (wajib untuk verifikasi Midtrans):</span>
+              <EditableText value={f.address || "(isi alamat usaha, mis. Jl. ..., Kota)"} admin onSave={(v) => onSave({ address: v })} tag="span" area style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link Instagram (kosongkan kalau belum ada):</span>
               <EditableText value={f.instagramUrl || "(isi link Instagram)"} admin onSave={(v) => onSave({ instagramUrl: /^https?:\/\//i.test(v) ? v : "" })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Link YouTube (kosongkan kalau belum ada):</span>
               <EditableText value={f.youtubeUrl || "(isi link YouTube)"} admin onSave={(v) => onSave({ youtubeUrl: /^https?:\/\//i.test(v) ? v : "" })} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text }} />
             </div>
-          ) : (f.whatsapp || f.email) ? (
+          ) : (f.whatsapp || f.email || f.address) ? (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4, fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>
               {f.whatsapp && <a href={waLink(f.whatsapp, "Halo Gitar Sakti, saya mau tanya...")} target="_blank" rel="noopener noreferrer" style={{ color: C.muted, textDecoration: "none" }}>WhatsApp: {f.whatsapp}</a>}
               {f.email && <a href={`mailto:${f.email}`} style={{ color: C.muted, textDecoration: "none" }}>Email: {f.email}</a>}
+              {f.address && <span style={{ whiteSpace: "pre-line" }}>Alamat: {f.address}</span>}
             </div>
           ) : null}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
@@ -1235,8 +1238,9 @@ const LEGAL_PAGES = {
   privacy: {
     title: "KEBIJAKAN PRIVASI",
     body: [
-      "Gitar Sakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, serta bukti transfer yang diunggah saat konfirmasi pembayaran.",
+      "Gitar Sakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, alamat pengiriman (khusus barang fisik), serta bukti transfer yang diunggah bila kamu membayar lewat transfer manual BCA.",
       "Data ini digunakan untuk memproses pesanan, memverifikasi pembayaran, memberikan akses ke produk yang kamu beli, dan menghubungi kamu terkait pesanan. Data pribadi kamu tidak kami jual.",
+      "Pembayaran otomatis (QRIS, Virtual Account, dan e-wallet) diproses oleh Midtrans (PT Midtrans), penyedia payment gateway berizin Bank Indonesia. Untuk itu kami mengirim nama, email, nomor WhatsApp, Order ID, daftar produk, dan jumlah tagihan ke Midtrans. Data pembayaran yang kamu masukkan di jendela Midtrans (mis. nomor kartu atau akun e-wallet) diproses langsung oleh Midtrans dan tidak disimpan oleh Gitar Sakti.",
       "Kami memakai penyedia layanan pihak ketiga (hosting, database, dan pengiriman email) yang memproses data atas nama kami. Kami juga dapat memakai alat pengukur iklan seperti Meta Pixel, yang mengirim data aktivitas di situs (mis. halaman atau produk yang dilihat, dimasukkan ke keranjang, atau checkout) ke penyedia tersebut untuk mengukur dan menyempurnakan iklan. Nama, email, nomor WhatsApp, dan bukti transfer kamu tidak kami bagikan untuk keperluan iklan.",
       "Bukti transfer yang kamu unggah hanya dapat dilihat oleh admin Gitar Sakti untuk keperluan verifikasi pembayaran.",
       "Kamu bisa menghubungi kami kapan saja untuk meminta data pribadimu dihapus dari sistem, selama tidak melanggar kewajiban pencatatan transaksi.",
@@ -1246,22 +1250,30 @@ const LEGAL_PAGES = {
     title: "SYARAT & KETENTUAN",
     body: [
       "Dengan membeli produk di Gitar Sakti, kamu menyetujui bahwa seluruh materi (video, PDF, backing track) adalah untuk penggunaan pribadi dan tidak boleh dibagikan, dijual ulang, atau diunggah ulang ke platform lain.",
-      "Akses ke materi diberikan setelah pembayaran diverifikasi oleh admin, biasanya dalam 1x24 jam pada hari kerja setelah bukti transfer diunggah.",
-      "Harga yang tertera pada saat checkout adalah harga final yang berlaku untuk transaksi tersebut, termasuk apabila sedang berlaku harga promo/early bird.",
+      "Gitar Sakti menyediakan dua cara pembayaran: (1) Pembayaran otomatis lewat Midtrans — QRIS, Virtual Account bank, dan e-wallet (mis. GoPay). Status pembayaran dicek otomatis oleh sistem, dan akses materi terbuka begitu Midtrans mengonfirmasi pembayaran berhasil, biasanya dalam beberapa menit. (2) Transfer manual ke rekening BCA Gitar Sakti yang tertera saat checkout. Untuk cara ini kamu perlu mengunggah bukti transfer, lalu admin memverifikasinya secara manual, biasanya dalam 1x24 jam pada hari kerja.",
+      "Tagihan pembayaran otomatis lewat Midtrans berlaku 24 jam. Jika belum dibayar sampai batas waktu itu, tagihan kedaluwarsa dan kamu bisa membuat pesanan baru kapan saja.",
+      "Harga yang tertera pada saat checkout adalah harga final yang berlaku untuk transaksi tersebut, termasuk apabila sedang berlaku harga promo/early bird. Seluruh harga dalam Rupiah (IDR).",
       "Gitar Sakti berhak menangguhkan akses akun yang terindikasi melakukan pelanggaran, termasuk pembagian materi tanpa izin.",
       "Hasil belajar setiap orang berbeda dan bergantung pada kemauan serta konsistensi latihan masing-masing. Kami tidak menjamin hasil atau tingkat kemampuan tertentu.",
+      "Pertanyaan atau keluhan seputar pesanan dan pembayaran dapat disampaikan lewat WhatsApp atau email yang tertera di bagian bawah halaman ini.",
     ],
   },
   refund: {
     title: "KEBIJAKAN REFUND",
     body: [
-      "Karena produk berupa materi digital yang langsung bisa diakses setelah pembayaran diverifikasi, pembelian yang sudah selesai secara umum tidak dapat dikembalikan (non-refundable).",
-      "Pengecualian berlaku apabila terjadi kesalahan dari pihak Gitar Sakti, misalnya pembayaran sudah diverifikasi tetapi materi tidak dapat diakses karena kendala teknis dari sistem.",
-      "Untuk kendala seperti itu, silakan hubungi admin lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman dengan menyertakan Order ID, dan akan kami proses secepatnya.",
-      "Pembatalan pesanan yang masih berstatus Menunggu (belum diverifikasi) bisa dilakukan dengan menghubungi admin sebelum bukti transfer diverifikasi.",
+      "Karena produk berupa materi digital yang langsung bisa diakses setelah pembayaran berhasil, pembelian yang sudah selesai secara umum tidak dapat dikembalikan (non-refundable).",
+      "Pengecualian berlaku apabila terjadi kesalahan dari pihak Gitar Sakti, misalnya pembayaran sudah berhasil tetapi materi tidak dapat diakses karena kendala teknis dari sistem, atau kamu tertagih dua kali untuk pesanan yang sama.",
+      "Untuk kendala seperti itu, silakan hubungi admin lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman dengan menyertakan Order ID dan bukti pembayaran. Pengajuan akan kami tanggapi paling lambat 3 hari kerja.",
+      "Refund yang disetujui dikembalikan sebesar nilai pembayaran: untuk transfer manual BCA dikirim ke rekening atas nama pembeli, sedangkan untuk pembayaran lewat Midtrans dikembalikan melalui metode pembayaran semula atau rekening bank atas nama pembeli, paling lambat 14 hari kerja setelah disetujui.",
+      "Pembatalan pesanan yang belum dibayar tidak dikenai biaya apa pun. Untuk transfer manual BCA, pesanan yang sudah dibayar tetapi belum diverifikasi admin dapat dibatalkan dengan menghubungi admin.",
     ],
   },
 };
+
+// Alamat link tiap halaman legal (?info=...), supaya bisa ditempel langsung di formulir Midtrans,
+// Play Console, dll. dan tetap terbuka ke halaman yang benar walau di-refresh.
+const LEGAL_URL = { privacy: "privasi", terms: "syarat", refund: "refund" };
+const LEGAL_FROM_URL = { privasi: "privacy", syarat: "terms", refund: "refund" };
 
 function LegalPage({ slug, go }) {
   const page = LEGAL_PAGES[slug] || LEGAL_PAGES.terms;
@@ -7768,6 +7780,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get("resetpw") === "1") return "resetpassword";
       if (params.get("halaman")) return "lp";
+      if (LEGAL_FROM_URL[params.get("info")]) return LEGAL_FROM_URL[params.get("info")];
     }
     return "home";
   });
@@ -8315,7 +8328,11 @@ export default function App() {
     setMobileOpen(false);
     window.scrollTo?.({ top: 0, behavior: "instant" });
     try {
-      window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug, lpSlug }, "");
+      // Halaman legal punya link sendiri (?info=syarat dst.); pindah ke halaman lain membuang ?info
+      // tapi parameter lain (mis. ?admin=1) tetap.
+      const u = new URL(window.location.href);
+      if (LEGAL_URL[target]) u.searchParams.set("info", LEGAL_URL[target]); else u.searchParams.delete("info");
+      window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug, lpSlug }, "", u.pathname + u.search + u.hash);
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
   // Buka landing page tertentu lewat slug-nya. URL address bar ikut berubah jadi ?halaman=slug
