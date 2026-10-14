@@ -2339,7 +2339,9 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
             </div>
             {error && <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.emberLight, marginTop: 10 }}>{error}</p>}
             <div style={{ marginTop: 16 }}><PrimaryBtn full onClick={placeOrder} loading={submitting} icon={ShieldCheck}>{submitting ? "Memproses..." : "Buat Pesanan"}</PrimaryBtn></div>
-            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi pembayaran. Produk masuk ke akunmu setelah admin memverifikasi bukti transfer.</p>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, marginTop: 10, lineHeight: 1.5 }}>{activeMethods.find((m) => m.id === methodId)?.type === "midtrans"
+              ? "Setelah pesanan dibuat, jendela pembayaran Midtrans akan terbuka. Produk otomatis masuk ke akunmu begitu pembayaran berhasil."
+              : "Setelah pesanan dibuat, kamu akan diarahkan ke halaman konfirmasi pembayaran. Produk masuk ke akunmu setelah admin memverifikasi bukti transfer."}</p>
           </Card>
         </div>
       </div>
