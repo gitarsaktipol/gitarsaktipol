@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://gitarsakti.com/</loc></url>
+  <url><loc>https://gitarsakti.com/?info=syarat</loc></url>
+  <url><loc>https://gitarsakti.com/?info=privasi</loc></url>
+  <url><loc>https://gitarsakti.com/?info=refund</loc></url>
 </urlset>
