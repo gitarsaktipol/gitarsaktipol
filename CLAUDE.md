@@ -92,6 +92,11 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   `VideoDescription` → `VideoTips` ("Petunjuk Latihan", kolom `curriculum_videos.tips`, format
   `RichText`; admin Mode Edit: tombol Edit/Tambah petunjuk; kosong = tidak tampil ke member) →
   kartu "Berikutnya". `admin_save_curriculum` hanya mengubah `tips` bila item membawa kunci `tips`.
+  Editor materi (Mode Edit, `LearnCurriculumEditor`): klik kartu bab = lipat/buka; klik kartu video =
+  pilih (tampil di kiri) + buka detail (satu saja); video dalam bab menjorok + garis emas. Di PC
+  panel ini `.gs-learn-side` (sticky, gulungan sendiri; HP ≤860 px biasa) dan kartu aktif
+  (`data-active-video`) otomatis dibawa ke area terlihat. `SortableList` mendukung wadah bergulung
+  (`findScrollParent`) dan menelan klik setelah tahan-geser.
 - **Realtime**: channel `orders-sync` memuat ulang pesanan; materi dimuat ulang saat produk
   dimiliki berubah (`ownedKey`).
 - Status produk: `published` | `draft` | `archived` (produk yang sudah dibeli tidak dihapus,
@@ -151,6 +156,8 @@ Untuk perubahan DB baru: tulis file migrasi di repo DAN terapkan dengan `apply_m
   Authentication → Policies/Password bila ingin ditegakkan juga dari FerTune.
 - MCP Supabase `apply_migration`/`execute_sql` yang berisi `delete` butuh persetujuan pengguna dan
   time out (60 dtk) bila tidak disetujui — berikan SQL-nya ke Ferdi untuk dijalankan di SQL Editor.
+- Uji komponen di luar App (halaman uji Vite sementara): gaya global ada di blok `<style>` App —
+  tanpa `.gs-ripple{position:absolute;pointer-events:none}` riak tombol menutupi tombol.
 - Meta: Conversions API (server) belum ada — butuh access token dari Ferdi.
 - Akses MCP Vercel: jangan isi `teamId` di `list_deployments` (akun pribadi; 403). Log runtime
   Vercel (`get_runtime_errors`) ditolak 403 — tidak penting karena tidak ada serverless di Vercel.
