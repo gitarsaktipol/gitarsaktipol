@@ -3,13 +3,13 @@
 // Komponen & helper bersama diambil dari App.jsx.
 import React, { useState, useEffect, useRef } from "react";
 import {
-  X, Search, ShoppingCart, Star, PlayCircle, Check, ChevronRight, LogOut, LayoutDashboard, Package, ClipboardList, Users, Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2, Pencil, ArrowRight, ArrowLeft, Eye, Filter, Music, Download, CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Landmark, Image as ImageIcon, ToggleLeft, ToggleRight, Truck, Shirt, ImagePlus, RotateCcw, Play,
+  X, Search, ShoppingCart, Star, PlayCircle, Check, ChevronRight, LogOut, LayoutDashboard, Package, ClipboardList, Users, Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2, Pencil, ArrowRight, ArrowLeft, Eye, Filter, Music, Download, CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Landmark, Image as ImageIcon, ToggleLeft, ToggleRight, Truck, Shirt, ImagePlus, RotateCcw, Play, Bold, Italic, Underline, Heading, List, ListOrdered, RemoveFormatting, Quote
 } from "lucide-react";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar,
 } from "recharts";
 import {
-  Badge, C, CATEGORIES, Card, CopyableField, DashSidebar, DragHandle, FUNNEL, GhostBtn, LP_TEMPLATES, MONTHS_ID, PrimaryBtn, ProductThumb, ProofImage, RichTextEditor, Section, SortableList, StatCard, formatDateID, invokeFn, productStockTotal, rp, stripFretPrefix, supabase, toast, waLink,
+  sanitizeTipsHtml, legacyTipsToHtml, Badge, C, CATEGORIES, Card, CopyableField, DashSidebar, DragHandle, FUNNEL, GhostBtn, LP_TEMPLATES, MONTHS_ID, PrimaryBtn, ProductThumb, ProofImage, RichTextEditor, Section, SortableList, StatCard, formatDateID, invokeFn, productStockTotal, rp, stripFretPrefix, supabase, toast, waLink,
 } from "./App.jsx";
 
 // Form admin untuk mengganti rekening tujuan pembayaran. Perubahan langsung dipakai oleh
@@ -2669,6 +2669,241 @@ function PageFormModal({ onClose, onSubmit, products, initialPage }) {
           </div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+/* ---------------- EDITOR PETUNJUK LATIHAN (seperti Word) ----------------
+   Dipakai VideoTips di halaman belajar (Mode Edit). Isinya HTML yang disaring sanitizeTipsHtml.
+   - Tempel dari Word / Google Docs: daftar bernomor & poin, tebal/miring/garis bawah, judul tetap
+     rapi; font, warna & ukuran bawaan Word dibuang supaya mengikuti tema situs.
+   - Gambar: tombol Gambar, tempel (Ctrl+V), atau seret-lepas -> diperkecil (maks 1400 px) lalu
+     diunggah ke Storage "product-images/lessons/". */
+const unwrapEl = (el) => { const p = el.parentNode; if (!p) return; while (el.firstChild) p.insertBefore(el.firstChild, el); p.removeChild(el); };
+const cleanPastedHtml = (html) => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("style,script,meta,link,title,xml").forEach((n) => n.remove());
+  const tw = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT);
+  const comments = [];
+  while (tw.nextNode()) comments.push(tw.currentNode);
+  comments.forEach((c) => c.remove());
+  Array.from(doc.body.getElementsByTagName("o:p")).forEach(unwrapEl);
+  // Google Docs membungkus semuanya dengan <b style="font-weight:normal"> — bukan tebal sungguhan.
+  doc.querySelectorAll("b,strong").forEach((b) => { if (/font-weight:\s*(normal|[1-5]00)/i.test(b.getAttribute("style") || "")) unwrapEl(b); });
+  // Gaya inline (span) -> tag biasa: tebal, miring, garis bawah.
+  doc.querySelectorAll("span,font").forEach((sp) => {
+    const st = (sp.getAttribute("style") || "").toLowerCase();
+    let inner = sp;
+    [["strong", /font-weight:\s*(bold|[6-9]00)/], ["em", /font-style:\s*italic/], ["u", /text-decoration[^;]*underline/]].forEach(([tag, re]) => {
+      if (!re.test(st)) return;
+      const w = doc.createElement(tag);
+      while (inner.firstChild) w.appendChild(inner.firstChild);
+      inner.appendChild(w);
+      inner = w;
+    });
+  });
+  // Daftar Word: paragraf "mso-list: l0 level2" + penanda (1. / o / ·) di span mso-list:Ignore.
+  const listLevel = (el) => { const m = /mso-list:\s*l\d+\s+level(\d+)/i.exec(el.getAttribute?.("style") || ""); return m ? Number(m[1]) : 0; };
+  const done = new Set();
+  Array.from(doc.body.querySelectorAll("p,h1,h2,h3,h4,h5,h6")).forEach((first) => {
+    if (done.has(first) || !listLevel(first)) return;
+    const run = [];
+    for (let n = first; n; n = n.nextSibling) {
+      if (n.nodeType === 3 && !n.textContent.trim()) continue;
+      if (n.nodeType === 1 && listLevel(n)) { run.push(n); done.add(n); continue; }
+      break;
+    }
+    const stack = [];
+    run.forEach((p) => {
+      const level = listLevel(p);
+      const ign = p.querySelector('[style*="mso-list:ignore" i],[style*="mso-list: ignore" i]');
+      const marker = (ign?.textContent || "").replace(/\u00a0/g, " ").trim();
+      if (ign) ign.remove();
+      const ordered = /^\(?([0-9]+|[a-z]|[ivxlcdm]+)[.)]$/i.test(marker);
+      while (stack.length && stack[stack.length - 1].level > level) stack.pop();
+      if (!stack.length || stack[stack.length - 1].level < level) {
+        const list = doc.createElement(ordered ? "ol" : "ul");
+        if (stack.length) { const parent = stack[stack.length - 1].list; (parent.lastElementChild || parent).appendChild(list); }
+        else first.parentNode.insertBefore(list, first);
+        stack.push({ level, list });
+      }
+      const li = doc.createElement("li");
+      while (p.firstChild) li.appendChild(p.firstChild);
+      stack[stack.length - 1].list.appendChild(li);
+      p.remove();
+    });
+  });
+  // Judul: h1 -> h2, h5/h6 -> h4; gaya "Title"/"Subtitle" Word -> judul.
+  const retag = (el, tag) => { const n = doc.createElement(tag); while (el.firstChild) n.appendChild(el.firstChild); el.replaceWith(n); };
+  doc.querySelectorAll("h1").forEach((h) => retag(h, "h2"));
+  doc.querySelectorAll("h5,h6").forEach((h) => retag(h, "h4"));
+  doc.querySelectorAll("p.MsoTitle").forEach((h) => retag(h, "h2"));
+  doc.querySelectorAll("p.MsoSubtitle").forEach((h) => retag(h, "h3"));
+  const lostImages = Array.from(doc.querySelectorAll("img")).some((im) => !/^https:\/\//i.test(im.getAttribute("src") || ""));
+  return { html: sanitizeTipsHtml(doc.body.innerHTML), hasText: !!doc.body.textContent.trim(), lostImages };
+};
+
+const uploadTipsImage = async (file) => {
+  const blob = await resizeImage(file, 1400);
+  if (!/^image\/(jpeg|png|webp)$/.test(blob.type || "")) throw new Error("Format gambar tidak didukung. Pakai JPG atau PNG.");
+  const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+  const path = `lessons/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("product-images").upload(path, blob, { contentType: blob.type, cacheControl: "31536000" });
+  if (error) throw error;
+  return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+};
+
+export function TipsEditor({ initialHtml, onSave, onCancel }) {
+  const ref = useRef(null);
+  const fileRef = useRef(null);
+  const rangeRef = useRef(null);
+  const [uploading, setUploading] = useState(0);
+  const [active, setActive] = useState({});
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = initialHtml || "<p><br></p>";
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (e) { /* abaikan */ }
+    el.focus();
+    // Simpan posisi kursor terakhir di dalam editor (dipakai tombol Gambar, yang membuka dialog file).
+    const onSel = () => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount && el.contains(sel.anchorNode)) {
+        rangeRef.current = sel.getRangeAt(0).cloneRange();
+        try {
+          setActive({ b: document.queryCommandState("bold"), i: document.queryCommandState("italic"), u: document.queryCommandState("underline"), ul: document.queryCommandState("insertUnorderedList"), ol: document.queryCommandState("insertOrderedList"), h: /^h[2-4]$/i.test(document.queryCommandValue("formatBlock") || "") });
+        } catch (e) { /* abaikan */ }
+      }
+    };
+    document.addEventListener("selectionchange", onSel);
+    return () => document.removeEventListener("selectionchange", onSel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const restoreRange = () => {
+    const el = ref.current;
+    el.focus();
+    const r = rangeRef.current;
+    if (r && el.contains(r.startContainer)) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+  };
+  const cmd = (name, value) => { restoreRange(); document.execCommand(name, false, value); };
+  const toggleHeading = () => {
+    restoreRange();
+    const cur = (document.queryCommandValue("formatBlock") || "").toLowerCase();
+    document.execCommand("formatBlock", false, /^h[2-4]$/.test(cur) ? "p" : "h3");
+  };
+  const insertHtml = (html) => { document.execCommand("insertHTML", false, html); };
+
+  // Gambar ditaruh SETELAH paragraf/poin tempat kursor berada (tidak memotong kalimat).
+  const caretAfterBlock = () => {
+    const el = ref.current;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !el.contains(sel.anchorNode)) return;
+    let n = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    const block = n && n !== el ? n.closest("p,h2,h3,h4,blockquote,li") : null;
+    if (!block || !el.contains(block)) return;
+    const r = document.createRange();
+    if (block.tagName === "LI") { r.selectNodeContents(block); r.collapse(false); } else { r.setStartAfter(block); r.collapse(true); }
+    sel.removeAllRanges();
+    sel.addRange(r);
+  };
+  // Gambar: tampil dulu sebagai pratinjau (blob:), lalu diganti alamat asli setelah terunggah.
+  const addImages = async (files) => {
+    const imgs = Array.from(files || []).filter((f) => /^image\//.test(f.type));
+    if (!imgs.length) return;
+    caretAfterBlock();
+    for (const f of imgs) {
+      const id = `up-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const preview = URL.createObjectURL(f);
+      insertHtml(`<img src="${preview}" data-up="${id}" alt="" style="opacity:.45">`);
+      setUploading((n) => n + 1);
+      try {
+        const url = await uploadTipsImage(f);
+        const im = ref.current?.querySelector(`img[data-up="${id}"]`);
+        if (im) { im.src = url; im.removeAttribute("data-up"); im.removeAttribute("style"); }
+      } catch (e) {
+        ref.current?.querySelector(`img[data-up="${id}"]`)?.remove();
+        toast.error("Gambar gagal diunggah: " + (e?.message || "coba lagi"));
+      } finally {
+        URL.revokeObjectURL(preview);
+        setUploading((n) => n - 1);
+      }
+    }
+  };
+
+  const onPaste = (e) => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const html = cd.getData("text/html");
+    const text = cd.getData("text/plain");
+    const files = Array.from(cd.files || []);
+    e.preventDefault();
+    // Dari Word, teks juga disertai gambar "foto" teksnya — jadi utamakan HTML kalau ada isinya.
+    if (html) {
+      const res = cleanPastedHtml(html);
+      if (res.hasText || /<img/i.test(res.html)) {
+        insertHtml(res.html);
+        if (res.lostImages) toast("Gambar dari Word tidak ikut tertempel. Tempel atau seret gambarnya satu per satu.");
+        return;
+      }
+    }
+    if (files.length) { addImages(files); return; }
+    if (text) insertHtml(sanitizeTipsHtml(legacyTipsToHtml(text)));
+  };
+  const onDrop = (e) => {
+    const files = Array.from(e.dataTransfer?.files || []).filter((f) => /^image\//.test(f.type));
+    if (!files.length) return;
+    e.preventDefault();
+    // Taruh kursor di titik jatuhnya gambar.
+    const pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    if (pos) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(pos); }
+    else if (document.caretPositionFromPoint) {
+      const cp = document.caretPositionFromPoint(e.clientX, e.clientY);
+      if (cp) { const r = document.createRange(); r.setStart(cp.offsetNode, cp.offset); r.collapse(true); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    }
+    addImages(files);
+  };
+  const save = () => {
+    const html = sanitizeTipsHtml(ref.current?.innerHTML || "");
+    const empty = !/<img\b/i.test(html) && !html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+    onSave(empty ? "" : html);
+  };
+
+  const tb = (on) => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, height: 32, minWidth: 32, padding: "0 8px", borderRadius: 8, cursor: "pointer", border: `1px solid ${on ? C.gold : C.border}`, background: on ? `${C.gold}22` : C.surface, color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700 });
+  const keep = (e) => e.preventDefault(); // tombol tidak mencuri fokus/seleksi dari editor
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        <button type="button" title="Tebal (Ctrl+B)" onMouseDown={keep} onClick={() => cmd("bold")} style={tb(active.b)}><Bold size={14} /></button>
+        <button type="button" title="Miring (Ctrl+I)" onMouseDown={keep} onClick={() => cmd("italic")} style={tb(active.i)}><Italic size={14} /></button>
+        <button type="button" title="Garis bawah (Ctrl+U)" onMouseDown={keep} onClick={() => cmd("underline")} style={tb(active.u)}><Underline size={14} /></button>
+        <button type="button" title="Judul kecil" onMouseDown={keep} onClick={toggleHeading} style={tb(active.h)}><Heading size={14} /></button>
+        <button type="button" title="Poin" onMouseDown={keep} onClick={() => cmd("insertUnorderedList")} style={tb(active.ul)}><List size={14} /></button>
+        <button type="button" title="Penomoran" onMouseDown={keep} onClick={() => cmd("insertOrderedList")} style={tb(active.ol)}><ListOrdered size={14} /></button>
+        <button type="button" title="Kutipan / catatan" onMouseDown={keep} onClick={() => cmd("formatBlock", "blockquote")} style={tb(false)}><Quote size={14} /></button>
+        <button type="button" title="Hapus format" onMouseDown={keep} onClick={() => cmd("removeFormat")} style={tb(false)}><RemoveFormatting size={14} /></button>
+        <button type="button" title="Sisipkan gambar" onMouseDown={keep} onClick={() => fileRef.current?.click()} style={tb(false)}><ImagePlus size={14} />Gambar</button>
+        <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { restoreRange(); addImages(e.target.files); e.target.value = ""; }} />
+      </div>
+      <div
+        ref={ref}
+        className="gs-rich"
+        contentEditable
+        suppressContentEditableWarning
+        onPaste={onPaste}
+        onDrop={onDrop}
+        onDragOver={(e) => { if (Array.from(e.dataTransfer?.items || []).some((it) => it.kind === "file")) e.preventDefault(); }}
+        style={{ minHeight: 160, maxHeight: "60vh", overflowY: "auto", padding: "12px 14px", borderRadius: 12, border: `1px solid ${C.gold}`, background: C.surface, color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 13.5, outline: "none" }}
+      />
+      <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: "6px 0 0" }}>
+        Bisa tempel langsung dari Word/Google Docs. Gambar: klik "Gambar", tempel (Ctrl+V), atau seret ke kotak ini.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <PrimaryBtn small onClick={save} icon={Check} disabled={uploading > 0}>Simpan</PrimaryBtn>
+        <GhostBtn small onClick={onCancel}>Batal</GhostBtn>
+        {uploading > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}><span className="gs-spinner" />Mengunggah {uploading} gambar...</span>}
+      </div>
     </div>
   );
 }

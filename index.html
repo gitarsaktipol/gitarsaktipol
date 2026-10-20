@@ -3,9 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gitar Sakti — Kursus Gitar Online Terstruktur</title>
-    <meta name="description" content="Belajar gitar online terstruktur dari fondasi dasar sampai teknik shredding. Video materi bertahap, akses selamanya, belajar sesuai ritme kamu." />
+    <title>Gitar Sakti (Gitarsakti) — Kursus Gitar Online Terstruktur</title>
+    <meta name="description" content="Gitar Sakti (gitarsakti.com): kursus gitar online terstruktur dari fondasi dasar sampai teknik shredding. Video materi bertahap, akses selamanya, belajar sesuai ritme kamu." />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="id_ID" />
     <meta property="og:site_name" content="Gitar Sakti" />
     <meta property="og:title" content="Gitar Sakti — Kursus Gitar Online Terstruktur" />
     <meta property="og:description" content="Belajar gitar online terstruktur dari fondasi dasar sampai teknik shredding. Akses materi selamanya." />
@@ -13,6 +14,46 @@
     <meta property="og:url" content="https://gitarsakti.com/" />
     <meta property="og:image" content="https://gitarsakti.com/gitar-sakti-bg.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Data terstruktur untuk Google: nama situs resmi (termasuk ejaan "Gitarsakti") + logo +
+         akun resmi. Membantu Google menampilkan gitarsakti.com sebagai situs resmi saat orang
+         mencari nama merek. Ubah di sini bila nama/alamat/akun berubah. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://gitarsakti.com/#website",
+          "name": "Gitar Sakti",
+          "alternateName": ["Gitarsakti", "GitarSakti", "gitarsakti.com"],
+          "url": "https://gitarsakti.com/",
+          "inLanguage": "id-ID",
+          "publisher": { "@id": "https://gitarsakti.com/#organization" }
+        },
+        {
+          "@type": "EducationalOrganization",
+          "@id": "https://gitarsakti.com/#organization",
+          "name": "Gitar Sakti",
+          "alternateName": ["Gitarsakti", "GitarSakti"],
+          "url": "https://gitarsakti.com/",
+          "logo": "https://gitarsakti.com/icon-512.png",
+          "image": "https://gitarsakti.com/gitar-sakti-bg.jpg",
+          "description": "Kursus gitar online terstruktur dari fondasi dasar sampai teknik shredding.",
+          "email": "gitarsaktipol@gmail.com",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "BTN Asabri Blok I No.8, Gedog, Kec. Sananwetan",
+            "addressLocality": "Kota Blitar",
+            "addressRegion": "Jawa Timur",
+            "postalCode": "66137",
+            "addressCountry": "ID"
+          },
+          "sameAs": ["https://www.youtube.com/@GITARSAKTI"]
+        }
+      ]
+    }
+    </script>
 
     <!-- PWA: supaya website bisa di-"Install" jadi aplikasi khusus halaman Admin -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -26,6 +67,11 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Gitar Sakti (Gitarsakti)</h1>
+      <p>Kursus gitar online terstruktur dari fondasi dasar sampai teknik shredding. Video materi bertahap, akses selamanya.</p>
+      <p>Aktifkan JavaScript untuk membuka gitarsakti.com.</p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ("serviceWorker" in navigator) {
