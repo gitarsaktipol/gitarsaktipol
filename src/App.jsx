@@ -811,6 +811,13 @@ function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled
     };
     c.onUp = () => {
       const cc = sess.current;
+      // Setelah baris diangkat (tahan/geser), browser tetap mengirim "klik" saat jari dilepas —
+      // telan klik itu supaya kartu yang bisa diklik (mis. buka/tutup bab) tidak ikut terpicu.
+      if (cc && cc.active) {
+        const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener("click", swallow, true), 400);
+      }
       if (cc && cc.active && cc.over !== cc.idx) {
         const next = items.slice();
         const [moved] = next.splice(cc.idx, 1);
@@ -3129,7 +3136,12 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
     copy.splice(idx, 0, newItem);
     saveOutline(copy);
   };
-  const insertVideoAfter = (idx) => insertItemAt(idx + 1, { type: "video", title: "Video Baru", desc: "", url: "", duration: "", tips: "" });
+  // Video baru langsung dipilih (tampil di kiri) dan detailnya terbuka, supaya link bisa langsung diisi.
+  const insertVideoAfter = (idx) => {
+    insertItemAt(idx + 1, { type: "video", title: "Video Baru", desc: "", url: "", duration: "", tips: "" });
+    selectVideo(outline.slice(0, idx + 1).filter((it) => it.type === "video").length);
+    setExpandedVideoIdx(new Set([idx + 1]));
+  };
   const insertSectionAfter = (idx) => insertItemAt(idx + 1, { type: "section", title: "Judul Materi Baru" });
   const addVideoRow = () => saveOutline([...outline, { type: "video", title: "Video Baru", desc: "", url: "", duration: "", tips: "" }]);
   const addSectionRow = () => saveOutline([...outline, { type: "section", title: "Judul Materi Baru" }]);
@@ -3137,7 +3149,8 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
   const [collapsedSections, setCollapsedSections] = useState(() => new Set());
   const [expandedVideoIdx, setExpandedVideoIdx] = useState(() => new Set());
   const toggleSection = (key) => setCollapsedSections((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
-  const toggleVideoExpand = (key) => setExpandedVideoIdx((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  // Hanya satu kartu video yang terbuka sekaligus supaya daftar tetap rapi.
+  const toggleVideoExpand = (key) => setExpandedVideoIdx((prev) => (prev.has(key) ? new Set() : new Set([key])));
 
   const outlineIndexForVideo = (k) => {
     let c = -1;
@@ -3402,17 +3415,19 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
   const rows = [];
   {
     let hidden = false;
+    let inSection = false;
     let vn = -1;
     outline.forEach((it, idx) => {
       if (it.type === "section") {
         const key = secKey(it, idx);
         hidden = collapsedSections.has(key);
+        inSection = true;
         let count = 0;
         for (let j = idx + 1; j < outline.length && outline[j].type !== "section"; j++) count++;
         rows.push({ kind: "section", it, idx, key, count, collapsed: hidden });
       } else {
         vn++;
-        if (!hidden) rows.push({ kind: "video", it, idx, vn, key: `v-${it.id ?? `new-${idx}`}` });
+        if (!hidden) rows.push({ kind: "video", it, idx, vn, inSection, key: `v-${it.id ?? `new-${idx}`}` });
       }
     });
   }
@@ -3427,6 +3442,9 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
     onReorderOutline(rest);
   };
 
+  // Seluruh kartu bisa diklik (buka/tutup bab, pilih & buka video), kecuali bagian yang punya
+  // aksinya sendiri: tombol pensil/tambah/hapus, kolom isian, link, dan pegangan geser.
+  const isOwnAction = (e) => !!e.target.closest("button,input,textarea,select,a,[data-drag-handle]");
   const iconBtn = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", width: 34, height: 34, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
 
   return (
@@ -3451,11 +3469,11 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
         renderItem={(r) => {
           if (r.kind === "section") {
             return (
-              <div style={{ padding: "10px 10px 10px 2px", borderRadius: 14, background: `linear-gradient(135deg, ${C.gold}22, ${C.gold}0A)`, border: `1px solid ${C.gold}55`, display: "flex", alignItems: "center", gap: 6 }}>
+              <div onClick={(e) => { if (!isOwnAction(e)) toggleSection(r.key); }} title={r.collapsed ? "Klik untuk membuka isi bab" : "Klik untuk melipat bab"} style={{ padding: "10px 10px 10px 2px", borderRadius: 14, background: `linear-gradient(135deg, ${C.gold}22, ${C.gold}0A)`, border: `1px solid ${C.gold}55`, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <DragHandle />
-                <button onClick={() => toggleSection(r.key)} title={r.collapsed ? "Buka bab" : "Lipat bab"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }}>
+                <span style={{ padding: 2, display: "flex", flexShrink: 0 }}>
                   <ChevronDown size={17} color={C.goldLight} style={{ transform: r.collapsed ? "rotate(-90deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
-                </button>
+                </span>
                 <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
                   <EditableText value={r.it.title} admin onSave={(v) => updateItem(r.idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.goldLight, textTransform: "uppercase", letterSpacing: 0.3 }} />
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, opacity: 0.8 }}>{r.count} video</span>
@@ -3468,13 +3486,23 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
           const it = r.it;
           const expanded = expandedVideoIdx.has(r.idx);
           const active = r.vn === curIdx;
+          // Klik kartu: video ini langsung tampil di pemutar kiri + detailnya (link, deskripsi,
+          // durasi) terbuka. Klik lagi kartu yang sedang terbuka untuk menutupnya.
+          const onCardClick = (e) => {
+            if (isOwnAction(e)) return;
+            onSelect(r.vn);
+            toggleVideoExpand(r.idx);
+          };
           return (
+            <div style={{ position: "relative", marginLeft: r.inSection ? 20 : 0 }}>
+            {/* Garis penanda: video ini berada di dalam bab di atasnya. */}
+            {r.inSection && <span style={{ position: "absolute", left: -12, top: -8, bottom: 0, width: 2, borderRadius: 2, background: `${C.gold}55` }} />}
             <div style={{ borderRadius: 14, background: active ? C.surface2 : C.surface, border: `1px solid ${active ? C.gold : C.border}`, overflow: "hidden" }}>
-              <div style={{ padding: "8px 8px 8px 2px", display: "flex", alignItems: "center", gap: 6 }}>
+              <div onClick={onCardClick} title={expanded ? "Klik untuk menutup detail" : "Klik untuk memutar & mengedit video ini"} style={{ padding: "8px 8px 8px 2px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <DragHandle />
-                <button onClick={() => onSelect(r.vn)} title="Putar video ini" style={{ width: 30, height: 30, borderRadius: "50%", border: `1px solid ${active ? C.gold : C.border}`, background: active ? C.gold : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", padding: 0 }}>
+                <span style={{ width: 30, height: 30, borderRadius: "50%", border: `1px solid ${active ? C.gold : C.border}`, background: active ? C.gold : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: active ? "#1A140A" : C.muted }}>{r.vn + 1}</span>
-                </button>
+                </span>
                 <div style={{ flex: 1, minWidth: 0, paddingRight: 26, position: "relative" }}>
                   <EditableText value={it.title} admin onSave={(v) => updateItem(r.idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, color: C.text }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
@@ -3482,9 +3510,9 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                     {!it.url && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 700, color: C.emberLight }}>● link belum diisi</span>}
                   </div>
                 </div>
-                <button onClick={() => toggleVideoExpand(r.idx)} title="Link, deskripsi & durasi" style={iconBtn}>
+                <span style={{ display: "flex", flexShrink: 0, padding: "0 2px" }}>
                   <ChevronDown size={15} color={C.muted} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
-                </button>
+                </span>
                 <button onClick={() => insertVideoAfter(r.idx)} title="Sisipkan video setelah ini" style={iconBtn}><Plus size={15} color={C.mutedDark} /></button>
                 <button onClick={() => removeItem(r.idx)} title="Hapus video" style={iconBtn}><Trash2 size={14} color={C.mutedDark} /></button>
               </div>
@@ -3507,6 +3535,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                   </div>
                 </div>
               )}
+            </div>
             </div>
           );
         }}
