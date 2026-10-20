@@ -16,7 +16,13 @@ kode + pemeriksaan database Supabase asli.
 
 ## Stack & deploy
 
-- React 18 + Vite 5, **satu file besar `src/App.jsx` (±9.100 baris)**, tanpa router/library state.
+- React 18 + Vite 5, tanpa router/library state. Dua file utama: **`src/App.jsx`** (±6.500 baris:
+  semua halaman pengunjung/pembeli/member + logika data) dan **`src/AdminDashboard.jsx`** (±2.700
+  baris: dasbor admin + semua form/modal admin). `AdminDashboard.jsx` dimuat malas (`React.lazy`
+  di App.jsx, juga `YoutubeImportModal` untuk editor materi) supaya pengunjung tidak mengunduhnya
+  (bundle utama ±680 KB, admin ±510 KB). Komponen/helper bersama di-`export { ... }` di akhir
+  App.jsx dan di-import oleh AdminDashboard.jsx — kalau kode admin butuh helper baru dari App.jsx,
+  tambahkan namanya ke daftar export itu. recharts hanya dipakai di admin.
   Ikon `lucide-react`, grafik `recharts`, backend `@supabase/supabase-js`.
 - Styling inline (`style={{...}}`) + satu blok `<style>` global di akhir komponen `App`.
   Warna lewat Proxy `C` (`LIGHT_THEME`/`DARK_THEME`, disimpan `localStorage gs-theme`) —
@@ -52,7 +58,7 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   (Produk Saya/Ringkasan/Pesanan/Profil), `LearnPage` (+ `LearnCurriculumEditor`),
   `LandingPageTemplate` (tema "gold") & `LandingPageTemplateViolet` (`LP_TEMPLATES`,
   dipilih lewat `extra.template`), `CustomPageView`, `AboutPage`.
-- `AdminDashboard` (sub): Ringkasan, Produk, Pesanan, Pelanggan, Kupon, Analitik, Landing Page,
+- `AdminDashboard` (di `src/AdminDashboard.jsx`; sub): Ringkasan, Produk, Pesanan, Pelanggan, Kupon, Analitik, Landing Page,
   Pengaturan (`settingsSub`: Tampilan, Metode Pembayaran, Pengiriman, Keamanan, Data, FerTune,
   Marketing). Modal: `YoutubeImportModal`, `ProductFormModal`, `QuickProductFormModal`,
   `MerchFormModal`, `CouponFormModal`, `LandingPageFormModal`, `PageFormModal`, `OrderDetailModal`.
@@ -63,7 +69,8 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 
 ## Alur penting
 
-- **Login**: Supabase Auth email+password. Trigger DB `handle_new_user()` membuat baris `profiles`.
+- **Login**: Supabase Auth email+password. Minimal kata sandi `MIN_PASSWORD` = 8 (daftar, reset,
+  ganti kata sandi admin; akun lama yang lebih pendek tetap bisa masuk). Trigger DB `handle_new_user()` membuat baris `profiles`.
   `role` = `customer` | `admin` (kolom `role` TIDAK bisa diubah klien; hanya `name, phone, address`).
   Akun admin tidak bisa belanja.
 - **Beli**: keranjang (digital qty 1, fisik per varian/stok) → kupon (`validate_coupon` RPC)
@@ -84,6 +91,15 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   dimiliki berubah (`ownedKey`).
 - Status produk: `published` | `draft` | `archived` (produk yang sudah dibeli tidak dihapus,
   diarsipkan) | `soon` (Segera Hadir + daftar tunggu `product_waitlist`).
+
+- **Meta Pixel** (aktif hanya bila `VITE_META_PIXEL_ID` diisi; `trackEvent(name, params, opts)`):
+  PageView (awal di main.jsx + tiap ganti `view`), ViewContent (halaman produk & landing page),
+  AddToCart, InitiateCheckout, CompleteRegistration (daftar), Purchase (dikirim dari browser pembeli
+  saat pesanannya terlihat PAID; sekali per pesanan via `localStorage gs-px-purchase`, hanya pesanan
+  ≤14 hari; `eventID: purchase-<orderId>` untuk dedup bila nanti ada Conversions API server).
+- **Sumber pembeli** (`captureAttribution`/`readAttribution`, `localStorage gs-attrib`, 30 hari):
+  UTM/fbclid/gclid (klik iklan baru menimpa) atau host perujuk (hanya bila belum ada catatan) →
+  kolom `orders.attribution` (jsonb, maks 2000 byte) → tampil "Sumber" di detail pesanan admin.
 
 ## Supabase (`addtajuxfoxcaezmkice`, region ap-southeast-1) — DATA PELANGGAN ASLI
 
@@ -123,9 +139,12 @@ Untuk perubahan DB baru: tulis file migrasi di repo DAN terapkan dengan `apply_m
 ## Sisa pekerjaan yang diketahui (Okt 2026)
 
 - Edge Function uji `yt-probe` dan `yt-temp-sos` masih aktif di Supabase → sebaiknya dihapus
-  (tidak ada di repo).
-- Supabase Auth: "Leaked password protection" masih mati (advisor).
-- Minimal password tidak seragam: daftar/reset 6, ganti password admin 8.
-- Bundle JS ±1,2 MB (belum dipecah/lazy-load admin).
-- Meta Pixel: belum ada event Purchase/CompleteRegistration, UTM belum ditangkap.
+  (tidak ada di repo). Keduanya sudah berupa stub (jawab 410), jadi tidak berbahaya; hapus lewat
+  Dashboard (tools MCP tidak punya aksi hapus function).
+- Supabase Auth: "Leaked password protection" masih mati (advisor; butuh paket Pro).
+- Supabase Auth: minimal panjang kata sandi di server masih bawaan (6); samakan ke 8 di
+  Authentication → Policies/Password bila ingin ditegakkan juga dari FerTune.
+- Meta: Conversions API (server) belum ada — butuh access token dari Ferdi.
+- Akses MCP Vercel: jangan isi `teamId` di `list_deployments` (akun pribadi; 403). Log runtime
+  Vercel (`get_runtime_errors`) ditolak 403 — tidak penting karena tidak ada serverless di Vercel.
 - Detail lain: `ROADMAP-LAUNCH.md` dan `LAPORAN-AUDIT.md`.
