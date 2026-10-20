@@ -3527,7 +3527,8 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
   // Seluruh kartu bisa diklik (buka/tutup bab, pilih & buka video), kecuali bagian yang punya
   // aksinya sendiri: tombol pensil/tambah/hapus, kolom isian, link, dan pegangan geser.
   const isOwnAction = (e) => !!e.target.closest("button,input,textarea,select,a,[data-drag-handle]");
-  const iconBtn = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", width: 34, height: 34, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
+  // Tombol aksi kecil di baris bawah kartu (tidak memakan lebar judul).
+  const actBtn = { display: "inline-flex", alignItems: "center", gap: 5, height: 28, padding: "0 10px", borderRadius: 8, cursor: "pointer", background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, fontWeight: 700, flexShrink: 0 };
 
   return (
     <div ref={rootRef}>
@@ -3551,7 +3552,8 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
         renderItem={(r) => {
           if (r.kind === "section") {
             return (
-              <div onClick={(e) => { if (!isOwnAction(e)) toggleSection(r.key); }} title={r.collapsed ? "Klik untuk membuka isi bab" : "Klik untuk melipat bab"} style={{ padding: "10px 10px 10px 2px", borderRadius: 14, background: `linear-gradient(135deg, ${C.gold}22, ${C.gold}0A)`, border: `1px solid ${C.gold}55`, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <div onClick={(e) => { if (!isOwnAction(e)) toggleSection(r.key); }} title={r.collapsed ? "Klik untuk membuka isi bab" : "Klik untuk melipat bab"} style={{ padding: "10px 10px 10px 2px", borderRadius: 14, background: `linear-gradient(135deg, ${C.gold}22, ${C.gold}0A)`, border: `1px solid ${C.gold}55`, display: "flex", flexDirection: "column", gap: 6, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <DragHandle />
                 <span style={{ padding: 2, display: "flex", flexShrink: 0 }}>
                   <ChevronDown size={17} color={C.goldLight} style={{ transform: r.collapsed ? "rotate(-90deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
@@ -3560,8 +3562,11 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                   <EditableText value={r.it.title} admin onSave={(v) => updateItem(r.idx, "title", v)} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.goldLight, textTransform: "uppercase", letterSpacing: 0.3 }} />
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.goldLight, opacity: 0.8 }}>{r.count} video</span>
                 </div>
-                <button onClick={() => insertVideoAfter(r.idx)} title="Tambah video di bab ini" style={{ ...iconBtn, borderColor: `${C.gold}66` }}><Plus size={15} color={C.goldLight} /></button>
-                <button onClick={() => removeItem(r.idx)} title="Hapus judul bab (videonya tetap ada)" style={iconBtn}><Trash2 size={14} color={C.mutedDark} /></button>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                  <button onClick={() => insertVideoAfter(r.idx)} title="Tambah video di bab ini" style={{ ...actBtn, borderColor: `${C.gold}66`, color: C.goldLight }}><Plus size={13} />Video</button>
+                  <button onClick={() => removeItem(r.idx)} title="Hapus judul bab (videonya tetap ada)" style={actBtn}><Trash2 size={12} />Hapus bab</button>
+                </div>
               </div>
             );
           }
@@ -3580,7 +3585,8 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
             {/* Garis penanda: video ini berada di dalam bab di atasnya. */}
             {r.inSection && <span style={{ position: "absolute", left: -12, top: -8, bottom: 0, width: 2, borderRadius: 2, background: `${C.gold}55` }} />}
             <div data-active-video={active ? "" : undefined} style={{ borderRadius: 14, background: active ? C.surface2 : C.surface, border: `1px solid ${active ? C.gold : C.border}`, overflow: "hidden" }}>
-              <div onClick={onCardClick} title={expanded ? "Klik untuk menutup detail" : "Klik untuk memutar & mengedit video ini"} style={{ padding: "8px 8px 8px 2px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <div onClick={onCardClick} title={expanded ? "Klik untuk menutup detail" : "Klik untuk memutar & mengedit video ini"} style={{ padding: "8px 8px 8px 2px", display: "flex", flexDirection: "column", gap: 6, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <DragHandle />
                 <span style={{ width: 30, height: 30, borderRadius: "50%", border: `1px solid ${active ? C.gold : C.border}`, background: active ? C.gold : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: active ? "#1A140A" : C.muted }}>{r.vn + 1}</span>
@@ -3595,8 +3601,11 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
                 <span style={{ display: "flex", flexShrink: 0, padding: "0 2px" }}>
                   <ChevronDown size={15} color={C.muted} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .3s var(--gs-spring)" }} />
                 </span>
-                <button onClick={() => insertVideoAfter(r.idx)} title="Sisipkan video setelah ini" style={iconBtn}><Plus size={15} color={C.mutedDark} /></button>
-                <button onClick={() => removeItem(r.idx)} title="Hapus video" style={iconBtn}><Trash2 size={14} color={C.mutedDark} /></button>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                  <button onClick={() => insertVideoAfter(r.idx)} title="Sisipkan video setelah ini" style={actBtn}><Plus size={13} />Video</button>
+                  <button onClick={() => removeItem(r.idx)} title="Hapus video" style={actBtn}><Trash2 size={12} />Hapus</button>
+                </div>
               </div>
               {expanded && (
                 <div className="gs-anim-in" data-no-drag style={{ padding: "12px 14px 14px", background: C.surface2, borderTop: `1px dashed ${C.border}`, display: "flex", flexDirection: "column", gap: 12 }}>

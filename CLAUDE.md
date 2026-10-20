@@ -97,13 +97,15 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   `uploadTipsImage` ke `product-images/lessons/`; kosong = tidak tampil ke member) →
   kartu "Berikutnya". `admin_save_curriculum` hanya mengubah `tips` bila item membawa kunci `tips`.
   Editor materi (Mode Edit, `LearnCurriculumEditor`): klik kartu bab = lipat/buka; klik kartu video =
-  pilih (tampil di kiri) + buka detail (satu saja); video dalam bab menjorok + garis emas. Di PC
+  pilih (tampil di kiri) + buka detail (satu saja); tombol "+ Video" & "Hapus" di baris bawah kartu;
+  video dalam bab menjorok + garis emas. Di PC
   panel ini `.gs-learn-side` (sticky, gulungan sendiri; HP ≤860 px biasa) dan kartu aktif
   (`data-active-video`) otomatis dibawa ke area terlihat. `SortableList` mendukung wadah bergulung
   (`findScrollParent`) dan menelan klik setelah tahan-geser.
 - **SEO**: `index.html` punya JSON-LD `WebSite` + `EducationalOrganization` (alternateName
   "Gitarsakti", logo, alamat Blitar, sameAs YouTube) dan `<noscript>` berisi nama merek. Judul:
-  "Gitar Sakti (Gitarsakti) — ...". Google Search Console belum diverifikasi (oleh Ferdi).
+  "Gitar Sakti (Gitarsakti) — ...". Google Search Console (properti Domain) terverifikasi via TXT di
+  Cloudflare (JANGAN dihapus); sitemap dikirim sebagai URL lengkap. DNS: Cloudflare (registrar Rumahweb).
 - **Realtime**: channel `orders-sync` memuat ulang pesanan; materi dimuat ulang saat produk
   dimiliki berubah (`ownedKey`).
 - Status produk: `published` | `draft` | `archived` (produk yang sudah dibeli tidak dihapus,
