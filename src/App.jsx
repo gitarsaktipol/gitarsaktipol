@@ -728,6 +728,15 @@ function DragHandle({ size = 18 }) {
   );
 }
 
+// Wadah terdekat yang punya gulungan sendiri (mis. daftar materi di samping video), atau null = halaman.
+const findScrollParent = (el) => {
+  for (let n = el?.parentElement; n && n !== document.body; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+  }
+  return null;
+};
+
 function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled }) {
   const wrapRef = useRef(null);
   const sess = useRef(null);
@@ -752,7 +761,7 @@ function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled
   const update = () => {
     const c = sess.current;
     if (!c || !c.active) return;
-    const dy = (c.lastY - c.startY) + (window.scrollY - c.startScroll);
+    const dy = (c.lastY - c.startY) + (c.scrollTop() - c.startScroll);
     const r = c.rects[c.idx];
     const center = r.top + r.height / 2 + dy;
     let over = c.idx;
@@ -770,8 +779,10 @@ function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled
     const c = sess.current;
     if (!c || !wrapRef.current) return;
     const nodes = Array.from(wrapRef.current.children);
-    c.rects = nodes.map((n) => { const r = n.getBoundingClientRect(); return { top: r.top + window.scrollY, height: r.height }; });
-    c.startScroll = window.scrollY;
+    c.scroller = findScrollParent(wrapRef.current);
+    c.scrollTop = () => (c.scroller ? c.scroller.scrollTop : window.scrollY);
+    c.rects = nodes.map((n) => { const r = n.getBoundingClientRect(); return { top: r.top + c.scrollTop(), height: r.height }; });
+    c.startScroll = c.scrollTop();
     c.active = true;
     c.over = c.idx;
     setPressIdx(null);
@@ -782,8 +793,11 @@ function SortableList({ items, getKey, renderItem, onReorder, gap = 10, disabled
       const cc = sess.current;
       if (!cc || !cc.active) return;
       const edge = 80;
-      if (cc.lastY < edge) window.scrollBy(0, -Math.ceil((edge - cc.lastY) / 6));
-      else if (cc.lastY > window.innerHeight - edge) window.scrollBy(0, Math.ceil((cc.lastY - (window.innerHeight - edge)) / 6));
+      // Bawa baris ke tepi atas/bawah -> wadahnya (atau halaman) ikut menggulir.
+      const top = cc.scroller ? Math.max(0, cc.scroller.getBoundingClientRect().top) : 0;
+      const bottom = cc.scroller ? Math.min(window.innerHeight, cc.scroller.getBoundingClientRect().bottom) : window.innerHeight;
+      const by = cc.lastY < top + edge ? -Math.ceil((top + edge - cc.lastY) / 6) : cc.lastY > bottom - edge ? Math.ceil((cc.lastY - (bottom - edge)) / 6) : 0;
+      if (by) (cc.scroller || window).scrollBy(0, by);
       update();
       cc.raf = requestAnimationFrame(loop);
     };
@@ -3334,6 +3348,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
 
         <div>
           {admin ? (
+            <div className="gs-learn-side">
             <LearnCurriculumEditor
               outline={outline}
               curIdx={curIdx}
@@ -3351,6 +3366,7 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               addSectionRow={addSectionRow}
               onImportYoutube={() => setShowImport(true)}
             />
+            </div>
           ) : (
           <Card style={{ padding: 6, maxHeight: 560, overflowY: "auto" }}>
             {(() => {
@@ -3407,6 +3423,19 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
 // video) bisa diurutkan dengan TAHAN & GESER. Bab bisa dilipat supaya daftar puluhan video tetap
 // rapi; tiap perubahan langsung tersimpan ke database (tanpa tombol "Simpan").
 function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, toggleSection, expandedVideoIdx, toggleVideoExpand, updateItem, removeItem, onReorderOutline, insertVideoAfter, insertSectionAfter, addVideoRow, addSectionRow, onImportYoutube }) {
+  // Di PC daftar ini punya gulungan sendiri (.gs-learn-side). Saat video berganti (mis. lewat
+  // tombol Selesai & Lanjut), kartu video aktif dibawa ke area yang terlihat di dalam daftar —
+  // halaman sendiri tidak ikut digulir.
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const box = rootRef.current?.closest(".gs-learn-side");
+    const card = rootRef.current?.querySelector("[data-active-video]");
+    if (!box || !card || box.scrollHeight <= box.clientHeight) return;
+    const b = box.getBoundingClientRect();
+    const r = card.getBoundingClientRect();
+    if (r.top < b.top + 8) box.scrollBy({ top: r.top - b.top - 8, behavior: "smooth" });
+    else if (r.bottom > b.bottom - 8) box.scrollBy({ top: r.bottom - b.bottom + 8, behavior: "smooth" });
+  }, [curIdx]);
   const totalVideoCount = outline.filter((it) => it.type !== "section").length;
   const sectionCount = outline.filter((it) => it.type === "section").length;
   const secKey = (it, idx) => `s-${it.id ?? `new-${idx}`}`;
@@ -3448,7 +3477,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
   const iconBtn = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", width: 34, height: 34, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" };
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark }}>{totalVideoCount} video{sectionCount ? ` · ${sectionCount} bab` : ""}</span>
         {onImportYoutube && outline.length > 0 && <PrimaryBtn small onClick={onImportYoutube} icon={Youtube}>Import dari YouTube</PrimaryBtn>}
@@ -3497,7 +3526,7 @@ function LearnCurriculumEditor({ outline, curIdx, onSelect, collapsedSections, t
             <div style={{ position: "relative", marginLeft: r.inSection ? 20 : 0 }}>
             {/* Garis penanda: video ini berada di dalam bab di atasnya. */}
             {r.inSection && <span style={{ position: "absolute", left: -12, top: -8, bottom: 0, width: 2, borderRadius: 2, background: `${C.gold}55` }} />}
-            <div style={{ borderRadius: 14, background: active ? C.surface2 : C.surface, border: `1px solid ${active ? C.gold : C.border}`, overflow: "hidden" }}>
+            <div data-active-video={active ? "" : undefined} style={{ borderRadius: 14, background: active ? C.surface2 : C.surface, border: `1px solid ${active ? C.gold : C.border}`, overflow: "hidden" }}>
               <div onClick={onCardClick} title={expanded ? "Klik untuk menutup detail" : "Klik untuk memutar & mengedit video ini"} style={{ padding: "8px 8px 8px 2px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <DragHandle />
                 <span style={{ width: 30, height: 30, borderRadius: "50%", border: `1px solid ${active ? C.gold : C.border}`, background: active ? C.gold : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -6505,7 +6534,11 @@ export default function App() {
           .gs-attn { animation: none; }
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
         }
+        /* Editor materi (admin) di PC: daftar materi menempel di samping video dan punya gulungan
+           sendiri, jadi video tetap terlihat saat mengedit bab-bab di bagian bawah daftar. */
+        .gs-learn-side { position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 12px 2px; scrollbar-width: thin; }
         @media (max-width: 860px) {
+          .gs-learn-side { position: static; max-height: none; overflow: visible; padding: 0; }
           .gs-desktop-nav { display: none !important; }
           .gs-sidebar-logout { display: none !important; }
           .gs-hero-grid { grid-template-columns: 1fr !important; }
