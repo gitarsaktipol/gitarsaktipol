@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { createClient } from "@supabase/supabase-js";
+import DOMPurify from "dompurify";
 import {
   Bell, Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
@@ -15,6 +16,7 @@ import {
 const loadAdmin = () => import("./AdminDashboard.jsx");
 const AdminDashboard = lazy(() => loadAdmin().then((m) => ({ default: m.AdminDashboard })));
 const YoutubeImportModal = lazy(() => loadAdmin().then((m) => ({ default: m.YoutubeImportModal })));
+const TipsEditor = lazy(() => loadAdmin().then((m) => ({ default: m.TipsEditor })));
 function AdminLoading() {
   return <div style={{ padding: "80px 20px", textAlign: "center", fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Memuat panel admin...</div>;
 }
@@ -3066,37 +3068,88 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
 }
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
+/* ---------------- Petunjuk latihan: teks berformat (HTML) ----------------
+   Disimpan sebagai HTML yang sudah disaring (DOMPurify): hanya tag format sederhana, tanpa
+   gaya/font bawaan Word, jadi tampilannya selalu mengikuti tema situs. Gambar hanya dari https
+   (diunggah ke Storage). Petunjuk lama (teks biasa) diubah ke HTML saat ditampilkan. */
+const TIPS_TAGS = ["p", "br", "strong", "b", "em", "i", "u", "s", "h2", "h3", "h4", "ul", "ol", "li", "blockquote", "a", "img", "hr", "sub", "sup", "table", "thead", "tbody", "tr", "th", "td"];
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A") { node.setAttribute("target", "_blank"); node.setAttribute("rel", "noopener noreferrer"); }
+  if (node.tagName === "IMG" && !/^https:\/\//i.test(node.getAttribute("src") || "")) node.remove();
+});
+const sanitizeTipsHtml = (html) => DOMPurify.sanitize(String(html || ""), { ALLOWED_TAGS: TIPS_TAGS, ALLOWED_ATTR: ["href", "src", "alt", "target", "rel", "start", "colspan", "rowspan"], ALLOW_DATA_ATTR: false })
+  // baris kosong berurutan (sering dari Word) cukup satu; buang yang di awal/akhir
+  .replace(/(<p>(\s|&nbsp;|<br>)*<\/p>\s*){2,}/g, "<p><br></p>")
+  .replace(/^(\s*<p>(\s|&nbsp;|<br>)*<\/p>)+|(<p>(\s|&nbsp;|<br>)*<\/p>\s*)+$/g, "")
+  .trim();
+const isTipsHtml = (t) => /^\s*</.test(t || "");
+const escHtml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const inlineMd = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, "$1<em>$2</em>");
+// Teks biasa -> HTML. Mengenali penomoran "1." / "1)" dan poin "o", "•", "-", "*" (bentuk teks polos
+// dari Word: "1.<tab>..." lalu sub-poin "o<tab>..."), judul "## ", dan **tebal** / *miring*.
+const legacyTipsToHtml = (text) => {
+  const out = [];
+  let list = null;
+  const flush = () => {
+    if (!list) return;
+    const items = list.items.map((it) => `<li>${it.html}${it.sub.length ? `<ul>${it.sub.map((x) => `<li>${x}</li>`).join("")}</ul>` : ""}</li>`).join("");
+    out.push(list.type === "ol" ? `<ol${list.start > 1 ? ` start="${list.start}"` : ""}>${items}</ol>` : `<ul>${items}</ul>`);
+    list = null;
+  };
+  String(text || "").replace(/\r/g, "").split("\n").forEach((raw) => {
+    const line = raw.replace(/\u00a0/g, " ").trim();
+    if (!line) { flush(); return; }
+    let m;
+    if ((m = /^(\d+)[.)]\s+(.*)$/.exec(line))) {
+      if (!list || list.type !== "ol") { flush(); list = { type: "ol", start: Number(m[1]), items: [] }; }
+      list.items.push({ html: inlineMd(m[2]), sub: [] });
+    } else if ((m = /^[o•·▪◦§*\-–]\s+(.*)$/.exec(line))) {
+      if (list && list.type === "ol" && list.items.length) list.items[list.items.length - 1].sub.push(inlineMd(m[1]));
+      else { if (!list) list = { type: "ul", items: [] }; list.items.push({ html: inlineMd(m[1]), sub: [] }); }
+    } else if ((m = /^#{2,3}\s+(.*)$/.exec(line))) {
+      flush(); out.push(`<h3>${inlineMd(m[1])}</h3>`);
+    } else {
+      flush(); out.push(`<p>${inlineMd(line)}</p>`);
+    }
+  });
+  flush();
+  return out.join("");
+};
+const tipsToHtml = (t) => sanitizeTipsHtml(isTipsHtml(t) ? t : legacyTipsToHtml(t));
+const tipsIsEmpty = (t) => {
+  const h = tipsToHtml(t);
+  return !/<img\b/i.test(h) && !h.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+};
+
 // Petunjuk latihan tambahan per video (kolom curriculum_videos.tips), tampil di bawah deskripsi.
 // Format sama seperti deskripsi produk: **tebal**, *miring*, "## " judul, "* " poin. Admin di
 // Mode Edit bisa menulis/mengubahnya langsung di sini; kosong = kartu tidak tampil untuk member.
 function VideoTips({ tips, admin, onSave }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(tips || "");
-  useEffect(() => { if (!editing) setDraft(tips || ""); }, [tips, editing]);
-  const text = (tips || "").trim();
-  if (!text && !admin) return null;
+  const empty = tipsIsEmpty(tips);
+  if (empty && !admin) return null;
   return (
     <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 16, border: `1px solid ${C.gold}55`, background: `${C.gold}0F` }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: editing || text ? 8 : 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: editing || !empty ? 8 : 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.text }}>
           <Lightbulb size={16} color={C.gold} />Petunjuk Latihan
         </span>
         {admin && !editing && (
           <button onClick={() => setEditing(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, color: C.text }}>
-            <Pencil size={12} />{text ? "Edit" : "Tambah petunjuk"}
+            <Pencil size={12} />{empty ? "Tambah petunjuk" : "Edit"}
           </button>
         )}
       </div>
       {editing ? (
-        <div>
-          <RichTextEditor value={draft} onChange={setDraft} rows={6} placeholder={"Contoh:\n* Mulai di tempo 60, naikkan 5 bpm tiap lancar\n* Fokus: jari kiri tetap dekat senar"} />
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <PrimaryBtn small onClick={() => { onSave(draft.trim()); setEditing(false); }} icon={Check}>Simpan</PrimaryBtn>
-            <GhostBtn small onClick={() => { setDraft(tips || ""); setEditing(false); }}>Batal</GhostBtn>
-          </div>
-        </div>
-      ) : text ? (
-        <RichText text={text} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.65 }} />
+        <Suspense fallback={<p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }}>Memuat editor...</p>}>
+          <TipsEditor
+            initialHtml={empty ? "" : tipsToHtml(tips)}
+            onSave={(html) => { onSave(html); setEditing(false); }}
+            onCancel={() => setEditing(false)}
+          />
+        </Suspense>
+      ) : !empty ? (
+        <div className="gs-rich" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text }} dangerouslySetInnerHTML={{ __html: tipsToHtml(tips) }} />
       ) : (
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: "6px 0 0" }}>Belum ada petunjuk untuk video ini. Member tidak melihat kartu ini sampai diisi.</p>
       )}
@@ -6534,6 +6587,24 @@ export default function App() {
           .gs-attn { animation: none; }
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
         }
+        /* Teks berformat petunjuk latihan (tampilan member + editor admin). */
+        .gs-rich { line-height: 1.65; overflow-wrap: anywhere; overflow-x: auto; }
+        .gs-rich > :first-child { margin-top: 0 !important; }
+        .gs-rich > :last-child { margin-bottom: 0 !important; }
+        .gs-rich p { margin: 0 0 8px; }
+        .gs-rich h2 { font-size: 1.28em; font-weight: 800; margin: 16px 0 8px; color: ${C.text}; }
+        .gs-rich h3 { font-size: 1.14em; font-weight: 800; margin: 14px 0 6px; color: ${C.text}; }
+        .gs-rich h4 { font-size: 1em; font-weight: 800; margin: 12px 0 6px; color: ${C.text}; }
+        .gs-rich ul, .gs-rich ol { margin: 4px 0 10px; padding-left: 24px; }
+        .gs-rich li { margin: 3px 0; }
+        .gs-rich li > ul, .gs-rich li > ol { margin: 3px 0 4px; }
+        .gs-rich ul ul { list-style-type: circle; }
+        .gs-rich img { display: block; max-width: 100%; height: auto; border-radius: 10px; margin: 10px 0; }
+        .gs-rich a { color: ${C.gold}; text-decoration: underline; }
+        .gs-rich blockquote { margin: 8px 0; padding: 2px 0 2px 12px; border-left: 3px solid ${C.gold}; color: ${C.muted}; }
+        .gs-rich hr { border: none; border-top: 1px solid ${C.border}; margin: 12px 0; }
+        .gs-rich table { border-collapse: collapse; min-width: 0; margin: 8px 0; }
+        .gs-rich th, .gs-rich td { border: 1px solid ${C.border}; padding: 6px 9px; white-space: normal; vertical-align: top; text-align: left; }
         /* Editor materi (admin) di PC: daftar materi menempel di samping video dan punya gulungan
            sendiri, jadi video tetap terlihat saat mengedit bab-bab di bagian bawah daftar. */
         .gs-learn-side { position: sticky; top: 72px; max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 12px 2px; scrollbar-width: thin; }
@@ -6619,5 +6690,5 @@ export default function App() {
 
 // Dipakai panel admin (src/AdminDashboard.jsx).
 export {
-  Badge, C, CATEGORIES, Card, CopyableField, DashSidebar, DragHandle, FUNNEL, GhostBtn, LP_TEMPLATES, MONTHS_ID, PrimaryBtn, ProductThumb, ProofImage, RichTextEditor, Section, SortableList, StatCard, formatDateID, invokeFn, productStockTotal, rp, stripFretPrefix, supabase, toast, waLink,
+  sanitizeTipsHtml, legacyTipsToHtml, Badge, C, CATEGORIES, Card, CopyableField, DashSidebar, DragHandle, FUNNEL, GhostBtn, LP_TEMPLATES, MONTHS_ID, PrimaryBtn, ProductThumb, ProofImage, RichTextEditor, Section, SortableList, StatCard, formatDateID, invokeFn, productStockTotal, rp, stripFretPrefix, supabase, toast, waLink,
 };
