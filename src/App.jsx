@@ -7,7 +7,7 @@ import {
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
   Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon,
-  GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle,
+  GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle, Lightbulb,
 } from "lucide-react";
 
 // Panel admin ada di file terpisah (src/AdminDashboard.jsx) dan baru diunduh saat dibuka admin,
@@ -3045,6 +3045,44 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
 }
 
 /* ---------------- LEARN / VIDEO PLAYER ---------------- */
+// Petunjuk latihan tambahan per video (kolom curriculum_videos.tips), tampil di bawah deskripsi.
+// Format sama seperti deskripsi produk: **tebal**, *miring*, "## " judul, "* " poin. Admin di
+// Mode Edit bisa menulis/mengubahnya langsung di sini; kosong = kartu tidak tampil untuk member.
+function VideoTips({ tips, admin, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(tips || "");
+  useEffect(() => { if (!editing) setDraft(tips || ""); }, [tips, editing]);
+  const text = (tips || "").trim();
+  if (!text && !admin) return null;
+  return (
+    <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: 16, border: `1px solid ${C.gold}55`, background: `${C.gold}0F` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: editing || text ? 8 : 0 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 13.5, color: C.text }}>
+          <Lightbulb size={16} color={C.gold} />Petunjuk Latihan
+        </span>
+        {admin && !editing && (
+          <button onClick={() => setEditing(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 700, color: C.text }}>
+            <Pencil size={12} />{text ? "Edit" : "Tambah petunjuk"}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div>
+          <RichTextEditor value={draft} onChange={setDraft} rows={6} placeholder={"Contoh:\n* Mulai di tempo 60, naikkan 5 bpm tiap lancar\n* Fokus: jari kiri tetap dekat senar"} />
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <PrimaryBtn small onClick={() => { onSave(draft.trim()); setEditing(false); }} icon={Check}>Simpan</PrimaryBtn>
+            <GhostBtn small onClick={() => { setDraft(tips || ""); setEditing(false); }}>Batal</GhostBtn>
+          </div>
+        </div>
+      ) : text ? (
+        <RichText text={text} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.65 }} />
+      ) : (
+        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: "6px 0 0" }}>Belum ada petunjuk untuk video ini. Member tidak melihat kartu ini sampai diisi.</p>
+      )}
+    </div>
+  );
+}
+
 function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, products, curriculumData, curriculumOutline, role, learnEditMode, setLearnEditMode, onSaveProduct, goToAdmin }) {
   const product = products.find((x) => x.slug === slug) || { id: null, name: "", hue: C.gold };
   const curriculum = curriculumData[product.id] || [];
@@ -3091,9 +3129,9 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
     copy.splice(idx, 0, newItem);
     saveOutline(copy);
   };
-  const insertVideoAfter = (idx) => insertItemAt(idx + 1, { type: "video", title: "Video Baru", desc: "", url: "", duration: "" });
+  const insertVideoAfter = (idx) => insertItemAt(idx + 1, { type: "video", title: "Video Baru", desc: "", url: "", duration: "", tips: "" });
   const insertSectionAfter = (idx) => insertItemAt(idx + 1, { type: "section", title: "Judul Materi Baru" });
-  const addVideoRow = () => saveOutline([...outline, { type: "video", title: "Video Baru", desc: "", url: "", duration: "" }]);
+  const addVideoRow = () => saveOutline([...outline, { type: "video", title: "Video Baru", desc: "", url: "", duration: "", tips: "" }]);
   const addSectionRow = () => saveOutline([...outline, { type: "section", title: "Judul Materi Baru" }]);
 
   const [collapsedSections, setCollapsedSections] = useState(() => new Set());
@@ -3108,6 +3146,10 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
     }
     return -1;
   };
+
+  const next = !isLast ? curriculum[curIdx + 1] : null;
+  const allDone = completed.length >= curriculum.length && curriculum.length > 0;
+  const nextThumb = next ? youtubeThumb(next.url) : null;
 
   if (curriculum.length === 0 && !admin) {
     return (
@@ -3181,6 +3223,35 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
             </div>
           </div>
 
+          {/* Tombol Selesai & Lanjut di ATAS video (diminta Ferdi, Okt 2026): langsung terlihat tanpa
+              menggulir, lalu deskripsi + petunjuk latihan tepat di bawah video. */}
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+              <button onClick={() => curIdx > 0 && selectVideo(curIdx - 1)} disabled={curIdx === 0} title="Video sebelumnya" className="gs-btn gs-btn-ghost" style={{ width: 52, flexShrink: 0, borderRadius: 16, border: `1px solid ${C.border}`, background: C.surface, cursor: curIdx === 0 ? "default" : "pointer", opacity: curIdx === 0 ? 0.35 : 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+                <SkipBack size={18} color={C.text} />
+              </button>
+              <div style={{ flex: 1 }}>
+                {!isLast ? (
+                  <PrimaryBtn full onClick={markCompleteAndNext} icon={SkipForward}>{isCurrentDone ? "Lanjut ke Video Berikutnya" : "Selesai & Lanjut"}</PrimaryBtn>
+                ) : !isCurrentDone ? (
+                  <PrimaryBtn full onClick={markCompleteAndNext} icon={Check}>Tandai Selesai</PrimaryBtn>
+                ) : (
+                  <GhostBtn full onClick={() => selectVideo(0)} icon={RotateCcw}>Ulangi dari Video 1</GhostBtn>
+                )}
+              </div>
+            </div>
+            {allDone && (
+              <div className="gs-celebrate" style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: "22px 20px", background: "linear-gradient(135deg, #2A2112, #16120B)", border: `1px solid ${C.gold}66`, textAlign: "center" }}>
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <span key={i} className="gs-confetti" style={{ left: `${(i * 7.3) % 100}%`, animationDelay: `${(i % 7) * 0.18}s`, background: i % 3 === 0 ? "#F3D27A" : i % 3 === 1 ? "#E0553A" : "#FFFFFF" }} />
+                ))}
+                <div style={{ fontSize: 34 }}>🎸</div>
+                <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: "#F3D27A", margin: "6px 0 4px" }}>Selamat, kelas selesai!</h3>
+                <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0 }}>Semua {curriculum.length} video sudah kamu tuntaskan. Ulangi latihan favoritmu kapan saja.</p>
+              </div>
+            )}
+          </div>
+
           <div style={{ height: 14 }} />
           <LpVideoEditable url={video.url} admin={admin} onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "url", v)}>
             {(() => {
@@ -3220,59 +3291,31 @@ function LearnPage({ slug, go, progress, onMarkComplete, current, setCurrent, pr
               );
             })()}
           </LpVideoEditable>
-
-          {(() => {
-            const next = !isLast ? curriculum[curIdx + 1] : null;
-            const allDone = completed.length >= curriculum.length && curriculum.length > 0;
-            const nextThumb = next ? youtubeThumb(next.url) : null;
-            return (
-              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
-                  <button onClick={() => curIdx > 0 && selectVideo(curIdx - 1)} disabled={curIdx === 0} title="Video sebelumnya" className="gs-btn gs-btn-ghost" style={{ width: 52, flexShrink: 0, borderRadius: 16, border: `1px solid ${C.border}`, background: C.surface, cursor: curIdx === 0 ? "default" : "pointer", opacity: curIdx === 0 ? 0.35 : 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
-                    <SkipBack size={18} color={C.text} />
-                  </button>
-                  <div style={{ flex: 1 }}>
-                    {!isLast ? (
-                      <PrimaryBtn full onClick={markCompleteAndNext} icon={SkipForward}>{isCurrentDone ? "Lanjut ke Video Berikutnya" : "Selesai & Lanjut"}</PrimaryBtn>
-                    ) : !isCurrentDone ? (
-                      <PrimaryBtn full onClick={markCompleteAndNext} icon={Check}>Tandai Selesai</PrimaryBtn>
-                    ) : (
-                      <GhostBtn full onClick={() => selectVideo(0)} icon={RotateCcw}>Ulangi dari Video 1</GhostBtn>
-                    )}
-                  </div>
-                </div>
-                {next && (
-                  <Card onClick={() => selectVideo(curIdx + 1)} className="gs-next-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ position: "relative", width: 112, aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", flexShrink: 0, background: nextThumb ? `center / cover no-repeat url("${nextThumb}")` : `linear-gradient(135deg, ${product.hue || C.gold}44, ${C.surface2})` }}>
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)" }}><Play size={18} color="#fff" fill="#fff" /></div>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: C.gold }}>Berikutnya · Video {curIdx + 2}</span>
-                      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, color: C.text, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{next.title}</div>
-                      {next.duration && next.duration !== "—" && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark }}>{next.duration}</span>}
-                    </div>
-                    <ChevronRight size={18} color={C.muted} className="gs-btn-icon" />
-                  </Card>
-                )}
-                {allDone && (
-                  <div className="gs-celebrate" style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: "22px 20px", background: "linear-gradient(135deg, #2A2112, #16120B)", border: `1px solid ${C.gold}66`, textAlign: "center" }}>
-                    {Array.from({ length: 14 }).map((_, i) => (
-                      <span key={i} className="gs-confetti" style={{ left: `${(i * 7.3) % 100}%`, animationDelay: `${(i % 7) * 0.18}s`, background: i % 3 === 0 ? "#F3D27A" : i % 3 === 1 ? "#E0553A" : "#FFFFFF" }} />
-                    ))}
-                    <div style={{ fontSize: 34 }}>🎸</div>
-                    <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 20, color: "#F3D27A", margin: "6px 0 4px" }}>Selamat, kelas selesai!</h3>
-                    <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.75)", margin: 0 }}>Semua {curriculum.length} video sudah kamu tuntaskan. Ulangi latihan favoritmu kapan saja.</p>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           <VideoDescription
             desc={video.desc}
             admin={admin}
             onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "desc", v)}
           />
+          <VideoTips
+            tips={video.tips}
+            admin={admin}
+            onSave={(v) => updateItem(outlineIndexForVideo(curIdx), "tips", v)}
+          />
+          {next && (
+            <div style={{ marginTop: 16 }}>
+              <Card onClick={() => selectVideo(curIdx + 1)} className="gs-next-card" style={{ padding: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ position: "relative", width: 112, aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", flexShrink: 0, background: nextThumb ? `center / cover no-repeat url("${nextThumb}")` : `linear-gradient(135deg, ${product.hue || C.gold}44, ${C.surface2})` }}>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)" }}><Play size={18} color="#fff" fill="#fff" /></div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: C.gold }}>Berikutnya · Video {curIdx + 2}</span>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, color: C.text, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{next.title}</div>
+                  {next.duration && next.duration !== "—" && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: C.mutedDark }}>{next.duration}</span>}
+                </div>
+                <ChevronRight size={18} color={C.muted} className="gs-btn-icon" />
+              </Card>
+            </div>
+          )}
         </div>
         )}
 
@@ -5285,12 +5328,12 @@ export default function App() {
       outline[v.product_id].push(
         v.duration === SECTION_MARKER
           ? { id: v.id, type: "section", title: v.title }
-          : { id: v.id, type: "video", title: v.title, desc: v.description || "", url: v.url || "", duration: v.duration || "" }
+          : { id: v.id, type: "video", title: v.title, desc: v.description || "", url: v.url || "", duration: v.duration || "", tips: v.tips || "" }
       );
     });
     const videosOnly = {};
     Object.keys(outline).forEach((pid) => {
-      const vids = outline[pid].filter((x) => x.type === "video").map(({ id, title, desc, url, duration }) => ({ id, title, desc, url, duration }));
+      const vids = outline[pid].filter((x) => x.type === "video").map(({ id, title, desc, url, duration, tips }) => ({ id, title, desc, url, duration, tips }));
       if (vids.length > 0) videosOnly[pid] = vids;
     });
     setCurriculumOutline(outline);
@@ -6102,7 +6145,7 @@ export default function App() {
     const videoCount = items.filter((it) => it.type !== "section").length;
     // Optimis: tampilan materi langsung berubah (mis. setelah geser urutan), server menyusul.
     setCurriculumOutline((prev) => ({ ...prev, [id]: items }));
-    setCurriculumData((prev) => ({ ...prev, [id]: items.filter((it) => it.type !== "section").map(({ id: vid, title, desc, url, duration }) => ({ id: vid, title, desc, url, duration })) }));
+    setCurriculumData((prev) => ({ ...prev, [id]: items.filter((it) => it.type !== "section").map(({ id: vid, title, desc, url, duration, tips }) => ({ id: vid, title, desc, url, duration, tips })) }));
     const payload = {
       name: data.name, category: data.category, level: data.level,
       price: data.price, old_price: data.oldPrice || data.price, description: data.desc || "",

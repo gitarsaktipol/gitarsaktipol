@@ -87,6 +87,11 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   Progres di `video_progress` (pakai `video_id`, bukan urutan). Video terakhir dibuka disimpan di
   `localStorage gs-last-<uid>` (kartu "Lanjutkan Belajar"). Admin menyimpan kurikulum lewat RPC
   `admin_save_curriculum` (update di tempat — JANGAN ganti jadi hapus+insert, progres member hilang).
+- **Halaman belajar** (`LearnPage`): urutan kolom kiri = judul/durasi → tombol ◀ + "Selesai & Lanjut"
+  (di ATAS video, diminta Ferdi Okt 2026) → kartu selamat (bila semua selesai) → video →
+  `VideoDescription` → `VideoTips` ("Petunjuk Latihan", kolom `curriculum_videos.tips`, format
+  `RichText`; admin Mode Edit: tombol Edit/Tambah petunjuk; kosong = tidak tampil ke member) →
+  kartu "Berikutnya". `admin_save_curriculum` hanya mengubah `tips` bila item membawa kunci `tips`.
 - **Realtime**: channel `orders-sync` memuat ulang pesanan; materi dimuat ulang saat produk
   dimiliki berubah (`ownedKey`).
 - Status produk: `published` | `draft` | `archived` (produk yang sudah dibeli tidak dihapus,
@@ -144,6 +149,8 @@ Untuk perubahan DB baru: tulis file migrasi di repo DAN terapkan dengan `apply_m
 - Supabase Auth: "Leaked password protection" masih mati (advisor; butuh paket Pro).
 - Supabase Auth: minimal panjang kata sandi di server masih bawaan (6); samakan ke 8 di
   Authentication → Policies/Password bila ingin ditegakkan juga dari FerTune.
+- MCP Supabase `apply_migration`/`execute_sql` yang berisi `delete` butuh persetujuan pengguna dan
+  time out (60 dtk) bila tidak disetujui — berikan SQL-nya ke Ferdi untuk dijalankan di SQL Editor.
 - Meta: Conversions API (server) belum ada — butuh access token dari Ferdi.
 - Akses MCP Vercel: jangan isi `teamId` di `list_deployments` (akun pribadi; 403). Log runtime
   Vercel (`get_runtime_errors`) ditolak 403 — tidak penting karena tidak ada serverless di Vercel.
