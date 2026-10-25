@@ -1083,25 +1083,22 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
 
 /* ---------------- header / footer ---------------- */
 function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mobileOpen, setMobileOpen, customPages, openCustomPage, customPageSlug, content, editMode, setEditMode, onSaveHeader, goToAddPage, theme, onToggleTheme, onLogout }) {
-  const [canInstallPWA, setCanInstallPWA] = useState(false);
-  useEffect(() => {
-    if (window.__pwaDeferredPrompt) setCanInstallPWA(true);
-    const onInstallable = () => setCanInstallPWA(true);
-    const onInstalled = () => setCanInstallPWA(false);
-    window.addEventListener("pwa-installable", onInstallable);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("pwa-installable", onInstallable);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
+  // Sudah dibuka sebagai aplikasi terpasang -> tombol tidak perlu tampil.
+  const isStandalone = typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true);
   const installPWA = async () => {
     const evt = window.__pwaDeferredPrompt;
-    if (!evt) return;
+    // Chrome tidak selalu menawarkan pasang (sudah terpasang, pernah ditolak, mode penyamaran,
+    // atau bukan Chrome) -> beri petunjuk cara manual.
+    if (!evt) {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      toast(ios
+        ? "Di iPhone/iPad: buka di Safari → ketuk tombol Bagikan → \"Tambah ke Layar Utama\"."
+        : "Buka menu Chrome (⋮) → \"Instal aplikasi\" / \"Tambahkan ke layar utama\". Kalau tidak ada, berarti aplikasi GS Admin sudah terpasang — cari ikonnya di layar utama / daftar aplikasi.");
+      return;
+    }
     evt.prompt();
     try { await evt.userChoice; } catch (e) {}
     window.__pwaDeferredPrompt = null;
-    setCanInstallPWA(false);
   };
   const h = content || DEFAULT_SITE_CONTENT.header;
   const admin = role === "admin" && editMode;
@@ -1203,7 +1200,7 @@ function Header({ view, go, goOrAuth, goToAuth, cartCount, role, accountName, mo
                 <Plus size={13} />Tambah Halaman
               </button>
             )}
-            {role === "admin" && canInstallPWA && (
+            {role === "admin" && !isStandalone && (
               <button onClick={() => { installPWA(); setMobileOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: `1px dashed ${C.gold}88`, borderRadius: 6, padding: "8px", color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>
                 <Download size={13} />Instal Aplikasi di HP
               </button>
