@@ -4004,6 +4004,8 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const [iconPickIdx, setIconPickIdx] = useState(null);
   const bonusValSize = Math.min(28, Math.max(10, Number(extra.bonusValueSize) || 12));
   const bonusTotalLabel = extra.bonusTotalLabel !== undefined ? extra.bonusTotalLabel : "Total nilai bonus:";
+  const bonusCutPct = Math.min(95, Math.max(0, Number(extra.bonusCutPct) || 0));
+  const bonusCutLabel = extra.bonusCutLabel || `Setelah dipotong ${bonusCutPct}%:`;
   const bonusTotalSuffix = extra.bonusTotalSuffix !== undefined ? extra.bonusTotalSuffix : "— GRATIS kalau kamu ikut sekarang";
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
@@ -4411,6 +4413,21 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 1.15, color: C.goldLight, margin: "4px 0" }}>{rp(bonusValueTotal)}</div>
               {(admin || bonusTotalSuffix) && (
                 <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 17, lineHeight: 1.45, color: C.text, maxWidth: 520, margin: "4px auto 0" }} />
+              )}
+              {/* Harga setelah potongan X% dari total nilai (extra.bonusCutPct, 0 = tidak tampil). */}
+              {bonusCutPct > 0 && (
+                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <EditableText value={bonusCutLabel} admin={admin} onSave={(v) => saveExtra("bonusCutLabel")(v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
+                </div>
+              )}
+              {admin && (
+                <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 999, border: `1px dashed ${C.gold}`, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>
+                  Potongan harga:
+                  <button onClick={() => saveExtra("bonusCutPct")(Math.max(0, bonusCutPct - 5))} disabled={bonusCutPct <= 0} title="Kurangi" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>−</button>
+                  <span style={{ minWidth: 60, textAlign: "center", fontWeight: 700, color: C.text }}>{bonusCutPct > 0 ? `${bonusCutPct}%` : "mati"}</span>
+                  <button onClick={() => saveExtra("bonusCutPct")(Math.min(95, bonusCutPct + 5))} disabled={bonusCutPct >= 95} title="Tambah" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>+</button>
+                </div>
               )}
             </div>
           )}
