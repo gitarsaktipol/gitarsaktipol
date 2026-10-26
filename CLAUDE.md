@@ -11,8 +11,9 @@ kode + pemeriksaan database Supabase asli.
   tabel `fertune_*` di Supabase, Edge Function `delete-account`, menu FerTune di header/dasbor,
   dan Admin > Pengaturan > FerTune.
 - Pemilik: **Ferdi** (bukan programmer). Jelaskan perubahan dengan bahasa Indonesia sederhana.
-  Dia menguji di HP Android (Chrome) dan PC. Alur: branch fitur → PR kecil ke `main` → Ferdi
-  bilang "merge".
+  Dia menguji di HP Android (Chrome) dan PC. Alur: branch fitur → PR kecil ke `main` → **langsung
+  merge (squash) tanpa menunggu izin** (diminta Ferdi, 26 Okt 2026), cek sampai tayang di
+  gitarsakti.com, lalu kabari.
 
 ## Stack & deploy
 
