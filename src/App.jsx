@@ -966,20 +966,24 @@ function EditableText({ value, onSave, admin, tag = "span", style, area, block }
   if (editing) {
     const InputTag = area ? "textarea" : "input";
     return (
-      <span style={{ display: area || block ? "block" : "inline-flex", alignItems: "flex-start", gap: 6, width: area || block ? "100%" : "auto", margin: "2px 0" }}>
+      // Kotak lebar (block/area): tombol simpan/batal tepat di bawah kotak, rata kanan, dan wadahnya
+      // ikut lebar/margin teks aslinya (mis. deskripsi maxWidth 420 di tengah) supaya tidak jauh.
+      <span style={area || block
+        ? { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, width: "100%", maxWidth: style?.maxWidth, margin: style?.margin ?? "2px 0", boxSizing: "border-box" }
+        : { display: "inline-flex", alignItems: "flex-start", gap: 6, width: "auto", margin: "2px 0" }}>
         <InputTag
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          rows={area ? 3 : undefined}
+          rows={area ? Math.min(12, Math.max(4, Math.ceil(String(draft).length / 45) + 1)) : undefined}
           style={{
-            ...style, background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6,
+            ...style, ...(area || block ? { maxWidth: "none", margin: 0 } : null), background: C.surface2, border: `1px solid ${C.gold}`, borderRadius: 6,
             padding: "4px 8px", color: C.text, fontFamily: style?.fontFamily || "'Manrope',sans-serif",
             boxSizing: "border-box", width: area || block ? "100%" : Math.max(6, draft.length + 2) + "ch",
             resize: area ? "vertical" : undefined,
           }}
         />
-        <span style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: area || block ? 6 : 0 }}>
+        <span style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           <button onClick={() => { onSave(draft); setEditing(false); }} title="Simpan" style={{ background: C.gold, border: "none", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Check size={13} color="#161019" /></button>
           <button onClick={() => { setDraft(value); setEditing(false); }} title="Batal" style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.muted} /></button>
         </span>
