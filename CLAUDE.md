@@ -113,7 +113,8 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 
 - **Meta Pixel** (aktif hanya bila `VITE_META_PIXEL_ID` diisi; `trackEvent(name, params, opts)`). AKTIF sejak 26 Okt 2026:
   "Pixel Gitar Sakti" ID `1242830257352137` (portofolio bisnis Meta "Gitar Sakti"), env Vercel production+preview,
-  diuji lewat Uji Peristiwa (PageView/ViewContent masuk). Event:
+  diuji lewat Uji Peristiwa (PageView/ViewContent masuk). Domain diverifikasi Meta lewat
+  `<meta name="facebook-domain-verification">` di `index.html` (JANGAN dihapus). Event:
   PageView (awal di main.jsx + tiap ganti `view`), ViewContent (halaman produk & landing page),
   AddToCart, InitiateCheckout, CompleteRegistration (daftar), Purchase (dikirim dari browser pembeli
   saat pesanannya terlihat PAID; sekali per pesanan via `localStorage gs-px-purchase`, hanya pesanan
