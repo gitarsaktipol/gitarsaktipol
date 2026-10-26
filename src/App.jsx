@@ -8,7 +8,7 @@ import {
   Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
   Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon,
-  GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle, Lightbulb,
+  GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle, Lightbulb, VolumeX,
 } from "lucide-react";
 
 // Panel admin ada di file terpisah (src/AdminDashboard.jsx) dan baru diunduh saat dibuka admin,
@@ -162,6 +162,9 @@ const toAutoplayEmbedUrl = (url) => {
       u.searchParams.set("rel", "0");
       u.searchParams.set("modestbranding", "1");
       u.searchParams.set("playsinline", "1");
+      // enablejsapi: supaya tombol "Nyalakan suara" (AutoplayVideo) bisa menyalakan suara lewat postMessage.
+      u.searchParams.set("enablejsapi", "1");
+      if (typeof window !== "undefined") u.searchParams.set("origin", window.location.origin);
       return u.toString();
     }
     if (u.hostname.includes("vimeo.com")) {
@@ -175,6 +178,46 @@ const toAutoplayEmbedUrl = (url) => {
 };
 // Versi embed untuk halaman materi member: tanpa rekomendasi video channel lain di akhir video
 // (rel=0) supaya member tidak "tersesat" ke YouTube di tengah belajar.
+// Video autoplay (beranda, halaman produk, landing page) selalu mulai TANPA suara (aturan browser).
+// Tombol suara bawaan YouTube Shorts sering menampilkan ikon "bersuara" padahal masih bisu, jadi
+// pengunjung harus klik 2x. Tombol "Nyalakan suara" ini menyalakan suara dalam 1 ketukan
+// (perintah unMute ke pemutar lewat postMessage), lalu hilang.
+function AutoplayVideo({ url, title, style }) {
+  const ref = useRef(null);
+  const [muted, setMuted] = useState(true);
+  const src = toAutoplayEmbedUrl(url);
+  const unmute = () => {
+    const w = ref.current?.contentWindow;
+    if (!w) return;
+    if (/vimeo\.com/.test(src || "")) {
+      w.postMessage(JSON.stringify({ method: "setVolume", value: 1 }), "*");
+      w.postMessage(JSON.stringify({ method: "setMuted", value: false }), "*");
+    } else {
+      ["unMute", "playVideo"].forEach((func) => w.postMessage(JSON.stringify({ event: "command", func, args: [] }), "*"));
+      w.postMessage(JSON.stringify({ event: "command", func: "setVolume", args: [100] }), "*");
+    }
+    setMuted(false);
+  };
+  return (
+    <>
+      <iframe
+        ref={ref}
+        key={url}
+        style={style || { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+        src={src}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+      {muted && (
+        <button type="button" onClick={unmute} style={{ position: "absolute", left: "50%", bottom: 64, transform: "translateX(-50%)", zIndex: 2, display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.35)", background: "rgba(0,0,0,0.62)", color: "#fff", fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 800, cursor: "pointer", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", whiteSpace: "nowrap" }}>
+          <VolumeX size={17} />Ketuk untuk suara
+        </button>
+      )}
+    </>
+  );
+}
+
 const toLessonEmbedUrl = (url) => {
   const base = toEmbedUrl(url);
   if (!base) return null;
@@ -1504,14 +1547,7 @@ function HomePage({ go, openProduct, addToCart, cart, ownedIds, pendingIds, acce
           </div>
           <div className="gs-anim-in gs-anim-in-2" style={{ position: "relative", height: 380, borderRadius: 16, background: "rgba(20,18,26,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.18)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {home.heroVideoUrl && toEmbedUrl(home.heroVideoUrl) ? (
-              <iframe
-                key={home.heroVideoUrl}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                src={toAutoplayEmbedUrl(home.heroVideoUrl)}
-                title="Video Gitar Sakti"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              <AutoplayVideo url={home.heroVideoUrl} title="Video Gitar Sakti" />
             ) : (
               <>
                 <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 46px)` }} />
@@ -1946,14 +1982,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               return (
                 <div>
                   <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}`, background: C.surface2 }}>
-                    <iframe
-                      key={p.previewVideo}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                      src={toAutoplayEmbedUrl(p.previewVideo)}
-                      title={`${p.name} - Video Preview`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
+                    <AutoplayVideo url={p.previewVideo} title={`${p.name} - Video Preview`} />
                   </div>
                   <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 8 }}>
                     Video tidak muncul? <a href={p.previewVideo} target="_blank" rel="noopener noreferrer" style={{ color: C.gold }}>Buka di tab baru ↗</a>
@@ -4031,14 +4060,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           {videoUrl ? (
             toEmbedUrl(videoUrl) ? (
               <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.gold}33`, boxShadow: `0 0 60px ${C.gold}22`, marginBottom: 24, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})` }}>
-                <iframe
-                  key={videoUrl}
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                  src={toAutoplayEmbedUrl(videoUrl)}
-                  title={`Video preview ${p.name}`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
+                <AutoplayVideo url={videoUrl} title={`Video preview ${p.name}`} />
               </div>
             ) : (
               // URL yang dimasukkan bukan link YouTube/Vimeo yang dikenali -> tetap tampilkan
