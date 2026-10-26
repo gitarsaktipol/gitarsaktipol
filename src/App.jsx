@@ -4048,8 +4048,6 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const bonusTotalLabel = extra.bonusTotalLabel !== undefined ? extra.bonusTotalLabel : "Total nilai bonus:";
   const bonusCutPct = Math.min(95, Math.max(0, Number(extra.bonusCutPct) || 0));
   const bonusCutLabel = extra.bonusCutLabel || `Setelah dipotong ${bonusCutPct}%:`;
-  // Mode "normal": angka yang dicoret = harga normal produk (yang benar-benar berlaku setelah promo habis).
-  const bonusCutAmount = extra.bonusCutMode === "normal" ? (p?.price || 0) : bonusCutPct > 0 ? Math.round(bonusValueTotal * (100 - bonusCutPct) / 100) : 0;
   const bonusTotalSuffix = extra.bonusTotalSuffix !== undefined ? extra.bonusTotalSuffix : "— GRATIS kalau kamu ikut sekarang";
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
@@ -4060,6 +4058,8 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     const n = parseInt(String(it.value || "").replace(/[^0-9]/g, ""), 10);
     return sum + (isNaN(n) ? 0 : n);
   }, 0);
+  // Mode "normal": angka yang dicoret = harga normal produk (yang benar-benar berlaku setelah promo habis).
+  const bonusCutAmount = extra.bonusCutMode === "normal" ? (p?.price || 0) : bonusCutPct > 0 ? Math.round(bonusValueTotal * (100 - bonusCutPct) / 100) : 0;
 
   useEffect(() => {
     // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
@@ -4575,7 +4575,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                   </div>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.emberLight, marginBottom: 16 }}>{hh} : {mm} : {ss}</div>
                 </>
-              ) : hasTiers ? (
+              ) : hasTiers && !promoActive ? (
                 <div style={{ marginBottom: 16 }}>
                   <EditableText value={getExtra("promoEndedLabel")} admin={admin} onSave={saveExtra("promoEndedLabel")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, margin: 0 }} />
                 </div>
@@ -5389,7 +5389,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
                   <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: "0 0 8px" }} />
                   <div style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 24, color: V.red }}>{hh} : {mm} : {ss}</div>
                 </div>
-              ) : hasTiers ? (
+              ) : hasTiers && !promoActive ? (
                 <div style={{ marginBottom: 16 }}>
                   <EditableText value={getExtra("promoEndedLabel")} admin={admin} onSave={saveExtra("promoEndedLabel")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }} />
                 </div>
