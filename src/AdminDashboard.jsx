@@ -2470,7 +2470,8 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
   const [promoEnabled, setPromoEnabled] = useState(existingPromo?.enabled || false);
   const [founderSlots, setFounderSlots] = useState(String(existingPromo?.founderSlots ?? 100));
   const [founderPrice, setFounderPrice] = useState(String(existingPromo?.founderPrice ?? selectedProduct?.price ?? ""));
-  const [earlyBirdHours, setEarlyBirdHours] = useState(String(existingPromo?.earlyBirdHours ?? 72));
+  // Tanggal berakhir promo (YYYY-MM-DD), SAMA untuk semua pengunjung; kosong = tanpa hitung mundur.
+  const [endsAt, setEndsAt] = useState(existingPromo?.endsAt || "");
 
   const handleSubmit = () => {
     if (!name.trim()) { setError("Nama landing page wajib diisi."); return; }
@@ -2487,7 +2488,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
           enabled: promoEnabled,
           founderSlots: Number(founderSlots) || 0,
           founderPrice: Number(founderPrice) || 0,
-          earlyBirdHours: Number(earlyBirdHours) || 0,
+          endsAt: /^\d{4}-\d{2}-\d{2}$/.test(endsAt) ? endsAt : "",
         },
       };
     }
@@ -2539,7 +2540,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 14 }}>
               <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700, color: C.text }}>Edit Promo</label>
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 4, marginBottom: 10 }}>
-                Harga khusus untuk sejumlah pembeli pertama (bisa diisi custom, mis. 100). Begitu slotnya habis ATAU waktunya habis — mana yang lebih dulu — harga otomatis kembali ke harga normal produk ({selectedProduct ? rp(selectedProduct.price) : "-"}) untuk semua orang, permanen.
+                Harga khusus untuk sejumlah pembeli pertama (bisa diisi custom, mis. 100). Begitu slotnya habis ATAU tanggal berakhirnya lewat — mana yang lebih dulu — harga otomatis kembali ke harga normal produk ({selectedProduct ? rp(selectedProduct.price) : "-"}) untuk semua orang, permanen.
               </p>
 
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -2558,8 +2559,8 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
                     <input type="number" min="0" value={founderPrice} onChange={(e) => setFounderPrice(e.target.value)} placeholder="247000" style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
                   </div>
                   <div>
-                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Durasi Countdown (jam, sejak kunjungan pertama pengunjung)</label>
-                    <input type="number" min="1" value={earlyBirdHours} onChange={(e) => setEarlyBirdHours(e.target.value)} placeholder="72" style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+                    <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.muted }}>Promo berakhir tanggal (opsional, sama untuk semua orang — kosong = tanpa hitung mundur)</label>
+                    <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
                   </div>
                   <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>
                     Slot dihitung dari total penjualan produk ini yang sebenarnya (bukan cuma tampilan) — begitu tembus {founderSlots || "0"}, promo tutup permanen untuk semua orang.

@@ -5,7 +5,7 @@ import {
   Bell, Menu, X, Search, ShoppingCart, Star, PlayCircle, Lock, Check, ChevronRight,
   ChevronDown, ChevronUp, User, LogOut, LayoutDashboard, Package, ClipboardList, Users,
   Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2,
-  Pencil, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
+  Pencil, MessageCircle, ArrowRight, ArrowLeft, Sparkles, Eye, Filter, Music, Clock, Download,
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
   Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon,
   GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle, Lightbulb, VolumeX,
@@ -1939,9 +1939,12 @@ function SoonNotify({ p, role, defaultEmail }) {
   );
 }
 
-function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping }) {
+function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping, landingPages = [], openLp }) {
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const p = products.find((x) => x.slug === slug);
+  const promoLp = p && openLp ? landingPages.find((l) => l.productId === p.id && l.status === "published" && l.extra?.promo?.enabled
+    && Number(l.extra.promo.founderPrice) > 0 && Number(l.extra.promo.founderPrice) < p.price && (p.sold || 0) < Number(l.extra.promo.founderSlots || 0)
+    && !(/^\d{4}-\d{2}-\d{2}$/.test(l.extra.promo.endsAt || "") && Date.now() > Date.parse(`${l.extra.promo.endsAt}T23:59:59+07:00`))) : null;
   // Meta Pixel: ViewContent sekali per produk yang dibuka (kelas maupun merchandise).
   useEffect(() => {
     if (p) trackEvent("ViewContent", { content_ids: [String(p.id)], content_name: p.name, content_type: "product", value: p.price, currency: "IDR" });
@@ -2121,6 +2124,12 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                   {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
                 </div>
                 {disc > 0 && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Hemat {disc}%</span>}
+                {/* Harga pendiri hanya berlaku lewat landing page promo -> arahkan ke sana */}
+                {promoLp && (
+                  <button onClick={() => openLp(promoLp.slug)} style={{ marginTop: 10, width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.ember}88`, background: `${C.ember}18`, cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight, lineHeight: 1.4 }}>
+                    🔥 Harga pendiri {rp(promoLp.extra.promo.founderPrice)} untuk {promoLp.extra.promo.founderSlots} pembeli pertama — lihat penawaran →
+                  </button>
+                )}
               </>
             )}
 
@@ -3979,7 +3988,7 @@ function BookMockup({ item, idx, brand, w = 70, onClick }) {
   );
 }
 
-function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
+function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin, whatsapp }) {
   const p = products.find((x) => x.id === lp?.productId);
 
   if (!lp || !p) {
@@ -4032,9 +4041,15 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
   const [iconPickIdx, setIconPickIdx] = useState(null);
   const bonusValSize = Math.min(28, Math.max(10, Number(extra.bonusValueSize) || 12));
+  const moduleItems = Array.isArray(extra.modules) ? extra.modules : [];
+  const fitItems = Array.isArray(extra.fitFor) ? extra.fitFor : [];
+  const notFitItems = Array.isArray(extra.notFor) ? extra.notFor : [];
+  const priceBullets = Array.isArray(extra.priceBullets) ? extra.priceBullets : ["Akses selamanya—sekali bayar, milik selamanya", "Bisa ditonton ulang kapanpun kamu mau", "Cocok untuk pemula sampai menengah dengan budget terbatas"];
   const bonusTotalLabel = extra.bonusTotalLabel !== undefined ? extra.bonusTotalLabel : "Total nilai bonus:";
   const bonusCutPct = Math.min(95, Math.max(0, Number(extra.bonusCutPct) || 0));
   const bonusCutLabel = extra.bonusCutLabel || `Setelah dipotong ${bonusCutPct}%:`;
+  // Mode "normal": angka yang dicoret = harga normal produk (yang benar-benar berlaku setelah promo habis).
+  const bonusCutAmount = extra.bonusCutMode === "normal" ? (p?.price || 0) : bonusCutPct > 0 ? Math.round(bonusValueTotal * (100 - bonusCutPct) / 100) : 0;
   const bonusTotalSuffix = extra.bonusTotalSuffix !== undefined ? extra.bonusTotalSuffix : "— GRATIS kalau kamu ikut sekarang";
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
@@ -4061,25 +4076,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   // Countdown JUJUR: dihitung dari kunjungan PERTAMA user ke halaman ini, disimpan di localStorage
   // supaya tidak reset kalau halaman dibuka/refresh ulang. Begitu waktunya habis, tetap habis
   // selamanya untuk browser/user tsb. Hanya berlaku kalau promo LP ini dinyalakan.
-  const firstVisitKey = `gs_lp_${lp.slug}_first_visit`;
-  const [deadline, setDeadline] = useState(null);
-  useEffect(() => {
-    if (!hasTiers) return;
-    let firstVisit;
-    try {
-      const saved = localStorage.getItem(firstVisitKey);
-      if (saved) {
-        firstVisit = parseInt(saved, 10);
-      } else {
-        firstVisit = Date.now();
-        localStorage.setItem(firstVisitKey, String(firstVisit));
-      }
-    } catch (e) {
-      firstVisit = Date.now(); // fallback kalau localStorage diblokir browser
-    }
-    setDeadline(firstVisit + (promo.earlyBirdHours || 72) * 60 * 60 * 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasTiers, promo.earlyBirdHours]);
+  // Batas waktu promo SAMA untuk semua pengunjung (promo.endsAt, tanggal YYYY-MM-DD, berakhir 23:59 WIB).
+  // Tanpa tanggal = tidak ada hitung mundur (kelangkaan cukup dari sisa slot yang asli). Dulu hitung
+  // mundur 72 jam dihitung sejak kunjungan pertama tiap orang, jadi tidak jujur -- sudah dihapus.
+  const deadline = hasTiers && /^\d{4}-\d{2}-\d{2}$/.test(promo.endsAt || "") ? Date.parse(`${promo.endsAt}T23:59:59+07:00`) : null;
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -4300,12 +4300,82 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         </div>
       </div>
 
+      {/* ISI MATERI — daftar modul (extra.modules [{t,d}]); kosong = tidak tampil ke pengunjung */}
+      {(admin || moduleItems.length > 0) && (
+        <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
+          <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
+            <div style={{ marginBottom: 22 }}>
+              <LpTwoToneText value={extra.modulesTitle || "Yang Akan Kamu ||Pelajari"} admin={admin} onSave={saveExtra("modulesTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {moduleItems.map((m, i) => (
+                <div key={i} style={{ position: "relative", display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 16px", borderRadius: 12, border: `1px solid ${C.border}`, background: C.bg }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 9, background: `${C.gold}22`, color: C.goldLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 14 }}>{i + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: admin ? 24 : 0 }}>
+                    <EditableText value={m.t} admin={admin} onSave={(v) => saveExtra("modules")(moduleItems.map((x, j) => (j === i ? { ...x, t: v } : x)))} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14.5, color: C.text, lineHeight: 1.4 }} />
+                    {(m.d || admin) && (
+                      <EditableText value={m.d || (admin ? "(keterangan singkat — boleh kosong)" : "")} admin={admin} area onSave={(v) => saveExtra("modules")(moduleItems.map((x, j) => (j === i ? { ...x, d: v.startsWith("(keterangan") ? "" : v } : x)))} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted, lineHeight: 1.55, marginTop: 4 }} />
+                    )}
+                  </div>
+                  {admin && <button onClick={() => saveExtra("modules")(moduleItems.filter((_, j) => j !== i))} title="Hapus materi ini" style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={14} color={C.mutedDark} /></button>}
+                </div>
+              ))}
+              {admin && <div style={{ textAlign: "center" }}><GhostBtn small onClick={() => saveExtra("modules")([...moduleItems, { t: `Materi ${moduleItems.length + 1}`, d: "" }])} icon={Plus}>Tambah Materi</GhostBtn></div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COCOK / BELUM COCOK (extra.fitFor / extra.notFor) */}
+      {(admin || fitItems.length > 0 || notFitItems.length > 0) && (
+        <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
+          <div style={{ marginBottom: 22 }}>
+            <LpTwoToneText value={extra.fitTitle || "Cocok Untuk ||Siapa?"} admin={admin} onSave={saveExtra("fitTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+            {[["fitFor", fitItems, "Cocok untukmu kalau…", true], ["notFor", notFitItems, "Belum cocok kalau…", false]].map(([key, list, head, good]) => (
+              (admin || list.length > 0) && (
+                <Card key={key} style={{ padding: 18 }}>
+                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 15, color: good ? C.goldLight : C.emberLight, marginBottom: 12 }}>{head}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {list.map((t, i) => (
+                      <div key={i} style={{ position: "relative", display: "flex", gap: 10, alignItems: "flex-start", paddingRight: admin ? 22 : 0 }}>
+                        <span style={{ display: "inline-flex", width: 20, height: 20, borderRadius: "50%", flexShrink: 0, marginTop: 1, alignItems: "center", justifyContent: "center", background: good ? `${C.gold}22` : `${C.ember}22`, color: good ? C.goldLight : C.emberLight }}>{good ? <Check size={12} /> : <X size={12} />}</span>
+                        <EditableText value={t} admin={admin} area onSave={(v) => saveExtra(key)(list.map((x, j) => (j === i ? v : x)))} tag="span" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.5 }} />
+                        {admin && <button onClick={() => saveExtra(key)(list.filter((_, j) => j !== i))} title="Hapus" style={{ position: "absolute", top: 0, right: 0, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>}
+                      </div>
+                    ))}
+                    {admin && <div><GhostBtn small onClick={() => saveExtra(key)([...list, "Poin baru"])} icon={Plus}>Tambah Poin</GhostBtn></div>}
+                  </div>
+                </Card>
+              )
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TENTANG PENGAJAR (extra.aboutTitle / aboutText / aboutPhoto https); teks kosong = tidak tampil */}
+      {(admin || extra.aboutText) && (
+        <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
+          <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14 }}>
+            <LpTwoToneText value={extra.aboutTitle || "Kenalan Dulu ||Sama Pengajarnya"} admin={admin} onSave={saveExtra("aboutTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, margin: 0 }} />
+            {extra.aboutPhoto && <img src={extra.aboutPhoto} alt="Pengajar" loading="lazy" style={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", border: `3px solid ${C.gold}` }} />}
+            {admin && (
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, wordBreak: "break-all" }}>
+                Foto (link https): <EditableText value={extra.aboutPhoto || "(kosong)"} admin onSave={(v) => { const u = (v || "").trim(); saveExtra("aboutPhoto")(/^https:\/\//.test(u) ? u : ""); }} tag="span" style={{ color: C.goldLight }} />
+              </div>
+            )}
+            <EditableText value={extra.aboutText || (admin ? "(tulis cerita singkat tentang Ferdi di sini — kosong = bagian ini tidak tampil)" : "")} admin={admin} area onSave={(v) => saveExtra("aboutText")(v.trim().startsWith("(tulis cerita") ? "" : v.trim())} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted, lineHeight: 1.7, maxWidth: 560, margin: "0 auto", whiteSpace: "pre-line" }} />
+          </div>
+        </div>
+      )}
+
       {/* SOCIAL PROOF */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, background: C.surface }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "32px 20px" }}>
           <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, textAlign: "center", marginBottom: 20 }}>Sekilas tentang kursus ini</p>
           <div style={{ display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap" }}>
-            {[p.sold > 0 ? [String(p.sold), "Pembeli"] : ["Baru", "Kelas Baru Dibuka"], p.rating > 0 ? [String(p.rating), "Rating Rata-rata"] : [p.level || "Semua Level", "Level"], [p.duration || "-", "Materi"]].map(([n, l]) => (
+            {[p.sold >= 20 ? [String(p.sold), "Pembeli"] : ["Baru", "Kelas Baru Dibuka"], p.rating > 0 ? [String(p.rating), "Rating Rata-rata"] : [p.level || "Semua Level", "Level"], [p.duration || "-", "Materi"]].map(([n, l]) => (
               <div key={l} style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.goldLight }}>{n}</div>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>{l}</div>
@@ -4315,7 +4385,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
         </div>
       </div>
 
-      {/* TESTIMONI — ulasan asli dari pembeli yang sudah memiliki produk ini */}
+      {/* TESTIMONI — ulasan asli dari pembeli yang sudah memiliki produk ini. Belum ada ulasan =
+          bagian ini disembunyikan dari pengunjung (tetap tampil untuk admin & pemilik produk). */}
+      {(admin || owned || productReviews.length > 0) && (
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ marginBottom: 26 }}>
           <LpTwoToneText value={getExtra("testimonialTitle")} admin={admin} onSave={saveExtra("testimonialTitle")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, textAlign: "center", margin: 0 }} />
@@ -4328,6 +4400,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           emptyLabel={`Belum ada ulasan untuk ${p.name}. Jadilah pembeli pertama yang berbagi pengalaman!`}
         />
       </div>
+      )}
 
       {/* PERBANDINGAN */}
       <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.surface }}>
@@ -4444,10 +4517,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                 <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 17, lineHeight: 1.45, color: C.text, maxWidth: 520, margin: "4px auto 0" }} />
               )}
               {/* Harga setelah potongan X% dari total nilai (extra.bonusCutPct, 0 = tidak tampil). */}
-              {bonusCutPct > 0 && (
+              {bonusCutAmount > 0 && (
                 <div style={{ marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <EditableText value={bonusCutLabel} admin={admin} onSave={(v) => saveExtra("bonusCutLabel")(v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
-                  <div className="gs-price-pulse gs-strike-anim" style={{ "--gs-strike": C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 40, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
+                  <div className="gs-price-pulse gs-strike-anim" style={{ "--gs-strike": C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 40, lineHeight: 1.15, color: C.goldLight }}>{rp(bonusCutAmount)}</div>
                 </div>
               )}
               {admin && (
@@ -4456,6 +4529,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                   <button onClick={() => saveExtra("bonusCutPct")(Math.max(0, bonusCutPct - 5))} disabled={bonusCutPct <= 0} title="Kurangi" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>−</button>
                   <span style={{ minWidth: 60, textAlign: "center", fontWeight: 700, color: C.text }}>{bonusCutPct > 0 ? `${bonusCutPct}%` : "mati"}</span>
                   <button onClick={() => saveExtra("bonusCutPct")(Math.min(95, bonusCutPct + 5))} disabled={bonusCutPct >= 95} title="Tambah" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>+</button>
+                  <button onClick={() => saveExtra("bonusCutMode")(extra.bonusCutMode === "normal" ? "" : "normal")} title="Tampilkan harga normal produk (dicoret) sebagai pengganti persen"
+                    style={{ padding: "4px 10px", borderRadius: 999, border: `1px solid ${extra.bonusCutMode === "normal" ? C.gold : C.border}`, background: extra.bonusCutMode === "normal" ? `${C.gold}33` : C.surface2, color: C.text, cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>
+                    {extra.bonusCutMode === "normal" ? "✓ " : ""}Pakai harga normal produk
+                  </button>
                 </div>
               )}
             </div>
@@ -4491,7 +4568,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "26px 24px", textAlign: "center", borderBottom: `1px solid ${C.border}` }}>
-              {hasTiers && promoActive ? (
+              {hasTiers && promoActive && deadline ? (
                 <>
                   <div style={{ marginBottom: 8 }}>
                     <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, margin: 0 }} />
@@ -4550,14 +4627,40 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
             </div>
           </Card>
 
+          {/* GARANSI (extra.guaranteeText) — kosong = tidak tampil. Pastikan sesuai Kebijakan Refund. */}
+          {(admin || extra.guaranteeText) && (
+            <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "flex-start", padding: "14px 16px", borderRadius: 12, border: `1.5px dashed ${C.gold}`, background: `${C.gold}10` }}>
+              <ShieldCheck size={26} color={C.gold} style={{ flexShrink: 0 }} />
+              <EditableText value={extra.guaranteeText || (admin ? "(teks garansi — kosong = tidak tampil. Samakan dengan Kebijakan Refund)" : "")} admin={admin} area onSave={(v) => saveExtra("guaranteeText")(v.trim().startsWith("(teks garansi") ? "" : v.trim())} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.text, lineHeight: 1.55, textAlign: "left" }} />
+            </div>
+          )}
+
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-            {["Akses selamanya—sekali bayar, milik selamanya", "Bisa ditonton ulang kapanpun kamu mau", "Cocok untuk pemula sampai menengah dengan budget terbatas"].map((r) => (
-              <div key={r} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {priceBullets.map((r, i) => (
+              <div key={i} style={{ position: "relative", display: "flex", alignItems: "center", gap: 10, paddingRight: admin ? 22 : 0 }}>
                 <Check size={15} color={C.gold} style={{ flexShrink: 0 }} />
-                <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }}>{r}</span>
+                <EditableText value={r} admin={admin} onSave={(v) => saveExtra("priceBullets")(priceBullets.map((x, j) => (j === i ? v : x)))} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted }} />
+                {admin && <button onClick={() => saveExtra("priceBullets")(priceBullets.filter((_, j) => j !== i))} title="Hapus" style={{ position: "absolute", top: 0, right: 0, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={13} color={C.mutedDark} /></button>}
               </div>
             ))}
+            {admin && <div><GhostBtn small onClick={() => saveExtra("priceBullets")([...priceBullets, "Poin baru"])} icon={Plus}>Tambah Poin</GhostBtn></div>}
           </div>
+
+          {/* Tombol tanya via WhatsApp (nomor dari Footer situs); extra.waText = teks tombol, "-" = sembunyikan */}
+          {whatsapp && extra.waText !== "-" && (
+            <div style={{ marginTop: 18, textAlign: "center" }}>
+              <a href={waLink(whatsapp, `Halo Kak Ferdi, saya mau tanya soal ${p.name} dulu...`)} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 999, border: `1px solid ${C.border}`, color: C.text, textDecoration: "none", fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 700 }}>
+                <MessageCircle size={16} color={C.gold} />
+                {extra.waText || "Masih ragu? Tanya langsung via WhatsApp"}
+              </a>
+              {admin && (
+                <div style={{ marginTop: 6, fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark }}>
+                  Teks tombol: <EditableText value={extra.waText || "Masih ragu? Tanya langsung via WhatsApp"} admin onSave={(v) => saveExtra("waText")(v.trim())} tag="span" style={{ color: C.text }} /> (isi "-" untuk menyembunyikan)
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -4828,25 +4931,10 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
   };
 
   // Countdown JUJUR: dihitung dari kunjungan PERTAMA pengunjung, disimpan di localStorage.
-  const firstVisitKey = `gs_lp_${lp.slug}_first_visit`;
-  const [deadline, setDeadline] = useState(null);
-  useEffect(() => {
-    if (!hasTiers) return;
-    let firstVisit;
-    try {
-      const saved = localStorage.getItem(firstVisitKey);
-      if (saved) {
-        firstVisit = parseInt(saved, 10);
-      } else {
-        firstVisit = Date.now();
-        localStorage.setItem(firstVisitKey, String(firstVisit));
-      }
-    } catch (e) {
-      firstVisit = Date.now();
-    }
-    setDeadline(firstVisit + (promo.earlyBirdHours || 72) * 60 * 60 * 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasTiers, promo.earlyBirdHours]);
+  // Batas waktu promo SAMA untuk semua pengunjung (promo.endsAt, tanggal YYYY-MM-DD, berakhir 23:59 WIB).
+  // Tanpa tanggal = tidak ada hitung mundur (kelangkaan cukup dari sisa slot yang asli). Dulu hitung
+  // mundur 72 jam dihitung sejak kunjungan pertama tiap orang, jadi tidak jujur -- sudah dihapus.
+  const deadline = hasTiers && /^\d{4}-\d{2}-\d{2}$/.test(promo.endsAt || "") ? Date.parse(`${promo.endsAt}T23:59:59+07:00`) : null;
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -5296,7 +5384,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
         <Lp2Fade>
           <div className="lp2-card-glow" style={{ background: `linear-gradient(to bottom, ${V.card}, ${V.bg})`, borderRadius: 24, border: `1px solid ${V.border}`, overflow: "hidden" }}>
             <div style={{ padding: 40, textAlign: "center" }}>
-              {hasTiers && promoActive ? (
+              {hasTiers && promoActive && deadline ? (
                 <div style={{ marginBottom: 16 }}>
                   <EditableText value={getExtra("promoCountdownLabel")} admin={admin} onSave={saveExtra("promoCountdownLabel")} tag="p" style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: "0 0 8px" }} />
                   <div style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 24, color: V.red }}>{hh} : {mm} : {ss}</div>
@@ -6859,7 +6947,7 @@ export default function App() {
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
       {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
       {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} shipping={siteContent.shipping} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} shipping={siteContent.shipping} landingPages={landingPages} openLp={(slug) => openLandingPage(slug)} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} updateCartQty={updateCartQty} shipping={siteContent.shipping} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
@@ -6875,7 +6963,7 @@ export default function App() {
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} />}
+      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
