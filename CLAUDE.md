@@ -58,6 +58,9 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   (Produk Saya/Ringkasan/Pesanan/Profil), `LearnPage` (+ `LearnCurriculumEditor`),
   `LandingPageTemplate` (tema "gold") & `LandingPageTemplateViolet` (`LP_TEMPLATES`,
   dipilih lewat `extra.template`), `CustomPageView`, `AboutPage`.
+  Tema gold: daftar "Apa yang Kamu Dapat" (`extra.bonusItems`) tampil sebagai sampul buku 3D
+  (`BookMockup`: label = singkatan nama produk, ikon emoji, `cover` = tulisan sampul, `image` = gambar
+  sampul https opsional; diminta Ferdi Okt 2026 supaya terkesan banyak materi).
 - `AdminDashboard` (di `src/AdminDashboard.jsx`; sub): Ringkasan, Produk, Pesanan, Pelanggan, Kupon, Analitik, Landing Page,
   Pengaturan (`settingsSub`: Tampilan, Metode Pembayaran, Pengiriman, Keamanan, Data, FerTune,
   Marketing). Modal: `YoutubeImportModal`, `ProductFormModal`, `QuickProductFormModal`,
