@@ -6642,14 +6642,14 @@ export default function App() {
         /* Harga setelah potongan di landing page: berdenyut + kilau emas. */
         @keyframes gsPricePulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 rgba(232,198,112,0); } 50% { transform: scale(1.08); text-shadow: 0 0 22px rgba(232,198,112,0.75); } }
         .gs-price-pulse { display: inline-block; animation: gsPricePulse 2s ease-in-out infinite; }
-        /* Coret SILANG (X) cepat di atas harga potongan: tiap 2 dtk dua tebasan kilat (~0,1 dtk),
-           coret bertahan lalu hilang. Durasi sama dengan denyut supaya serempak. */
-        @keyframes gsSlashA { 0%,8% { transform: rotate(9deg) scaleX(0); opacity: 1; } 13% { transform: rotate(9deg) scaleX(1); opacity: 1; } 85% { transform: rotate(9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(9deg) scaleX(1); opacity: 0; } }
-        @keyframes gsSlashB { 0%,16% { transform: rotate(-9deg) scaleX(0); opacity: 1; } 21% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 85% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-9deg) scaleX(1); opacity: 0; } }
+        /* Coret SILANG (X) cepat di atas harga potongan: siklus 4 dtk: 2 dtk harga bersih (tanpa
+           coret), lalu dua tebasan kilat (~0,1 dtk), X bertahan ±1,5 dtk, lalu hilang. Durasi sama dengan denyut supaya serempak. */
+        @keyframes gsSlashA { 0%,50% { transform: rotate(9deg) scaleX(0); opacity: 1; } 53% { transform: rotate(9deg) scaleX(1); opacity: 1; } 92% { transform: rotate(9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(9deg) scaleX(1); opacity: 0; } }
+        @keyframes gsSlashB { 0%,55% { transform: rotate(-9deg) scaleX(0); opacity: 1; } 58% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 92% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-9deg) scaleX(1); opacity: 0; } }
         .gs-strike-anim { position: relative; }
         .gs-strike-anim::before, .gs-strike-anim::after { content: ""; position: absolute; left: -5%; right: -5%; top: calc(50% - 15px); height: 6px; margin-top: -3px; border-radius: 3px; background: var(--gs-strike); box-shadow: 0 0 12px var(--gs-strike), 0 0 2px #fff; }
-        .gs-strike-anim::before { transform-origin: left center; animation: gsSlashA 2s cubic-bezier(.2,.9,.3,1) infinite; }
-        .gs-strike-anim::after { transform-origin: right center; animation: gsSlashB 2s cubic-bezier(.2,.9,.3,1) infinite; }
+        .gs-strike-anim::before { transform-origin: left center; animation: gsSlashA 4s cubic-bezier(.2,.9,.3,1) infinite; }
+        .gs-strike-anim::after { transform-origin: right center; animation: gsSlashB 4s cubic-bezier(.2,.9,.3,1) infinite; }
         /* Harga utama landing page: lingkaran sihir berputar + zoom in-out besar. */
         @keyframes gsSpin { to { transform: rotate(360deg); } }
         @keyframes gsSpinBack { to { transform: rotate(-360deg); } }
