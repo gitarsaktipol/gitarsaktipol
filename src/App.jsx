@@ -4649,7 +4649,7 @@ const V_CSS = `
 .lp2-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(168,85,247,.5); }
 .lp2-btn:active { transform: translateY(0); }
 .lp2-strike { position:relative; display:inline-block; }
-.lp2-strike::after { content:''; position:absolute; left:0; top:50%; width:100%; height:2px; background:#ef4444; transform:rotate(-8deg); }
+.lp2-strike::after { content:''; position:absolute; left:0; top:50%; width:100%; height:2px; background:#ef4444; transform:rotate(-9deg); }
 .lp2-fade { opacity:0; transform: translateY(30px); transition: opacity .6s ease, transform .6s ease; }
 .lp2-fade.lp2-in { opacity:1; transform:none; }
 .lp2-pulse { animation: lp2Pulse 3s ease-in-out infinite; }
@@ -6641,11 +6641,15 @@ export default function App() {
         @keyframes gsPopIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
         /* Harga setelah potongan di landing page: berdenyut + kilau emas. */
         @keyframes gsPricePulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 rgba(232,198,112,0); } 50% { transform: scale(1.08); text-shadow: 0 0 22px rgba(232,198,112,0.75); } }
-        .gs-price-pulse { display: inline-block; animation: gsPricePulse 1.6s ease-in-out infinite; }
-        /* Garis coret yang "digambar" kiri->kanan di atas harga potongan, tahan, lalu hilang & ulang. */
-        @keyframes gsStrikeDraw { 0%,25% { transform: rotate(-3deg) scaleX(0); opacity: 1; } 45% { transform: rotate(-3deg) scaleX(1); opacity: 1; } 88% { transform: rotate(-3deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-3deg) scaleX(1); opacity: 0; } }
+        .gs-price-pulse { display: inline-block; animation: gsPricePulse 2s ease-in-out infinite; }
+        /* Coret SILANG (X) cepat di atas harga potongan: tiap 2 dtk dua tebasan kilat (~0,1 dtk),
+           coret bertahan lalu hilang. Durasi sama dengan denyut supaya serempak. */
+        @keyframes gsSlashA { 0%,8% { transform: rotate(9deg) scaleX(0); opacity: 1; } 13% { transform: rotate(9deg) scaleX(1); opacity: 1; } 85% { transform: rotate(9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(9deg) scaleX(1); opacity: 0; } }
+        @keyframes gsSlashB { 0%,16% { transform: rotate(-9deg) scaleX(0); opacity: 1; } 21% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 85% { transform: rotate(-9deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-9deg) scaleX(1); opacity: 0; } }
         .gs-strike-anim { position: relative; }
-        .gs-strike-anim::after { content: ""; position: absolute; left: -6%; right: -6%; top: 50%; height: 5px; margin-top: -2px; border-radius: 3px; background: var(--gs-strike); box-shadow: 0 0 10px var(--gs-strike); transform-origin: left center; animation: gsStrikeDraw 3.2s ease-out infinite; }
+        .gs-strike-anim::before, .gs-strike-anim::after { content: ""; position: absolute; left: -5%; right: -5%; top: calc(50% - 15px); height: 6px; margin-top: -3px; border-radius: 3px; background: var(--gs-strike); box-shadow: 0 0 12px var(--gs-strike), 0 0 2px #fff; }
+        .gs-strike-anim::before { transform-origin: left center; animation: gsSlashA 2s cubic-bezier(.2,.9,.3,1) infinite; }
+        .gs-strike-anim::after { transform-origin: right center; animation: gsSlashB 2s cubic-bezier(.2,.9,.3,1) infinite; }
         /* Harga utama landing page: lingkaran sihir berputar + zoom in-out besar. */
         @keyframes gsSpin { to { transform: rotate(360deg); } }
         @keyframes gsSpinBack { to { transform: rotate(-360deg); } }
@@ -6699,7 +6703,7 @@ export default function App() {
         .gs-side-item { transition: color .2s ease, transform .2s var(--gs-spring); -webkit-tap-highlight-color: transparent; }
         .gs-side-item:hover { color: ${C.text} !important; }
         .gs-side-item:active { transform: scale(.97); }
-        .gs-side-item:hover .gs-side-icon { transform: rotate(-8deg) scale(1.1); }
+        .gs-side-item:hover .gs-side-icon { transform: rotate(-9deg) scale(1.1); }
         .gs-side-icon { transition: transform .3s var(--gs-spring); }
 
         /* kartu statistik: garis emas "senar" di atas saat hover */
@@ -6802,7 +6806,8 @@ export default function App() {
 
         @media (prefers-reduced-motion: reduce) {
           .gs-attn { animation: none; }
-          .gs-strike-anim::after { animation: none !important; transform: rotate(-3deg); opacity: 1; }
+          .gs-strike-anim::before { animation: none !important; transform: rotate(9deg); opacity: 1; }
+          .gs-strike-anim::after { animation: none !important; transform: rotate(-9deg); opacity: 1; }
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
         }
         /* Teks berformat petunjuk latihan (tampilan member + editor admin). */
