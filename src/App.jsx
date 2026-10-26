@@ -4003,6 +4003,8 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
   const [iconPickIdx, setIconPickIdx] = useState(null);
   const bonusValSize = Math.min(28, Math.max(10, Number(extra.bonusValueSize) || 12));
+  const bonusTotalLabel = extra.bonusTotalLabel !== undefined ? extra.bonusTotalLabel : "Total nilai bonus:";
+  const bonusTotalSuffix = extra.bonusTotalSuffix !== undefined ? extra.bonusTotalSuffix : "— GRATIS kalau kamu ikut sekarang";
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
     const words = String(p?.name || "Gitar Sakti").trim().split(/\s+/).filter(Boolean);
@@ -4401,9 +4403,14 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           )}
           {bonusValueTotal > 0 && (
             <div style={{ marginTop: 18, textAlign: "center" }}>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Total nilai bonus: </span>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }}>{rp(bonusValueTotal)}</span>
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}> — GRATIS kalau kamu ikut sekarang</span>
+              {/* Teks sebelum/sesudah total bisa diedit (extra.bonusTotalLabel/bonusTotalSuffix); kosong = disembunyikan. */}
+              {(admin || bonusTotalLabel) && (
+                <EditableText value={bonusTotalLabel || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalLabel")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }} />
+              )}
+              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }}> {rp(bonusValueTotal)} </span>
+              {(admin || bonusTotalSuffix) && (
+                <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }} />
+              )}
             </div>
           )}
         </div>
