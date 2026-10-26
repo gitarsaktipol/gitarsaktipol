@@ -4189,9 +4189,15 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
       {/* SOLUSI */}
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "44px 20px" }}>
         <div style={{ textAlign: "center", marginBottom: 26 }}>
-          <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }}>Perkenalkan</span>
-          <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: "8px 0" }}>{p.name}</h2>
-          <RichText text={p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }} />
+          {/* Teks perkenalan bisa diubah per landing page (extra.introLabel/introTitle/introDesc);
+              kosong = pakai nama & deskripsi produk. Deskripsi produk di toko tidak ikut berubah. */}
+          <EditableText value={extra.introLabel || "Perkenalkan"} admin={admin} onSave={(v) => saveExtra("introLabel")(v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.gold }} />
+          <EditableText value={extra.introTitle || p.name} admin={admin} onSave={(v) => saveExtra("introTitle")(v.trim())} tag="h2" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 28, color: C.text, margin: "8px 0" }} />
+          {admin ? (
+            <EditableText value={extra.introDesc || p.desc || ""} admin area onSave={(v) => saveExtra("introDesc")(v.trim())} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto", whiteSpace: "pre-line" }} />
+          ) : (
+            <RichText text={extra.introDesc || p.desc} style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, maxWidth: 420, margin: "0 auto" }} />
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {(p.learn || []).map((item) => (
