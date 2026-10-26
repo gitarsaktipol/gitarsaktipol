@@ -4447,7 +4447,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               {bonusCutPct > 0 && (
                 <div style={{ marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <EditableText value={bonusCutLabel} admin={admin} onSave={(v) => saveExtra("bonusCutLabel")(v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
-                  <div className="gs-price-pulse" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 40, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
+                  <div className="gs-price-pulse gs-strike-anim" style={{ "--gs-strike": C.ember, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 40, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
                 </div>
               )}
               {admin && (
@@ -6642,6 +6642,10 @@ export default function App() {
         /* Harga setelah potongan di landing page: berdenyut + kilau emas. */
         @keyframes gsPricePulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 rgba(232,198,112,0); } 50% { transform: scale(1.08); text-shadow: 0 0 22px rgba(232,198,112,0.75); } }
         .gs-price-pulse { display: inline-block; animation: gsPricePulse 1.6s ease-in-out infinite; }
+        /* Garis coret yang "digambar" kiri->kanan di atas harga potongan, tahan, lalu hilang & ulang. */
+        @keyframes gsStrikeDraw { 0%,25% { transform: rotate(-3deg) scaleX(0); opacity: 1; } 45% { transform: rotate(-3deg) scaleX(1); opacity: 1; } 88% { transform: rotate(-3deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-3deg) scaleX(1); opacity: 0; } }
+        .gs-strike-anim { position: relative; }
+        .gs-strike-anim::after { content: ""; position: absolute; left: -6%; right: -6%; top: 50%; height: 5px; margin-top: -2px; border-radius: 3px; background: var(--gs-strike); box-shadow: 0 0 10px var(--gs-strike); transform-origin: left center; animation: gsStrikeDraw 3.2s ease-out infinite; }
         /* Harga utama landing page: lingkaran sihir berputar + zoom in-out besar. */
         @keyframes gsSpin { to { transform: rotate(360deg); } }
         @keyframes gsSpinBack { to { transform: rotate(-360deg); } }
@@ -6798,6 +6802,7 @@ export default function App() {
 
         @media (prefers-reduced-motion: reduce) {
           .gs-attn { animation: none; }
+          .gs-strike-anim::after { animation: none !important; transform: rotate(-3deg); opacity: 1; }
           *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
         }
         /* Teks berformat petunjuk latihan (tampilan member + editor admin). */
