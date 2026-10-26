@@ -3858,6 +3858,44 @@ function LpTemplateBadge({ displayValue, rawValue, onSave, admin, style }) {
 }
 
 /* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
+// Sampul buku 3D (gaya mockup produk digital/e-book) untuk daftar "Apa yang Kamu Dapat" di landing
+// page tema gold: tiap item tampil seperti buku/modul, bukan ikon kecil, supaya kesan materinya banyak.
+// Sampul = gambar (it.image, link https) bila diisi; kalau tidak, digambar sendiri: label merek,
+// emoji ikon, dan teks sampul pendek (it.cover). Warna sampul bergantian per urutan.
+function BookMockup({ item, idx, brand, w = 70 }) {
+  const h = Math.round(w * 1.36);
+  const tones = [
+    [C.gold, C.ember],
+    [C.surface2, C.gold],
+    [C.ember, C.gold],
+  ];
+  const [a, b] = tones[idx % tones.length];
+  const page = LIGHT_THEME.surface;
+  return (
+    <div aria-hidden="true" style={{ width: w + 8, height: h + 6, flexShrink: 0, perspective: 600 }}>
+      <div style={{ position: "relative", width: w, height: h, transform: "rotateY(-18deg)", transformOrigin: "left center", transformStyle: "preserve-3d" }}>
+        {/* tebal halaman di sisi kanan */}
+        <div style={{ position: "absolute", top: 3, right: -6, width: 7, height: h - 6, borderRadius: "0 2px 2px 0", background: `repeating-linear-gradient(to bottom, ${page} 0 2px, rgba(0,0,0,0.07) 2px 3px), ${page}`, boxShadow: "inset 2px 0 3px rgba(0,0,0,0.25), 2px 3px 6px rgba(0,0,0,0.35)" }} />
+        {/* sampul */}
+        <div style={{ position: "absolute", inset: 0, borderRadius: "2px 5px 5px 2px", overflow: "hidden", background: item.image ? C.surface2 : `linear-gradient(155deg, ${a}, ${b})`, boxShadow: `4px 6px 14px rgba(0,0,0,0.45)` }}>
+          {item.image ? (
+            <img src={item.image} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: `${Math.round(w * 0.1)}px ${Math.round(w * 0.08)}px`, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: Math.max(6, Math.round(w * 0.1)), letterSpacing: 1, color: "#fff", opacity: 0.85, textTransform: "uppercase", lineHeight: 1.1 }}>{brand}</div>
+              <div style={{ fontSize: Math.round(w * 0.36), lineHeight: 1, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}>{item.icon || "✨"}</div>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: Math.max(6, Math.round(w * 0.11)), color: "#fff", lineHeight: 1.15, textTransform: "uppercase", textShadow: "0 1px 2px rgba(0,0,0,0.4)", wordBreak: "break-word" }}>{item.cover || `Modul ${idx + 1}`}</div>
+            </div>
+          )}
+          {/* punggung buku + kilau */}
+          <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: Math.max(4, Math.round(w * 0.09)), background: "linear-gradient(to right, rgba(0,0,0,0.35), rgba(255,255,255,0.18) 60%, rgba(0,0,0,0.15))" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 40%)", pointerEvents: "none" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
   const p = products.find((x) => x.id === lp?.productId);
 
@@ -3909,6 +3947,11 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const updateBonusItem = (idx, patch) => saveExtra("bonusItems")(bonusItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const addBonusItem = () => saveExtra("bonusItems")([...bonusItems, { icon: "✨", title: "Bonus baru", value: "" }]);
   const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
+  // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
+  const bookBrand = (() => {
+    const words = String(p?.name || "Gitar Sakti").trim().split(/\s+/).filter(Boolean);
+    return words.length > 1 ? words.map((w) => w[0]).join("").slice(0, 5) : words[0] || "";
+  })();
   const bonusValueTotal = bonusItems.reduce((sum, it) => {
     const n = parseInt(String(it.value || "").replace(/[^0-9]/g, ""), 10);
     return sum + (isNaN(n) ? 0 : n);
@@ -4241,23 +4284,18 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {bonusItems.map((it, idx) => (
-              <Card key={idx} style={{ padding: 16, position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  {admin ? (
-                    <EditableText
-                      value={it.icon || "✨"}
-                      admin
-                      onSave={(v) => updateBonusItem(idx, { icon: (v || "✨").slice(0, 2) })}
-                      tag="span"
-                      style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18, lineHeight: "40px", textAlign: "center" }}
-                    />
-                  ) : (
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.gold}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>
-                      {it.icon || "✨"}
-                    </div>
-                  )}
+              <Card key={idx} style={{ padding: "14px 16px", position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <BookMockup item={it} idx={idx} brand={bookBrand} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <EditableText value={it.title} admin={admin} onSave={(v) => updateBonusItem(idx, { title: v })} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.5 }} />
+                    {admin && (
+                      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: "4px 12px", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>
+                        <span>Ikon: <EditableText value={it.icon || "✨"} admin onSave={(v) => updateBonusItem(idx, { icon: (v || "✨").slice(0, 2) })} tag="span" style={{ color: C.text }} /></span>
+                        <span>Tulisan sampul: <EditableText value={it.cover || `Modul ${idx + 1}`} admin onSave={(v) => updateBonusItem(idx, { cover: (v || "").trim().slice(0, 24) })} tag="span" style={{ color: C.text }} /></span>
+                        <span style={{ wordBreak: "break-all" }}>Gambar sampul: <EditableText value={it.image || "(kosong — tempel link https)"} admin onSave={(v) => { const u = (v || "").trim(); updateBonusItem(idx, { image: /^https:\/\//.test(u) ? u : "" }); }} tag="span" style={{ color: C.goldLight }} /></span>
+                      </div>
+                    )}
                     {(it.value || admin) && (
                       <div style={{ marginTop: 4 }}>
                         {admin ? (
