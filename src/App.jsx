@@ -4473,10 +4473,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                 rawValue={getExtra(tierNoteKey)}
                 onSave={saveExtra(tierNoteKey)}
                 admin={admin}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 999, background: `${C.ember}22`, border: `1.5px solid ${C.ember}88`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 18, fontWeight: 800, lineHeight: 1.35, textAlign: "center", boxShadow: `0 0 18px ${C.ember}33` }}
               />
             ) : (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: `${C.ember}18`, border: `1px solid ${C.ember}55`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 999, background: `${C.ember}22`, border: `1.5px solid ${C.ember}88`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 18, fontWeight: 800, lineHeight: 1.35, textAlign: "center", boxShadow: `0 0 18px ${C.ember}33` }}>
                 {tierNote}
               </span>
             )}
