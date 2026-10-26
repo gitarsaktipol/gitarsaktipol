@@ -4378,10 +4378,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                         {admin ? (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Nilai:</span>
-                            <EditableText value={it.value || ""} admin onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight, textDecoration: "line-through" }} />
+                            <EditableText value={it.value || ""} admin onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight }} />
                           </span>
                         ) : it.value ? (
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight, textDecoration: "line-through" }}>Senilai {it.value}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight }}>Senilai {it.value}</span>
                         ) : null}
                       </div>
                     )}
@@ -4410,7 +4410,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               {(admin || bonusTotalLabel) && (
                 <EditableText value={bonusTotalLabel || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalLabel")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
               )}
-              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 1.15, color: C.goldLight, margin: "4px 0" }}>{rp(bonusValueTotal)}</div>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 1.15, color: C.goldLight, margin: "4px 0", textDecoration: "line-through", textDecorationColor: C.ember, textDecorationThickness: 4 }}>{rp(bonusValueTotal)}</div>
               {(admin || bonusTotalSuffix) && (
                 <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 17, lineHeight: 1.45, color: C.text, maxWidth: 520, margin: "4px auto 0" }} />
               )}
@@ -4418,7 +4418,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               {bonusCutPct > 0 && (
                 <div style={{ marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <EditableText value={bonusCutLabel} admin={admin} onSave={(v) => saveExtra("bonusCutLabel")(v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
-                  <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 34, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
+                  <div className="gs-price-pulse" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 40, lineHeight: 1.15, color: C.goldLight }}>{rp(Math.round(bonusValueTotal * (100 - bonusCutPct) / 100))}</div>
                 </div>
               )}
               {admin && (
@@ -6608,6 +6608,9 @@ export default function App() {
         @keyframes gsFadeInUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes gsFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes gsPopIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+        /* Harga setelah potongan di landing page: berdenyut + kilau emas. */
+        @keyframes gsPricePulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 rgba(232,198,112,0); } 50% { transform: scale(1.08); text-shadow: 0 0 22px rgba(232,198,112,0.75); } }
+        .gs-price-pulse { display: inline-block; animation: gsPricePulse 1.6s ease-in-out infinite; }
         @keyframes gsSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes gsZoomPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
         .gs-attn { animation: gsZoomPulse 1.5s ease-in-out infinite; transform-origin: center; will-change: transform; }
