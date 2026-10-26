@@ -4402,12 +4402,13 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               onPick={(ic) => { updateBonusItem(iconPickIdx, { icon: ic }); setIconPickIdx(null); }} />
           )}
           {bonusValueTotal > 0 && (
-            <div style={{ marginTop: 18, textAlign: "center" }}>
-              {/* Teks sebelum/sesudah total bisa diedit (extra.bonusTotalLabel/bonusTotalSuffix); kosong = disembunyikan. */}
+            // Total nilai bonus dibuat besar seperti harga di kotak harga (diminta Ferdi): label di atas,
+            // angka besar di tengah, teks tambahan di bawah. Label/teks tambahan bisa diedit/dikosongkan.
+            <div style={{ marginTop: 24, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
               {(admin || bonusTotalLabel) && (
-                <EditableText value={bonusTotalLabel || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalLabel")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }} />
+                <EditableText value={bonusTotalLabel || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalLabel")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 16, color: C.text }} />
               )}
-              <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.goldLight }}> {rp(bonusValueTotal)} </span>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 1.15, color: C.goldLight, margin: "4px 0" }}>{rp(bonusValueTotal)}</div>
               {(admin || bonusTotalSuffix) && (
                 <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }} />
               )}
