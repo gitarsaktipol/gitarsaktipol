@@ -4002,6 +4002,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const addBonusItem = () => saveExtra("bonusItems")([...bonusItems, { icon: "✨", title: "Bonus baru", value: "" }]);
   const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
   const [iconPickIdx, setIconPickIdx] = useState(null);
+  const bonusValSize = Math.min(28, Math.max(10, Number(extra.bonusValueSize) || 12));
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
     const words = String(p?.name || "Gitar Sakti").trim().split(/\s+/).filter(Boolean);
@@ -4342,6 +4343,15 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
             <div style={{ marginTop: 12 }}>
               <EditableText value={getExtra("bonusHeading")} admin={admin} onSave={saveExtra("bonusHeading")} tag="h2" style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 26, color: C.text, margin: 0 }} />
             </div>
+            {admin && (
+              // Satu pengaturan untuk SEMUA item bonus: besar huruf "Senilai Rp..." (extra.bonusValueSize).
+              <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 999, border: `1px dashed ${C.gold}`, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>
+                Ukuran huruf harga:
+                <button onClick={() => saveExtra("bonusValueSize")(Math.max(10, bonusValSize - 1))} disabled={bonusValSize <= 10} title="Perkecil" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>−</button>
+                <span style={{ minWidth: 34, textAlign: "center", fontWeight: 700, color: C.text }}>{bonusValSize}px</span>
+                <button onClick={() => saveExtra("bonusValueSize")(Math.min(28, bonusValSize + 1))} disabled={bonusValSize >= 28} title="Perbesar" style={{ width: 26, height: 26, borderRadius: 999, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, cursor: "pointer", fontWeight: 800 }}>+</button>
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {bonusItems.map((it, idx) => (
@@ -4364,10 +4374,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                         {admin ? (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Nilai:</span>
-                            <EditableText value={it.value || ""} admin onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.goldLight, textDecoration: "line-through" }} />
+                            <EditableText value={it.value || ""} admin onSave={(v) => updateBonusItem(idx, { value: v })} tag="span" style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight, textDecoration: "line-through" }} />
                           </span>
                         ) : it.value ? (
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.goldLight, textDecoration: "line-through" }}>Senilai {it.value}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: bonusValSize, color: C.goldLight, textDecoration: "line-through" }}>Senilai {it.value}</span>
                         ) : null}
                       </div>
                     )}
