@@ -4410,7 +4410,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               )}
               <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, lineHeight: 1.15, color: C.goldLight, margin: "4px 0" }}>{rp(bonusValueTotal)}</div>
               {(admin || bonusTotalSuffix) && (
-                <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }} />
+                <EditableText value={bonusTotalSuffix || (admin ? "(kosong)" : "")} admin={admin} onSave={(v) => saveExtra("bonusTotalSuffix")(v.trim() === "(kosong)" ? "" : v.trim())} tag="span" block style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 600, fontSize: 17, lineHeight: 1.45, color: C.text, maxWidth: 520, margin: "4px auto 0" }} />
               )}
             </div>
           )}
