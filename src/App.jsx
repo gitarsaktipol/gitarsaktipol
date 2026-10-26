@@ -3906,6 +3906,35 @@ function BonusIconPicker({ value, onPick, onClose }) {
   );
 }
 
+// Lingkaran sihir ala "Doctor Strange" (cincin berputar + kilatan) di belakang harga utama landing
+// page, ditambah harga yang zoom in-out (diminta Ferdi: "sangat lebai"). Animasi: kelas .gs-spell-*
+// di blok <style> global; mati otomatis bila pengguna memilih kurangi gerakan.
+function SpellPrice({ children }) {
+  const ticks = Array.from({ length: 36 }, (_, i) => i * 10);
+  const runes = Array.from({ length: 12 }, (_, i) => i * 30);
+  return (
+    <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 190, margin: "2px 0" }}>
+      <svg className="gs-spell-ring" viewBox="-100 -100 200 200" aria-hidden="true"
+        style={{ position: "absolute", width: 172, height: 172, left: "50%", top: "50%", marginLeft: -86, marginTop: -86, color: C.ember, pointerEvents: "none" }}>
+        <g className="gs-spell-cw">
+          <circle r="96" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <circle r="88" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 4" />
+          {ticks.map((a) => <line key={a} x1="0" y1="-96" x2="0" y2={a % 30 === 0 ? -84 : -90} stroke="currentColor" strokeWidth="1.2" transform={`rotate(${a})`} />)}
+          {runes.map((a) => <circle key={a} cx="0" cy="-80" r="2.4" fill="currentColor" transform={`rotate(${a + 15})`} />)}
+        </g>
+        <g className="gs-spell-ccw">
+          <circle r="70" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <rect x="-49" y="-49" width="98" height="98" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <rect x="-49" y="-49" width="98" height="98" fill="none" stroke="currentColor" strokeWidth="1.2" transform="rotate(45)" />
+          <circle r="46" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="6 3" />
+        </g>
+      </svg>
+      <div className="gs-spell-glow" aria-hidden="true" style={{ position: "absolute", width: 150, height: 150, left: "50%", top: "50%", marginLeft: -75, marginTop: -75, borderRadius: "50%", background: `radial-gradient(circle, ${C.ember}55 0%, ${C.ember}00 70%)`, pointerEvents: "none" }} />
+      <div className="gs-spell-zoom" style={{ position: "relative" }}>{children}</div>
+    </div>
+  );
+}
+
 // Sampul buku 3D (gaya mockup produk digital/e-book) untuk daftar "Apa yang Kamu Dapat" di landing
 // page tema gold: tiap item tampil seperti buku/modul, bukan ikon kecil, supaya kesan materinya banyak.
 // Sampul = gambar (it.image, link https) bila diisi; kalau tidak, digambar sendiri: label merek,
@@ -4486,7 +4515,9 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 20, color: C.mutedDark, textDecoration: "line-through" }}>{rp(anchorPrice)}</span>
                 </div>
               )}
-              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, color: C.goldLight, margin: "6px 0" }}>{rp(currentPrice)}</div>
+              <SpellPrice>
+                <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, color: C.goldLight, whiteSpace: "nowrap" }}>{rp(currentPrice)}</div>
+              </SpellPrice>
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
@@ -6611,6 +6642,17 @@ export default function App() {
         /* Harga setelah potongan di landing page: berdenyut + kilau emas. */
         @keyframes gsPricePulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 rgba(232,198,112,0); } 50% { transform: scale(1.08); text-shadow: 0 0 22px rgba(232,198,112,0.75); } }
         .gs-price-pulse { display: inline-block; animation: gsPricePulse 1.6s ease-in-out infinite; }
+        /* Harga utama landing page: lingkaran sihir berputar + zoom in-out besar. */
+        @keyframes gsSpin { to { transform: rotate(360deg); } }
+        @keyframes gsSpinBack { to { transform: rotate(-360deg); } }
+        @keyframes gsSpellZoom { 0%,100% { transform: scale(1); text-shadow: 0 0 6px rgba(224,85,58,0.4); } 45% { transform: scale(1.32); text-shadow: 0 0 18px rgba(255,107,74,0.95), 0 0 42px rgba(232,198,112,0.8); } 60% { transform: scale(1.22); } }
+        @keyframes gsSpellRing { 0%,100% { transform: scale(0.9); opacity: .55; filter: drop-shadow(0 0 4px rgba(255,107,74,.6)); } 45% { transform: scale(1.12); opacity: .95; filter: drop-shadow(0 0 12px rgba(255,107,74,1)); } }
+        @keyframes gsSpellGlow { 0%,100% { transform: scale(.8); opacity: .5; } 45% { transform: scale(1.35); opacity: 1; } }
+        .gs-spell-ring { animation: gsSpellRing 1.8s ease-in-out infinite; }
+        .gs-spell-cw { animation: gsSpin 9s linear infinite; transform-origin: 0 0; }
+        .gs-spell-ccw { animation: gsSpinBack 5s linear infinite; transform-origin: 0 0; }
+        .gs-spell-glow { animation: gsSpellGlow 1.8s ease-in-out infinite; }
+        .gs-spell-zoom { animation: gsSpellZoom 1.8s cubic-bezier(.34,1.56,.64,1) infinite; }
         @keyframes gsSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes gsZoomPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
         .gs-attn { animation: gsZoomPulse 1.5s ease-in-out infinite; transform-origin: center; will-change: transform; }
