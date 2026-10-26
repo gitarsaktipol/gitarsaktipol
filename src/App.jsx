@@ -3862,11 +3862,55 @@ function LpTemplateBadge({ displayValue, rawValue, onSave, admin, style }) {
 }
 
 /* ---------------- LANDING PAGE IKLAN (template, dipakai semua produk) ---------------- */
+// Ikon khusus (bukan emoji) untuk sampul buku/bonus. Kunci G = bentuk dari font musik Bravura
+// (Steinberg, SIL Open Font License 1.1), path sama dengan yang dipakai FerTune.
+const TREBLE_CLEF_D = "M376 415C374 427 376 428 382 434C490 535 572 662 572 815C572 902 548 988 507 1048C492 1070 466 1098 455 1098C441 1098 410 1072 390 1050C316 968 292 843 292 739C292 681 299 616 306 575C308 563 309 561 297 551C153 432 0 289 0 87C0 -87 119 -252 364 -252C387 -252 413 -250 433 -246C444 -244 446 -243 448 -255C460 -322 475 -409 475 -456C475 -604 375 -622 316 -622C262 -622 236 -606 236 -593C236 -586 245 -583 268 -576C299 -567 335 -540 335 -482C335 -427 300 -380 239 -380C172 -380 132 -433 132 -495C132 -560 171 -658 322 -658C389 -658 519 -628 519 -458C519 -401 501 -306 490 -244C488 -232 489 -233 503 -227C604 -187 671 -102 671 11C671 139 577 252 430 252C404 252 404 252 401 270ZM470 943C503 943 530 916 530 861C530 750 435 660 356 591C349 585 345 586 343 599C339 625 337 659 337 691C337 847 409 943 470 943ZM361 262C364 243 364 244 346 238C258 208 201 129 201 44C201 -46 248 -110 316 -133C324 -136 336 -139 343 -139C351 -139 355 -134 355 -128C355 -121 347 -118 340 -115C298 -97 268 -54 268 -8C268 49 307 92 368 109C384 113 386 112 388 101L438 -197C440 -208 439 -208 424 -211C408 -214 388 -216 368 -216C193 -216 80 -119 80 20C80 79 90 158 173 252C233 319 279 356 326 394C336 402 338 401 340 390ZM430 103C428 115 429 118 441 117C522 110 589 42 589 -46C589 -109 551 -160 495 -188C483 -194 481 -194 479 -182Z";
+const BONUS_ICON_CHOICES = ["clef:treble", "🎸", "🎵", "🎶", "🎼", "🎹", "🥁", "🎤", "🎧", "🎬", "📘", "📗", "📕", "📚", "📝", "🎁", "⚡", "🔥", "🚀", "🏆", "🎯", "⏱️", "💡", "🧠", "✋", "👆", "💪", "⭐", "✨", "✅"];
+function BonusIcon({ icon, size = 24, color = "#fff" }) {
+  if (icon === "clef:treble") {
+    return (
+      <svg width={size * 0.85} height={size * 1.5} viewBox="-20 -1110 711 1790" aria-label="Kunci G" style={{ display: "block", overflow: "visible" }}>
+        <path transform="scale(1 -1)" fill={color} d={TREBLE_CLEF_D} />
+      </svg>
+    );
+  }
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{icon || "✨"}</span>;
+}
+
+// Jendela pilih ikon (Mode Edit landing page): ketuk sampul buku -> pilih dari daftar atau ketik emoji sendiri.
+function BonusIconPicker({ value, onPick, onClose }) {
+  const [custom, setCustom] = useState("");
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 360, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 15, color: C.text }}>Pilih ikon sampul</span>
+          <button onClick={onClose} title="Tutup" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+          {BONUS_ICON_CHOICES.map((ic) => (
+            <button key={ic} onClick={() => onPick(ic)} title={ic === "clef:treble" ? "Kunci G (treble clef)" : ic}
+              style={{ aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, cursor: "pointer", background: ic === value ? `${C.gold}33` : C.surface2, border: `1px solid ${ic === value ? C.gold : C.borderSoft}` }}>
+              <BonusIcon icon={ic} size={22} color={C.text} />
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+          <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="atau ketik/tempel emoji lain" maxLength={4}
+            style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 14 }} />
+          <button onClick={() => custom.trim() && onPick(custom.trim())} disabled={!custom.trim()}
+            style={{ background: C.gold, border: "none", borderRadius: 8, padding: "0 14px", cursor: custom.trim() ? "pointer" : "default", opacity: custom.trim() ? 1 : 0.5, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13, color: "#161019" }}>Pakai</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Sampul buku 3D (gaya mockup produk digital/e-book) untuk daftar "Apa yang Kamu Dapat" di landing
 // page tema gold: tiap item tampil seperti buku/modul, bukan ikon kecil, supaya kesan materinya banyak.
 // Sampul = gambar (it.image, link https) bila diisi; kalau tidak, digambar sendiri: label merek,
 // emoji ikon, dan teks sampul pendek (it.cover). Warna sampul bergantian per urutan.
-function BookMockup({ item, idx, brand, w = 70 }) {
+function BookMockup({ item, idx, brand, w = 70, onClick }) {
   const h = Math.round(w * 1.36);
   const tones = [
     [C.gold, C.ember],
@@ -3876,7 +3920,13 @@ function BookMockup({ item, idx, brand, w = 70 }) {
   const [a, b] = tones[idx % tones.length];
   const page = LIGHT_THEME.surface;
   return (
-    <div aria-hidden="true" style={{ width: w + 8, height: h + 6, flexShrink: 0, perspective: 600 }}>
+    <div aria-hidden={onClick ? undefined : "true"} onClick={onClick} role={onClick ? "button" : undefined} title={onClick ? "Ketuk untuk ganti ikon" : undefined}
+      style={{ position: "relative", width: w + 8, height: h + 6, flexShrink: 0, perspective: 600, cursor: onClick ? "pointer" : undefined }}>
+      {onClick && (
+        <span style={{ position: "absolute", right: -4, bottom: -2, zIndex: 2, width: 24, height: 24, borderRadius: 999, background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.4)" }}>
+          <Pencil size={12} color="#161019" />
+        </span>
+      )}
       <div style={{ position: "relative", width: w, height: h, transform: "rotateY(-18deg)", transformOrigin: "left center", transformStyle: "preserve-3d" }}>
         {/* tebal halaman di sisi kanan */}
         <div style={{ position: "absolute", top: 3, right: -6, width: 7, height: h - 6, borderRadius: "0 2px 2px 0", background: `repeating-linear-gradient(to bottom, ${page} 0 2px, rgba(0,0,0,0.07) 2px 3px), ${page}`, boxShadow: "inset 2px 0 3px rgba(0,0,0,0.25), 2px 3px 6px rgba(0,0,0,0.35)" }} />
@@ -3887,7 +3937,7 @@ function BookMockup({ item, idx, brand, w = 70 }) {
           ) : (
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", padding: `${Math.round(w * 0.1)}px ${Math.round(w * 0.08)}px`, textAlign: "center" }}>
               <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: Math.max(6, Math.round(w * 0.1)), letterSpacing: 1, color: "#fff", opacity: 0.85, textTransform: "uppercase", lineHeight: 1.1 }}>{brand}</div>
-              <div style={{ fontSize: Math.round(w * 0.36), lineHeight: 1, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}>{item.icon || "✨"}</div>
+              <div style={{ lineHeight: 1, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}><BonusIcon icon={item.icon} size={Math.round(w * 0.36)} /></div>
               <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: Math.max(6, Math.round(w * 0.11)), color: "#fff", lineHeight: 1.15, textTransform: "uppercase", textShadow: "0 1px 2px rgba(0,0,0,0.4)", wordBreak: "break-word" }}>{item.cover || `Modul ${idx + 1}`}</div>
             </div>
           )}
@@ -3951,6 +4001,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   const updateBonusItem = (idx, patch) => saveExtra("bonusItems")(bonusItems.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const addBonusItem = () => saveExtra("bonusItems")([...bonusItems, { icon: "✨", title: "Bonus baru", value: "" }]);
   const removeBonusItem = (idx) => saveExtra("bonusItems")(bonusItems.filter((_, i) => i !== idx));
+  const [iconPickIdx, setIconPickIdx] = useState(null);
   // Label kecil di atas sampul buku: singkatan nama produk (mis. "Secret Of Shredding" -> "SOS").
   const bookBrand = (() => {
     const words = String(p?.name || "Gitar Sakti").trim().split(/\s+/).filter(Boolean);
@@ -4296,12 +4347,14 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
             {bonusItems.map((it, idx) => (
               <Card key={idx} style={{ padding: "14px 16px", position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <BookMockup item={it} idx={idx} brand={bookBrand} />
+                  <BookMockup item={it} idx={idx} brand={bookBrand} onClick={admin ? () => setIconPickIdx(idx) : undefined} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <EditableText value={it.title} admin={admin} onSave={(v) => updateBonusItem(idx, { title: v })} tag="div" block style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.text, lineHeight: 1.5 }} />
                     {admin && (
                       <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: "4px 12px", fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>
-                        <span>Ikon: <EditableText value={it.icon || "✨"} admin onSave={(v) => updateBonusItem(idx, { icon: (v || "✨").slice(0, 2) })} tag="span" style={{ color: C.text }} /></span>
+                        <button onClick={() => setIconPickIdx(idx)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", color: C.mutedDark }}>
+                          Ikon: <BonusIcon icon={it.icon} size={14} color={C.text} /> <span style={{ color: C.goldLight, textDecoration: "underline" }}>Ganti</span>
+                        </button>
                         <span>Tulisan sampul: <EditableText value={it.cover || `Modul ${idx + 1}`} admin onSave={(v) => updateBonusItem(idx, { cover: (v || "").trim().slice(0, 24) })} tag="span" style={{ color: C.text }} /></span>
                         <span style={{ wordBreak: "break-all" }}>Gambar sampul: <EditableText value={it.image || "(kosong — tempel link https)"} admin onSave={(v) => { const u = (v || "").trim(); updateBonusItem(idx, { image: /^https:\/\//.test(u) ? u : "" }); }} tag="span" style={{ color: C.goldLight }} /></span>
                       </div>
@@ -4332,6 +4385,10 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               <div style={{ textAlign: "center" }}><GhostBtn small onClick={addBonusItem} icon={Plus}>Tambah Bonus</GhostBtn></div>
             )}
           </div>
+          {admin && iconPickIdx !== null && bonusItems[iconPickIdx] && (
+            <BonusIconPicker value={bonusItems[iconPickIdx].icon || "✨"} onClose={() => setIconPickIdx(null)}
+              onPick={(ic) => { updateBonusItem(iconPickIdx, { icon: ic }); setIconPickIdx(null); }} />
+          )}
           {bonusValueTotal > 0 && (
             <div style={{ marginTop: 18, textAlign: "center" }}>
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Total nilai bonus: </span>
@@ -5098,7 +5155,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
                       {it.image ? (
                         <img src={it.image} alt={it.title} className="lp2-bonus-img" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       ) : (
-                        <div className="lp2-bonus-img" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${V.accent}33, ${V.card})`, fontSize: 32 }}>{it.icon || "✨"}</div>
+                        <div className="lp2-bonus-img" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${V.accent}33, ${V.card})`, fontSize: 32 }}><BonusIcon icon={it.icon} size={32} /></div>
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>

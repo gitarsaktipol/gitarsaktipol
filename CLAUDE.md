@@ -61,7 +61,8 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   dipilih lewat `extra.template`), `CustomPageView`, `AboutPage`.
   Tema gold: daftar "Apa yang Kamu Dapat" (`extra.bonusItems`) tampil sebagai sampul buku 3D
   (`BookMockup`: label = singkatan nama produk, ikon emoji, `cover` = tulisan sampul, `image` = gambar
-  sampul https opsional; diminta Ferdi Okt 2026 supaya terkesan banyak materi).
+  sampul https opsional; diminta Ferdi Okt 2026 supaya terkesan banyak materi). Mode Edit: ketuk buku →
+  `BonusIconPicker` (emoji + `clef:treble` = kunci G Bravura lewat `BonusIcon`, juga dipakai tema violet).
 - `AdminDashboard` (di `src/AdminDashboard.jsx`; sub): Ringkasan, Produk, Pesanan, Pelanggan, Kupon, Analitik, Landing Page,
   Pengaturan (`settingsSub`: Tampilan, Metode Pembayaran, Pengiriman, Keamanan, Data, FerTune,
   Marketing). Modal: `YoutubeImportModal`, `ProductFormModal`, `QuickProductFormModal`,
