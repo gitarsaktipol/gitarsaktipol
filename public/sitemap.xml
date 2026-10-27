@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Hanya halaman utama: halaman lain (?info=..., ?halaman=...) adalah tampilan di dalam aplikasi
+     yang sama dan memakai canonical https://gitarsakti.com/ (index.html), jadi jangan dimasukkan ke
+     sini -- Google akan melaporkannya sebagai "Halaman alternatif dengan tag kanonis yang tepat". -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://gitarsakti.com/</loc><lastmod>2026-10-20</lastmod><priority>1.0</priority></url>
-  <url><loc>https://gitarsakti.com/?info=syarat</loc></url>
-  <url><loc>https://gitarsakti.com/?info=privasi</loc></url>
-  <url><loc>https://gitarsakti.com/?info=refund</loc></url>
+  <url><loc>https://gitarsakti.com/</loc><lastmod>2026-10-27</lastmod><priority>1.0</priority></url>
 </urlset>
