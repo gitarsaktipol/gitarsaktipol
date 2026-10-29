@@ -2,6 +2,19 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 
+// Setelah website diperbarui (deploy baru), halaman yang masih terbuka mencoba mengunduh file lama
+// (mis. panel admin yang dimuat malas) yang sudah tidak ada -> layar putih. Muat ulang SEKALI
+// supaya mengambil versi terbaru; jeda 10 detik mencegah muat ulang berulang bila memang error lain.
+window.addEventListener("vite:preloadError", (e) => {
+  try {
+    const last = Number(sessionStorage.getItem("gs-reload-at") || 0);
+    if (Date.now() - last < 10000) return;
+    sessionStorage.setItem("gs-reload-at", String(Date.now()));
+  } catch (err) { /* sessionStorage diblokir: tetap muat ulang */ }
+  e.preventDefault();
+  window.location.reload();
+});
+
 // Meta Pixel (opsional): isi VITE_META_PIXEL_ID di Environment Variables Vercel, lalu redeploy.
 // Tanpa ID, tidak ada script pihak ketiga yang dimuat.
 const PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID;
