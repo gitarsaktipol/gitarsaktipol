@@ -5537,6 +5537,10 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
   );
 }
 
+// Alamat lama landing page yang sudah diganti -> alamat barunya, supaya link yang terlanjur
+// dibagikan tetap terbuka (mis. versi review "-baru" yang Okt 2026 dijadikan halaman utama).
+const LP_SLUG_ALIASES = { "secret-of-shredding-baru": "secret-of-shredding" };
+
 // Pemilih template: landing page yang belum pernah diatur otomatis pakai template klasik (emas).
 function LandingPageRouter(props) {
   const Tpl = props.lp?.extra?.template === "violet" ? LandingPageTemplateViolet : LandingPageTemplate;
@@ -6982,7 +6986,7 @@ export default function App() {
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug)} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
+      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug) || landingPages.find((l) => l.slug === LP_SLUG_ALIASES[lpSlug])} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
