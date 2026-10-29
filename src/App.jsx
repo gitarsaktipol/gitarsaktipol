@@ -14,6 +14,25 @@ import {
 // Panel admin ada di file terpisah (src/AdminDashboard.jsx) dan baru diunduh saat dibuka admin,
 // supaya halaman pembeli lebih cepat terbuka di HP. Lihat juga export bersama di akhir file ini.
 const loadAdmin = () => import("./AdminDashboard.jsx");
+
+// Penangkap galat untuk bagian yang dimuat malas (panel admin): kalau gagal dimuat/dirender, tampilkan
+// pesan + tombol muat ulang, bukan layar putih kosong.
+class LoadErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error) { console.error("Gagal memuat bagian halaman:", error); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 24, textAlign: "center", fontFamily: "'Manrope',sans-serif" }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>Halaman gagal dimuat.</p>
+        <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 360 }}>Biasanya karena website baru saja diperbarui. Muat ulang halaman untuk mengambil versi terbaru.</p>
+        <button onClick={() => window.location.reload()} style={{ padding: "10px 18px", borderRadius: 999, border: "none", background: C.gold, color: "#161019", fontWeight: 800, cursor: "pointer" }}>Muat ulang</button>
+        <p style={{ fontSize: 11, color: C.mutedDark, margin: 0, wordBreak: "break-word", maxWidth: 420 }}>{String(this.state.error?.message || this.state.error)}</p>
+      </div>
+    );
+  }
+}
 const AdminDashboard = lazy(() => loadAdmin().then((m) => ({ default: m.AdminDashboard })));
 const YoutubeImportModal = lazy(() => loadAdmin().then((m) => ({ default: m.YoutubeImportModal })));
 const TipsEditor = lazy(() => loadAdmin().then((m) => ({ default: m.TipsEditor })));
@@ -6993,7 +7012,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <Suspense fallback={<AdminLoading />}><AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} updateFulfillment={updateFulfillment} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} /></Suspense>}
+      {view === "admin" && <LoadErrorBoundary><Suspense fallback={<AdminLoading />}><AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} updateFulfillment={updateFulfillment} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} /></Suspense></LoadErrorBoundary>}
       </div>
     </div>
   );
