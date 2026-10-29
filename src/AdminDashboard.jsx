@@ -3,7 +3,7 @@
 // Komponen & helper bersama diambil dari App.jsx.
 import React, { useState, useEffect, useRef } from "react";
 import {
-  X, Search, ShoppingCart, Star, PlayCircle, Check, ChevronRight, LogOut, LayoutDashboard, Package, ClipboardList, Users, Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2, Pencil, ArrowRight, ArrowLeft, Eye, Filter, Music, Download, CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Landmark, Image as ImageIcon, ToggleLeft, ToggleRight, Truck, Shirt, ImagePlus, RotateCcw, Play, Bold, Italic, Underline, Heading, List, ListOrdered, RemoveFormatting, Quote
+  X, Search, ShoppingCart, Star, PlayCircle, Check, ChevronRight, LogOut, LayoutDashboard, Package, ClipboardList, Users, Tag, BarChart3, Settings, TrendingUp, DollarSign, ShoppingBag, Plus, Trash2, Pencil, ArrowRight, ArrowLeft, Eye, Filter, Music, Download, CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Landmark, Image as ImageIcon, ToggleLeft, ToggleRight, Truck, Shirt, ImagePlus, RotateCcw, Play, Bold, Italic, Underline, Heading, List, ListOrdered, RemoveFormatting, Quote, Link2
 } from "lucide-react";
 import {
   ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar,
@@ -727,6 +727,7 @@ export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct
   const [showProofOrder, setShowProofOrder] = useState(null);
   const [confirmPaidOrder, setConfirmPaidOrder] = useState(null);
   const [showLpForm, setShowLpForm] = useState(false);
+  const [adLinksLp, setAdLinksLp] = useState(null);
   const [editingLp, setEditingLp] = useState(null);
   const [deleteLpTarget, setDeleteLpTarget] = useState(null);
   const items = [
@@ -1144,6 +1145,7 @@ export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct
                           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <PrimaryBtn small onClick={() => openLandingPage(lp.slug, true)} icon={Pencil}>Edit di Halaman</PrimaryBtn>
                             <GhostBtn small onClick={() => openLandingPage(lp.slug, false)} icon={Eye}>Lihat</GhostBtn>
+                            <GhostBtn small onClick={() => setAdLinksLp(lp)} icon={Link2}>Link Iklan</GhostBtn>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
@@ -1537,6 +1539,7 @@ export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct
           </Card>
         </div>
       )}
+      {adLinksLp && <AdLinksModal lp={adLinksLp} onClose={() => setAdLinksLp(null)} />}
       {showLpForm && (
         <LandingPageFormModal
           products={products}
@@ -2904,6 +2907,75 @@ export function TipsEditor({ initialHtml, onSave, onCancel }) {
         <PrimaryBtn small onClick={save} icon={Check} disabled={uploading > 0}>Simpan</PrimaryBtn>
         <GhostBtn small onClick={onCancel}>Batal</GhostBtn>
         {uploading > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}><span className="gs-spinner" />Mengunggah {uploading} gambar...</span>}
+      </div>
+    </div>
+  );
+}
+
+// "Link Iklan": link siap tempel per saluran promosi untuk 1 landing page. Ekor utm_* dicatat oleh
+// captureAttribution (App.jsx) lalu tampil sebagai "Sumber" di detail pesanan. Meta & Google juga
+// menambah fbclid/gclid sendiri; utm membuat sumbernya tetap terbaca walau itu hilang.
+const AD_LINK_CHANNELS = [
+  { key: "meta", label: "Meta Ads (iklan Facebook & Instagram)", src: "facebook", med: "paid", tip: "Tempel di kolom \"URL situs web\" saat membuat iklan." },
+  { key: "google", label: "Google Ads (iklan pencarian Google)", src: "google", med: "cpc", tip: "Tempel di \"URL akhir\" iklan." },
+  { key: "ytads", label: "Iklan YouTube (lewat Google Ads)", src: "youtube", med: "paid", tip: "Tempel di \"URL akhir\" iklan video." },
+  { key: "tiktok", label: "TikTok Ads", src: "tiktok", med: "paid", tip: "Tempel di kolom URL tujuan iklan." },
+  { key: "ytdesc", label: "Deskripsi video YouTube (gratis)", src: "youtube", med: "video", tip: "Tempel di deskripsi / komentar yang disematkan." },
+  { key: "igbio", label: "Bio Instagram", src: "instagram", med: "bio", tip: "Edit profil → Link." },
+  { key: "fb", label: "Postingan / profil Facebook", src: "facebook", med: "social", tip: "Untuk postingan biasa (bukan iklan)." },
+  { key: "tt", label: "Bio / postingan TikTok", src: "tiktok", med: "social", tip: "Untuk bio atau konten biasa (bukan iklan)." },
+  { key: "wa", label: "WhatsApp (chat, grup, status)", src: "whatsapp", med: "chat", tip: "Untuk dibagikan lewat WA." },
+];
+function AdLinkRow({ label, tip, url }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    catch (e) { window.prompt("Salin link ini:", url); }
+  };
+  return (
+    <div style={{ padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, fontWeight: 700, color: C.text }}>{label}</div>
+          {tip && <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, marginTop: 2 }}>{tip}</div>}
+        </div>
+        <button onClick={copy} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, background: copied ? `${C.gold}33` : C.surface2, border: `1px solid ${copied ? C.gold : C.border}`, borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: copied ? C.goldLight : C.text }}>
+          <Copy size={13} />{copied ? "Tersalin ✓" : "Salin"}
+        </button>
+      </div>
+      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: C.muted, wordBreak: "break-all", userSelect: "all" }}>{url}</div>
+    </div>
+  );
+}
+function AdLinksModal({ lp, onClose }) {
+  const [campaign, setCampaign] = useState(lp.slug);
+  const camp = String(campaign || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || lp.slug;
+  const base = `https://gitarsakti.com/?halaman=${encodeURIComponent(lp.slug)}`;
+  const linkFor = (c) => `${base}&utm_source=${c.src}&utm_medium=${c.med}&utm_campaign=${encodeURIComponent(camp)}`;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 620 }}>
+        <Card className="gs-modal" style={{ padding: 22 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 6 }}>
+            <div>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 17, color: C.text }}>Link Iklan</div>
+              <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, marginTop: 2 }}>{lp.name}</div>
+            </div>
+            <button onClick={onClose} title="Tutup" style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color={C.muted} /></button>
+          </div>
+          {lp.status !== "published" && (
+            <div style={{ margin: "10px 0", padding: "10px 12px", borderRadius: 8, background: `${C.ember}18`, border: `1px solid ${C.ember}66`, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.emberLight, fontWeight: 700 }}>
+              ⚠️ Landing page ini masih DRAFT — pengunjung akan melihat "tidak ditemukan". Ubah status ke Aktif dulu (ikon ⚙ di daftar) sebelum link dipakai.
+            </div>
+          )}
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.muted, lineHeight: 1.55, margin: "8px 0 12px" }}>
+            Pilih link sesuai tempat kamu memasang, lalu tekan <b>Salin</b>. Dari mana pembeli datang akan tercatat sebagai <b>"Sumber"</b> di detail pesanan.
+          </p>
+          <label style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Nama kampanye (opsional, mis. "promo-november")</label>
+          <input value={campaign} onChange={(e) => setCampaign(e.target.value)} style={{ width: "100%", marginTop: 4, marginBottom: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
+          {AD_LINK_CHANNELS.map((c) => <AdLinkRow key={c.key} label={c.label} tip={c.tip} url={linkFor(c)} />)}
+          <AdLinkRow label="Link polos (tanpa penanda sumber)" tip="Untuk ditulis manual / dibacakan." url={base} />
+        </Card>
       </div>
     </div>
   );
