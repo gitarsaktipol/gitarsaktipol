@@ -133,10 +133,11 @@ const C = new Proxy({}, {
 
 // Aset brand — taruh file gambar ini di folder "public" project (public/), path di bawah akan otomatis ketemu.
 const LOGO_URL = "/gitar-sakti-logo.png";
-// Menu alat musik (FerTune: tuner, latihan baca not, partitur). Disajikan di /fertune/ lewat
-// rewrite di vercel.json. Nama menu belum final -- cukup ubah teks di bawah ini.
+// Menu alat musik (FerTune: tuner, latihan baca not, partitur). Sejak Nov 2026 FerTune situs terpisah di
+// subdomain sendiri (GitHub Pages repo gitarsaktipol/yuner); /fertune/ di website ini hanya dialihkan ke sana
+// (vercel.json). Login FerTune terpisah dari website (akun sama). Nama menu belum final -- cukup ubah teks di bawah ini.
 const FERTUNE_LABEL = "FerTune";
-const FERTUNE_URL = "/fertune/";
+const FERTUNE_URL = "https://fertune.gitarsakti.com/";
 const HERO_BG_URL = "/gitar-sakti-bg.jpg";
 
 // Satu aturan panjang kata sandi untuk daftar, reset, dan ganti kata sandi admin. Akun lama dengan
