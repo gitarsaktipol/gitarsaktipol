@@ -81,6 +81,10 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 - **Beli**: keranjang (digital qty 1, fisik per varian/stok) → kupon (`validate_coupon` RPC)
   → `orders.insert` dengan `payment:"Pending"`. **Harga/diskon/total dihitung ulang di DB**
   (trigger `orders_before_insert`); `orders_block_unavailable` menolak produk draft/soon.
+  Kuota kupon & slot harga pendiri menghitung pesanan PAID + Pending ≤24 jam (`coupon_reserved_count`,
+  baris produk/kupon dikunci FOR UPDATE). Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
+  kupon ditambah sekali per pesanan lewat `order_count_stats` (kolom `orders.stats_counted`), dipanggil
+  `admin_update_order_status` & `system_mark_order_paid` (migrasi 20261103000001, audit 3 Nov 2026).
 - **Bayar manual**: upload bukti ke bucket privat `payment-proofs` (`<uid>/<orderId>-<ts>.ext`,
   maks 5 MB) → RPC `attach_payment_proof` → email + Telegram admin → admin "Verifikasi"
   (RPC `admin_update_order_status`) → email "paid".

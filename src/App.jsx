@@ -6687,7 +6687,9 @@ export default function App() {
       code: data.code, type: data.type, value: data.value,
       min_purchase: data.minPurchase || 0, usage_limit: data.limit || 0, used: 0, expiry: data.expiry || null,
     });
-    if (error) toast.error(error.code === "23505" ? "Kode kupon itu sudah ada." : "Gagal menyimpan kupon: " + error.message);
+    if (error) toast.error(error.code === "23505" ? "Kode kupon itu sudah ada."
+      : error.code === "23514" ? "Nilai kupon tidak valid: diskon harus lebih dari 0 (persen maksimal 100), minimum belanja & kuota tidak boleh minus."
+      : "Gagal menyimpan kupon: " + error.message);
     fetchCoupons();
   };
   const deleteCoupon = async (code) => {
