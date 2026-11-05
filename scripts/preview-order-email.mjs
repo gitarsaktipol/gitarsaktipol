@@ -23,3 +23,9 @@ for (const [kind, order, intro] of cases) {
   writeFileSync(`${out}/${kind}.txt`, `Subjek: ${m.subject}\n\n${m.text}\n`);
 }
 console.log("ok", out);
+{
+  const { renderWelcomeEmail } = await import("../supabase/functions/send-order-email/template.ts");
+  const m = renderWelcomeEmail("Budi", site);
+  writeFileSync(`${out}/welcome.html`, m.html);
+  writeFileSync(`${out}/welcome.txt`, `Subjek: ${m.subject}\n\n${m.text}\n`);
+}

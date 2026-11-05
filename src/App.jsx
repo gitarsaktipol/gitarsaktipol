@@ -5988,6 +5988,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Email "Selamat Datang": sekali per akun baru, saat pertama kali masuk (juga setelah
+  // verifikasi email). Server yang menjamin "sekali" (profiles.welcome_email_at); penanda
+  // localStorage hanya supaya tidak memanggil server tiap kali halaman dibuka.
+  useEffect(() => {
+    const p = profile;
+    if (!p?.id || p.role !== "customer" || p.welcome_email_at) return;
+    if (!p.created_at || new Date(p.created_at) < new Date("2026-11-05T00:00:00Z")) return;
+    const key = `gs-welcome-${p.id}`;
+    try { if (localStorage.getItem(key)) return; } catch (e) { /* abaikan */ }
+    invokeFn("send-order-email", { kind: "welcome" }).then((r) => {
+      if (r.ok) { try { localStorage.setItem(key, "1"); } catch (e) { /* abaikan */ } }
+    });
+  }, [profile?.id, profile?.role, profile?.welcome_email_at, profile?.created_at]);
+
   // Pesanan bergantung siapa yang login (RLS membatasi hasil) — dimuat ulang tiap kali sesi
   // berubah, dan disinkronkan real-time supaya admin & customer tidak perlu refresh manual.
   useEffect(() => {
