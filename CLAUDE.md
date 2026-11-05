@@ -85,6 +85,12 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   baris produk/kupon dikunci FOR UPDATE). Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
   kupon ditambah sekali per pesanan lewat `order_count_stats` (kolom `orders.stats_counted`), dipanggil
   `admin_update_order_status` & `system_mark_order_paid` (migrasi 20261103000001, audit 3 Nov 2026).
+- **Email otomatis** (`send-order-email`, Resend; templat `template.ts` = kerangka bersama `frameTop`/`frameBottom`,
+  600 px, garis emas 12 px, HTML + teks polos; pratinjau `node --experimental-strip-types scripts/preview-order-email.mjs <folder>`;
+  kata-kata disetujui Ferdi Nov 2026, jangan diubah tanpa izin): `created`, `proof_uploaded`, `paid`, `shipped`, dan
+  `welcome` = "Selamat Datang" sekali per akun pelanggan baru (dibuat ≥5 Nov 2026), dipicu `useEffect` di App saat
+  profil dimuat; sekali dijamin kolom `profiles.welcome_email_at` (diisi atomik oleh function). Email daftar/reset
+  kata sandi = templat Supabase Auth (Dashboard), bukan dari repo.
 - **Bayar manual**: upload bukti ke bucket privat `payment-proofs` (`<uid>/<orderId>-<ts>.ext`,
   maks 5 MB) → RPC `attach_payment_proof` → email + Telegram admin → admin "Verifikasi"
   (RPC `admin_update_order_status`) → email "paid".

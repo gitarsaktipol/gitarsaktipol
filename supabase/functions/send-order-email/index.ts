@@ -10,7 +10,7 @@
 // (kind "paid" khusus admin). Jadi function ini tidak bisa disalahgunakan untuk spam/phishing.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { INTRO, SUBJECT, renderOrderEmail, type EmailKind } from "./template.ts";
+import { INTRO, SUBJECT, renderOrderEmail, renderWelcomeEmail, type EmailKind } from "./template.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SITE_URL = Deno.env.get("SITE_URL") || "https://gitarsakti.com";
@@ -20,6 +20,9 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+// Email "Selamat Datang" hanya untuk akun yang dibuat sejak fitur ini ada (pelanggan lama tidak dikirimi).
+const WELCOME_SINCE = "2026-11-05T00:00:00Z";
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -34,13 +37,39 @@ Deno.serve(async (req) => {
     // Itu bukan JWT pengguna, jadi dianggap setara admin dan melewati pemeriksaan pengguna.
     const isService = jwt !== "" && jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     let uid: string | undefined;
+    let userEmail: string | undefined;
     if (!isService) {
       const { data: userData } = await db.auth.getUser(jwt);
       uid = userData?.user?.id;
+      userEmail = userData?.user?.email;
       if (!uid) return json({ error: "Tidak terautentikasi." }, 401);
     }
 
     const { orderId, kind: rawKind } = await req.json();
+
+    // Email "Selamat Datang": dipanggil pengguna yang baru masuk, untuk DIRINYA SENDIRI saja
+    // (alamat diambil dari akun login, bukan dari kiriman browser). Sekali per akun: kolom
+    // profiles.welcome_email_at diisi dulu secara atomik; panggilan berikutnya dilewati.
+    if (rawKind === "welcome") {
+      if (!uid || !userEmail) return json({ error: "Tidak terautentikasi." }, 401);
+      const { data: claimed } = await db.from("profiles")
+        .update({ welcome_email_at: new Date().toISOString() })
+        .eq("id", uid).eq("role", "customer").is("welcome_email_at", null).gte("created_at", WELCOME_SINCE)
+        .select("name").maybeSingle();
+      if (!claimed) return json({ ok: true, skipped: true });
+      const mail = renderWelcomeEmail(claimed.name || "", SITE_URL);
+      const wr = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: FROM_EMAIL, to: userEmail, subject: mail.subject, html: mail.html, text: mail.text }),
+      });
+      if (!wr.ok) {
+        // Gagal kirim: lepas lagi tandanya supaya dicoba ulang saat masuk berikutnya.
+        await db.from("profiles").update({ welcome_email_at: null }).eq("id", uid);
+        return json({ error: await wr.text() }, 502);
+      }
+      return json({ ok: true });
+    }
     const kind: EmailKind = Object.hasOwn(SUBJECT, rawKind ?? "") ? rawKind : "created";
     if (!orderId) return json({ error: "orderId wajib diisi." }, 400);
 
