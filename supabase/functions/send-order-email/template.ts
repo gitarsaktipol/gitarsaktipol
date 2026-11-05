@@ -101,7 +101,7 @@ export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: stri
       <img src="${site}/gitar-sakti-logo.png" width="60" height="60" alt="Gitar Sakti" style="display:block;margin:0 auto 10px;width:60px;height:60px;border-radius:14px;border:0;">
       <div style="font-family:${FONT};color:#ffffff;font-size:19px;font-weight:800;letter-spacing:2px;">GITAR SAKTI</div>
     </td></tr>
-    <tr><td style="background:${GOLD};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+    <tr><td style="background:${GOLD};height:7px;line-height:7px;font-size:0;">&nbsp;</td></tr>
     <tr><td class="gs-pad" style="padding:32px 36px 8px;">
       <h1 class="gs-h1" style="margin:0 0 12px;font-family:${FONT};font-size:23px;line-height:1.3;font-weight:800;color:${INK};">${HEADING[kind]}</h1>
       <p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.65;color:${MUTED};">Halo ${esc(order.customer_name)}, ${intro}</p>
