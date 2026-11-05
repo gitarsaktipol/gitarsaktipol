@@ -57,25 +57,9 @@ export const INTRO: Record<EmailKind, string> = {
 const FOOTNOTE = "Email ini dikirim otomatis oleh Gitar Sakti. Kalau kamu merasa tidak melakukan pemesanan ini, abaikan email ini.";
 const BUTTON = "Masuk ke Akun";
 
-export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: string, siteUrl: string) {
-  const items = Array.isArray(order.items) ? order.items : [];
-  const site = esc(siteUrl);
-  const lineTotal = (it: any) => (Number(it?.price) || 0) * (Number(it?.qty) || 1);
-  const qtyTxt = (it: any) => (Number(it?.qty) > 1 ? ` ×${Number(it.qty)}` : "");
-  const addr = order.shipping_address;
-  const showResi = kind === "shipped" && !!order.tracking_number;
-
-  const cell = (txt: string, extra = "") =>
-    `<td style="padding:10px 0;font-family:${FONT};font-size:14px;line-height:1.45;color:${INK};${extra}">${txt}</td>`;
-  const itemsRows = items.map((it: any, i: number) =>
-    `<tr>${cell(esc(it?.name) + qtyTxt(it), i ? `border-top:1px solid ${LINE};` : "")}${cell(rupiah(lineTotal(it)), `text-align:right;white-space:nowrap;padding-left:12px;${i ? `border-top:1px solid ${LINE};` : ""}`)}</tr>`
-  ).join("");
-  const sumRow = (label: string, value: string) =>
-    `<tr><td style="padding:3px 0;font-family:${FONT};font-size:13px;color:${MUTED};">${label}</td><td style="padding:3px 0;font-family:${FONT};font-size:13px;color:${INK};text-align:right;white-space:nowrap;">${value}</td></tr>`;
-
-  const preheader = `Halo ${order.customer_name ?? ""}, ${intro}`.slice(0, 140);
-
-  const html = `<!DOCTYPE html>
+// Kerangka bersama semua email: kepala (logo + garis emas) dan kaki (tombol + catatan kecil).
+function frameTop(title: string, preheader: string, site: string) {
+  return `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
@@ -83,7 +67,7 @@ export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: stri
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>${esc(SUBJECT[kind](order.id))}</title>
+<title>${esc(title)}</title>
 <style>
   @media only screen and (max-width:620px){
     .gs-pad{padding-left:20px!important;padding-right:20px!important;}
@@ -102,7 +86,46 @@ export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: stri
       <div style="font-family:${FONT};color:#ffffff;font-size:19px;font-weight:800;letter-spacing:2px;">GITAR SAKTI</div>
     </td></tr>
     <tr><td style="background:${GOLD};height:12px;line-height:12px;font-size:0;">&nbsp;</td></tr>
-    <tr><td class="gs-pad" style="padding:32px 36px 8px;">
+`;
+}
+function frameBottom(site: string, button: string, note: string) {
+  return `    <tr><td class="gs-pad gs-btn" align="center" style="padding:26px 36px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>
+        <td align="center" bgcolor="${INK}" style="border-radius:999px;">
+          <a href="${site}" target="_blank" style="display:inline-block;padding:14px 34px;font-family:${FONT};font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${button}</a>
+        </td>
+      </tr></table>
+    </td></tr>
+    <tr><td class="gs-pad" style="padding:22px 36px 28px;">
+      <p style="margin:0;padding-top:16px;border-top:1px solid ${LINE};font-family:${FONT};font-size:11.5px;line-height:1.6;color:${FAINT};">${note}</p>
+    </td></tr>
+  </table>
+  <div style="font-family:${FONT};font-size:11px;color:${FAINT};padding:14px 0 0;"><a href="${site}" style="color:${FAINT};text-decoration:none;">gitarsakti.com</a></div>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: string, siteUrl: string) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const site = esc(siteUrl);
+  const lineTotal = (it: any) => (Number(it?.price) || 0) * (Number(it?.qty) || 1);
+  const qtyTxt = (it: any) => (Number(it?.qty) > 1 ? ` ×${Number(it.qty)}` : "");
+  const addr = order.shipping_address;
+  const showResi = kind === "shipped" && !!order.tracking_number;
+
+  const cell = (txt: string, extra = "") =>
+    `<td style="padding:10px 0;font-family:${FONT};font-size:14px;line-height:1.45;color:${INK};${extra}">${txt}</td>`;
+  const itemsRows = items.map((it: any, i: number) =>
+    `<tr>${cell(esc(it?.name) + qtyTxt(it), i ? `border-top:1px solid ${LINE};` : "")}${cell(rupiah(lineTotal(it)), `text-align:right;white-space:nowrap;padding-left:12px;${i ? `border-top:1px solid ${LINE};` : ""}`)}</tr>`
+  ).join("");
+  const sumRow = (label: string, value: string) =>
+    `<tr><td style="padding:3px 0;font-family:${FONT};font-size:13px;color:${MUTED};">${label}</td><td style="padding:3px 0;font-family:${FONT};font-size:13px;color:${INK};text-align:right;white-space:nowrap;">${value}</td></tr>`;
+
+  const preheader = `Halo ${order.customer_name ?? ""}, ${intro}`.slice(0, 140);
+
+  const html = frameTop(SUBJECT[kind](order.id), preheader, site) + `    <tr><td class="gs-pad" style="padding:32px 36px 8px;">
       <h1 class="gs-h1" style="margin:0 0 12px;font-family:${FONT};font-size:23px;line-height:1.3;font-weight:800;color:${INK};">${HEADING[kind]}</h1>
       <p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.65;color:${MUTED};">Halo ${esc(order.customer_name)}, ${intro}</p>
     </td></tr>
@@ -128,22 +151,7 @@ export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: stri
     </td></tr>` : ""}
     ${addr ? `<tr><td class="gs-pad" style="padding:14px 36px 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${MUTED};">Dikirim ke: <b style="color:${INK};">${esc(addr.name)}</b>, ${esc(addr.address)}, ${esc(addr.city)}</td></tr>` : ""}
     <tr><td class="gs-pad" style="padding:12px 36px 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${MUTED};">ID Pesanan: <b style="color:${INK};">${esc(order.id)}</b> &nbsp;•&nbsp; Status: <b style="color:${INK};">${esc(order.status)}</b></td></tr>
-    <tr><td class="gs-pad gs-btn" align="center" style="padding:26px 36px 8px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>
-        <td align="center" bgcolor="${INK}" style="border-radius:999px;">
-          <a href="${site}" target="_blank" style="display:inline-block;padding:14px 34px;font-family:${FONT};font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${BUTTON}</a>
-        </td>
-      </tr></table>
-    </td></tr>
-    <tr><td class="gs-pad" style="padding:22px 36px 28px;">
-      <p style="margin:0;padding-top:16px;border-top:1px solid ${LINE};font-family:${FONT};font-size:11.5px;line-height:1.6;color:${FAINT};">${FOOTNOTE}</p>
-    </td></tr>
-  </table>
-  <div style="font-family:${FONT};font-size:11px;color:${FAINT};padding:14px 0 0;"><a href="${site}" style="color:${FAINT};text-decoration:none;">gitarsakti.com</a></div>
-</td></tr>
-</table>
-</body>
-</html>`;
+` + frameBottom(site, BUTTON, FOOTNOTE);
 
   // Versi teks polos (untuk aplikasi email yang tidak menampilkan HTML & mengurangi risiko spam).
   const t: string[] = ["GITAR SAKTI", "", HEADING[kind], "", `Halo ${order.customer_name ?? ""}, ${intro}`, ""];
@@ -160,4 +168,41 @@ export function renderOrderEmail(kind: EmailKind, order: EmailOrder, intro: stri
   const text = t.join("\n");
 
   return { subject: SUBJECT[kind](order.id), html, text };
+}
+
+// ---------- Email "Selamat Datang" (sekali per akun baru) ----------
+export const WELCOME_SUBJECT = "Selamat Datang di Gitar Sakti";
+const WELCOME_HEADING = "Selamat Datang di Gitar Sakti";
+const WELCOME_INTRO = "Akun Gitar Sakti kamu sudah aktif. Terima kasih sudah bergabung — sekarang kamu bisa mulai belajar gitar bersama kami.";
+const WELCOME_STEPS: Array<[string, string]> = [
+  ["Pilih kelas", "Lihat kelas video gitar yang tersedia di gitarsakti.com."],
+  ["Belajar kapan saja", "Kelas yang sudah kamu beli ada di menu Produk Saya di dashboard, bisa diputar ulang kapan pun."],
+  ["Pantau pesanan", "Status pembayaran dan pengiriman bisa dilihat di menu Pesanan."],
+];
+const WELCOME_NOTE = "Kamu menerima email ini karena alamat email ini baru saja dipakai untuk membuat akun di gitarsakti.com. Kalau kamu merasa tidak mendaftar, abaikan email ini.";
+
+export function renderWelcomeEmail(name: string, siteUrl: string) {
+  const site = esc(siteUrl);
+  const hello = `Halo ${name || ""}, ${WELCOME_INTRO}`;
+  const steps = WELCOME_STEPS.map(([t, d], i) =>
+    `<tr><td valign="top" style="padding:${i ? "14px" : "4px"} 14px 0 0;width:30px;"><div style="width:28px;height:28px;line-height:28px;border-radius:999px;background:${CREAM};border:1px solid ${CREAM_LINE};text-align:center;font-family:${FONT};font-size:13px;font-weight:800;color:${GOLD_DEEP};">${i + 1}</div></td>` +
+    `<td valign="top" style="padding:${i ? "14px" : "4px"} 0 0;font-family:${FONT};font-size:14px;line-height:1.55;color:${MUTED};"><b style="color:${INK};font-size:15px;">${t}</b><br>${d}</td></tr>`
+  ).join("");
+  const html = frameTop(WELCOME_SUBJECT, hello.slice(0, 140), site) + `
+    <tr><td class="gs-pad" style="padding:32px 36px 8px;">
+      <h1 class="gs-h1" style="margin:0 0 12px;font-family:${FONT};font-size:23px;line-height:1.3;font-weight:800;color:${INK};">${WELCOME_HEADING}</h1>
+      <p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.65;color:${MUTED};">Halo ${esc(name)}, ${WELCOME_INTRO}</p>
+    </td></tr>
+    <tr><td class="gs-pad" style="padding:22px 36px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${LINE};border-radius:12px;">
+        <tr><td style="padding:16px 16px 18px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${steps}</table>
+        </td></tr>
+      </table>
+    </td></tr>
+` + frameBottom(site, BUTTON, WELCOME_NOTE);
+  const text = ["GITAR SAKTI", "", WELCOME_HEADING, "", hello, "",
+    ...WELCOME_STEPS.map(([t, d], i) => `${i + 1}. ${t}: ${d}`), "",
+    `${BUTTON}: ${siteUrl}`, "", "---", WELCOME_NOTE].join("\n");
+  return { subject: WELCOME_SUBJECT, html, text };
 }
