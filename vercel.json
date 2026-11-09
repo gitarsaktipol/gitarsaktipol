@@ -17,6 +17,11 @@
       "permanent": false
     },
     {
+      "source": "/fertune/",
+      "destination": "https://fertune.gitarsakti.com/",
+      "permanent": false
+    },
+    {
       "source": "/fertune/:path*",
       "destination": "https://fertune.gitarsakti.com/:path*",
       "permanent": false

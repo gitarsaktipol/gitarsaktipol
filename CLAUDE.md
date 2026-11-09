@@ -154,9 +154,12 @@ Fungsi `admin_*` memeriksa admin di dalamnya (peringatan advisor "SECURITY DEFIN
 dipanggil" untuk fungsi ini memang disengaja).
 
 Edge Functions (`supabase/functions/`): `send-order-email` (Resend), `notify-telegram`,
-`youtube-import` (+`lib.ts`), `midtrans-create-transaction`, `midtrans-webhook`, `delete-account`.
+`youtube-import` (+`lib.ts`), `midtrans-create-transaction`, `midtrans-webhook`, `delete-account`,
+`fertune-play-verify` (verify_jwt=false; cek token langganan Premium FerTune ke Google Play Developer API, acknowledge,
+catat ke `fertune_purchases` per nomor pesanan; dipanggil aplikasi FerTune, Nov 2026).
 Secrets: `SITE_URL`, `RESEND_API_KEY`, `FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`,
-`YOUTUBE_API_KEY`, `MIDTRANS_SERVER_KEY_SANDBOX`, `MIDTRANS_SERVER_KEY_PRODUCTION`.
+`YOUTUBE_API_KEY`, `MIDTRANS_SERVER_KEY_SANDBOX`, `MIDTRANS_SERVER_KEY_PRODUCTION`,
+`GOOGLE_PLAY_SERVICE_ACCOUNT` (isi JSON kunci akun layanan Google Cloud untuk FerTune; BELUM diisi per 9 Nov 2026).
 Deploy function lewat MCP Supabase / CLI setelah diubah di repo (repo dan versi live bisa beda).
 
 Migrasi: `supabase/migrations/`. Catatan: skema dasar (tabel & policy awal) TIDAK ada di repo;
