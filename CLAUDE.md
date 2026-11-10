@@ -143,8 +143,8 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 Tabel `public` (semua RLS aktif): `profiles`, `products`, `curriculum_videos`, `orders`, `coupons`,
 `testimonials`, `bank_info`, `site_content` (JSON konten situs, id=1), `custom_pages`,
 `site_visits`, `landing_pages` (`extra` jsonb = teks edit-inline), `video_progress`,
-`payment_methods`, `product_waitlist`, `fertune_scores`/`fertune_feedback`/`fertune_purchases`
-(milik FerTune).
+`payment_methods`, `product_waitlist`, `fertune_scores`/`fertune_feedback`/`fertune_purchases`/`fertune_grants`
+(milik FerTune; `fertune_grants` = Premium FerTune lewat akun per email, mis. akun uji peninjau Google).
 
 RPC: `validate_coupon`, `attach_payment_proof`, `cancel_my_order`, `admin_update_order_status`,
 `admin_update_fulfillment`, `admin_save_curriculum`, `admin_reorder_products`,
@@ -159,7 +159,7 @@ Edge Functions (`supabase/functions/`): `send-order-email` (Resend), `notify-tel
 catat ke `fertune_purchases` per nomor pesanan; dipanggil aplikasi FerTune, Nov 2026).
 Secrets: `SITE_URL`, `RESEND_API_KEY`, `FROM_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`,
 `YOUTUBE_API_KEY`, `MIDTRANS_SERVER_KEY_SANDBOX`, `MIDTRANS_SERVER_KEY_PRODUCTION`,
-`GOOGLE_PLAY_SERVICE_ACCOUNT` (isi JSON kunci akun layanan Google Cloud untuk FerTune; BELUM diisi per 9 Nov 2026).
+`GOOGLE_PLAY_SERVICE_ACCOUNT` (isi JSON kunci akun layanan Google Cloud untuk FerTune; SUDAH diisi 10 Nov 2026, diuji tersambung).
 Deploy function lewat MCP Supabase / CLI setelah diubah di repo (repo dan versi live bisa beda).
 
 Migrasi: `supabase/migrations/`. Catatan: skema dasar (tabel & policy awal) TIDAK ada di repo;
