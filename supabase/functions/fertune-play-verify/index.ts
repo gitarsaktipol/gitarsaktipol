@@ -8,7 +8,9 @@
 //  - Pesanan yang aktif dicatat ke tabel fertune_purchases (source "playstore", ref = nomor pesanan Google Play,
 //    unik → perpanjangan tiap periode = baris baru, panggilan berulang tidak menggandakan).
 //    Masa gratis (free trial) dicatat nominal 0; pembelian penguji lisensi diberi label "(uji)" dan nominal 0.
-//  - Login TIDAK wajib (FerTune bisa dipakai tanpa akun). Bila ada JWT pengguna yang sah, user_id ikut dicatat.
+//  - Login TIDAK wajib (FerTune bisa dipakai tanpa akun). Bila ada JWT pengguna yang sah, user_id ikut dicatat
+//    DAN akun itu ikut Premium sampai masa langganan berakhir (RPC fertune_play_grant → fertune_grants), jadi
+//    pembeli Play juga Premium di web. Satu langganan hanya untuk satu akun.
 //  - verify_jwt=false: fungsi memeriksa sendiri (keabsahan ditentukan Google, bukan pemanggil).
 //
 // Hak Premium di aplikasi TIDAK bergantung pada fungsi ini (aplikasi membaca langganan langsung dari Google Play
@@ -85,10 +87,12 @@ Deno.serve(async (req) => {
 
     // Pengguna yang sedang login (opsional).
     let uid: string | null = null;
+    let email: string | null = null;
     const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (jwt) {
       const { data } = await admin.auth.getUser(jwt).catch(() => ({ data: null as any }));
       uid = data?.user?.id ?? null;
+      email = data?.user?.email ?? null;
     }
 
     let access: string;
@@ -138,7 +142,17 @@ Deno.serve(async (req) => {
       }, { onConflict: "ref", ignoreDuplicates: true });
     }
 
-    return json({ ok: true, active, sku: productId, expiry: item.expiryTime || null });
+    // Premium menempel di AKUN: bila pembeli sedang masuk akun, akunnya ikut Premium sampai masa langganan berakhir
+    // (berlaku juga di web). Satu langganan Play hanya untuk satu akun (fertune_play_links).
+    let linked = false;
+    if (active && email && item.expiryTime) {
+      const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))))
+        .map((b) => b.toString(16).padStart(2, "0")).join("");
+      const { data: ok } = await admin.rpc("fertune_play_grant", { p_token_hash: hash, p_email: email, p_until: item.expiryTime });
+      linked = ok === true;
+    }
+
+    return json({ ok: true, active, sku: productId, expiry: item.expiryTime || null, linked });
   } catch (_e) {
     return json({ ok: false, error: "Terjadi kesalahan. Coba lagi." }, 500);
   }
