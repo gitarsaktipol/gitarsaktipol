@@ -126,6 +126,18 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 - Status produk: `published` | `draft` | `archived` (produk yang sudah dibeli tidak dihapus,
   diarsipkan) | `soon` (Segera Hadir + daftar tunggu `product_waitlist`).
 
+- **FerTune Premium dijual di toko (Nov 2026, diputuskan Ferdi)**: produk digital dengan `products.fertune_days` (30/365; `fertuneDays` di klien) =
+  paket SEKALI BAYAR (Midtrans/transfer tidak bisa langganan otomatis). Tidak pernah "dimiliki" (`fertuneIds` dikeluarkan dari `ownedIds`) dan
+  boleh dibeli berulang (trigger `orders_before_insert` melewati cek "sudah memiliki" untuk produk ini; pesanan Pending tetap memblokir dobel).
+  Pesanan lunas → `order_count_stats` memanggil `fertune_extend_grant` (masa Premium akun di `fertune_grants` ditambah N hari dari yang
+  lebih akhir antara sekarang/masa berjalan) + mencatat `fertune_purchases` (source `web`). Langganan Google Play yang dibeli sambil masuk akun
+  ikut ke akun lewat `fertune_play_grant` (dipanggil `fertune-play-verify`; satu langganan = satu akun, tabel `fertune_play_links`).
+  Tampilan: `FertuneProductInfo` (kotak harga perkenalan + masa aktif di halaman produk), `FertuneStatusCard` (Produk Saya), `useFertuneGrant`.
+  Tautan langsung produk: `?produk=<slug>` (dipakai tombol beli di FerTune web). Harga perkenalan Rp45.000/350.000 sampai 31 Mar 2027
+  (`FERTUNE_PROMO_TEXT`, hilang sendiri sesudahnya; harga normal Rp99.000/999.000 — NAIKKAN harga produk & `old_price` saat itu).
+  Mengubah `fertune_days`/produk FerTune: lewat SQL (form admin tidak punya isian ini). Email "paid" masih berbunyi "Kelas video sudah bisa
+  diakses" juga untuk pesanan FerTune (kata-kata email belum diubah; butuh izin Ferdi).
+
 - **Meta Pixel** (aktif hanya bila `VITE_META_PIXEL_ID` diisi; `trackEvent(name, params, opts)`). AKTIF sejak 26 Okt 2026:
   "Pixel Gitar Sakti" ID `1242830257352137` (portofolio bisnis Meta "Gitar Sakti"), env Vercel production+preview,
   diuji lewat Uji Peristiwa (PageView/ViewContent masuk). Domain diverifikasi Meta lewat

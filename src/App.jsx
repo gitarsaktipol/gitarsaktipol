@@ -2025,6 +2025,10 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                 </a>
               );
             }
+            // Produk tanpa video (mis. FerTune Premium): pakai gambar produk bila ada.
+            if (productImage(p)) {
+              return <img src={productImage(p)} alt={p.name} style={{ width: "100%", borderRadius: 14, border: `1px solid ${C.border}`, display: "block" }} />;
+            }
             return (
               <div style={{ height: 300, borderRadius: 14, background: `linear-gradient(135deg, ${p.hue}33, ${C.surface2})`, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                 <PlayCircle size={56} color={C.goldLight} strokeWidth={1.2} />
@@ -2153,9 +2157,11 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               </>
             )}
 
+            {p.fertuneDays && !showAdminControls && <FertuneProductInfo p={p} role={role} />}
+
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Level</span><span style={{ color: C.text }}>{p.level}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Durasi</span><span style={{ color: C.text }}>{p.duration}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>{p.fertuneDays ? "Masa aktif" : "Durasi"}</span><span style={{ color: C.text }}>{p.duration}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Format</span><span style={{ color: C.text, textAlign: "right" }}>{p.format}</span></div>
             </div>
 
@@ -2945,13 +2951,74 @@ function ProfileForm({ account, onSave }) {
   );
 }
 
+// Masa Premium FerTune milik akun yang sedang masuk (tabel fertune_grants; RLS: hanya baris sendiri yang masih berlaku).
+// until === null = selamanya. Dipakai kartu di Produk Saya dan kotak info di halaman produk FerTune.
+function useFertuneGrant(enabled = true) {
+  const [grant, setGrant] = useState({ loading: true, active: false, until: null });
+  useEffect(() => {
+    let alive = true;
+    if (!enabled) { setGrant({ loading: false, active: false, until: null }); return undefined; }
+    supabase.from("fertune_grants").select("until").limit(1).then(({ data }) => {
+      if (!alive) return;
+      const row = data && data[0];
+      setGrant({ loading: false, active: !!row, until: row ? row.until : null });
+    }, () => { if (alive) setGrant({ loading: false, active: false, until: null }); });
+    return () => { alive = false; };
+  }, [enabled]);
+  return grant;
+}
+const fertuneUntilText = (until) => (until ? new Date(until).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : null);
+// Harga perkenalan FerTune (diputuskan Ferdi, Nov 2026): berlaku sampai 31 Maret 2027, sesudah itu Rp99.000/bulan & Rp999.000/tahun.
+const FERTUNE_PROMO_TEXT = "Harga perkenalan, hanya sampai 31 Maret 2027. Setelah itu kembali ke harga normal: Rp99.000 per bulan atau Rp999.000 per tahun.";
+
+function FertuneStatusCard({ go }) {
+  const grant = useFertuneGrant(true);
+  if (grant.loading || !grant.active) return null;
+  const until = fertuneUntilText(grant.until);
+  return (
+    <Card style={{ padding: 14, display: "flex", gap: 14, alignItems: "center", marginBottom: 14, border: `1px solid ${C.gold}` }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: C.surface2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Music size={24} color={C.gold} /></div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.text }}>FerTune Premium</div>
+        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, marginBottom: 8 }}>{until ? `Aktif sampai ${until}` : "Aktif"} · berlaku di web dan aplikasi Android dengan akun ini</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <GhostBtn small onClick={() => window.location.assign(FERTUNE_URL)} icon={Play}>Buka FerTune</GhostBtn>
+          {until && <GhostBtn small onClick={() => go("shop")}>Perpanjang</GhostBtn>}
+        </div>
+      </div>
+    </Card>
+  );
+}
+// Kotak info di halaman produk FerTune Premium: harga perkenalan + masa aktif akun + cara pakai.
+function FertuneProductInfo({ p, role }) {
+  const grant = useFertuneGrant(role === "customer");
+  const until = fertuneUntilText(grant.until);
+  return (
+    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+      {Date.now() < Date.parse("2027-04-01T00:00:00+07:00") && (
+      <div style={{ padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.ember}88`, background: `${C.ember}14`, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, lineHeight: 1.5, color: C.text }}>
+        ⏳ <b>{FERTUNE_PROMO_TEXT}</b>
+      </div>
+      )}
+      {grant.active && (
+        <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.gold}`, background: C.surface2, fontFamily: "'Manrope',sans-serif", fontSize: 12.5, lineHeight: 1.5, color: C.text }}>
+          ✅ Premium akunmu {until ? <>aktif sampai <b>{until}</b>. Beli paket ini = masa aktif ditambah {p.fertuneDays} hari.</> : <>sudah aktif tanpa batas waktu.</>}
+        </div>
+      )}
+      <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, lineHeight: 1.55, color: C.muted }}>
+        Sekali bayar, tidak diperpanjang otomatis. Setelah pembayaran dikonfirmasi, buka <a href={FERTUNE_URL} style={{ color: C.gold, fontWeight: 700 }}>fertune.gitarsakti.com</a> atau aplikasi FerTune, lalu masuk dengan akun Gitar Sakti yang sama.
+      </div>
+    </div>
+  );
+}
+
 function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdateProfile, videoProgress, products, curriculumData, goToPaymentConfirm, accessProduct, onCancelOrder, continueItems, onResume }) {
   // "orders" di sini sudah otomatis terbatas ke milik customer yang login (lewat RLS di database).
   const myOrders = orders;
   const ownedIds = Array.from(new Set(
     myOrders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter(Boolean)
   ));
-  const owned = products.filter((p) => ownedIds.includes(p.id) && p.productType !== "physical");
+  const owned = products.filter((p) => ownedIds.includes(p.id) && p.productType !== "physical" && !p.fertuneDays);
   const totalSpend = myOrders.filter((o) => o.payment === "PAID").reduce((s, o) => s + o.total, 0);
 
   const items = [
@@ -3008,6 +3075,7 @@ function CustomerDashboard({ go, sub, setSub, orders, account, onLogout, onUpdat
           </div>
         )}
 
+        {sub === "products" && <FertuneStatusCard go={go} />}
         {sub === "products" && (
           owned.length === 0 ? (
             <Card style={{ padding: 32, textAlign: "center" }}>
@@ -5639,6 +5707,7 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get("resetpw") === "1") return "resetpassword";
       if (params.get("halaman")) return "lp";
+      if (params.get("produk")) return "product";
       if (LEGAL_FROM_URL[params.get("info")]) return LEGAL_FROM_URL[params.get("info")];
     }
     return "home";
@@ -5651,7 +5720,8 @@ export default function App() {
   // kurikulum (judul kelas, video, link) langsung di tampilan asli yang dilihat pembeli.
   const [learnEditMode, setLearnEditMode] = useState(false);
   const [landingPages, setLandingPages] = useState([]);
-  const [productSlug, setProductSlug] = useState(null);
+  // ?produk=<slug> = tautan langsung ke halaman produk (dipakai tombol Upgrade di FerTune web)
+  const [productSlug, setProductSlug] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("produk") : null));
   // Mulai kosong (bukan data contoh) supaya pengunjung tidak pernah melihat/membeli produk fiktif
   // sebelum data asli dari database selesai dimuat.
   const [products, setProducts] = useState([]);
@@ -5695,6 +5765,8 @@ export default function App() {
     bonus: row.bonus, previewVideo: row.preview_video || "", pricingTiers: row.pricing_tiers, status: row.status,
     productType: row.product_type || "digital", stock: row.stock ?? null, variants: Array.isArray(row.variants) ? row.variants : [],
     images: Array.isArray(row.images) ? row.images : [], weightGrams: row.weight_grams ?? null,
+    // Produk "FerTune Premium" (paket 30/365 hari): bukan kelas video; boleh dibeli berulang (perpanjang).
+    fertuneDays: row.fertune_days || null,
   });
   const mapCouponRow = (row) => ({
     code: row.code, type: row.type, value: row.value, minPurchase: row.min_purchase,
@@ -6207,6 +6279,7 @@ export default function App() {
       // tapi parameter lain (mis. ?admin=1) tetap.
       const u = new URL(window.location.href);
       if (LEGAL_URL[target]) u.searchParams.set("info", LEGAL_URL[target]); else u.searchParams.delete("info");
+      if (target !== "product") u.searchParams.delete("produk");
       window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug, lpSlug }, "", u.pathname + u.search + u.hash);
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
@@ -6245,8 +6318,10 @@ export default function App() {
   // rawan bocor data antar-customer kalau lupa difilter.
   // Hanya produk DIGITAL yang "dimiliki" (akses materi). Barang fisik bisa dibeli berulang kali.
   const physicalIds = new Set(products.filter((p) => p.productType === "physical").map((p) => p.id));
+  // Paket FerTune Premium tidak pernah "dimiliki": masa aktifnya dicatat di akun (fertune_grants) dan boleh dibeli lagi.
+  const fertuneIds = new Set(products.filter((p) => p.fertuneDays).map((p) => p.id));
   const ownedIds = role === "customer" ? Array.from(new Set(
-    orders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter((id) => id && !physicalIds.has(id))
+    orders.filter((o) => o.payment === "PAID").flatMap((o) => o.itemIds).filter((id) => id && !physicalIds.has(id) && !fertuneIds.has(id))
   )) : [];
   // Produk yang sedang menunggu verifikasi pembayaran (belum PAID, belum juga Gagal) —
   // dipakai untuk mencegah customer checkout ganda untuk produk yang sama.
