@@ -9,6 +9,7 @@ import {
   CreditCard, QrCode, Wallet, ShieldCheck, Youtube, Instagram, Copy, Upload, Landmark,
   Image as ImageIcon, Bold, Italic, Type, List, ToggleLeft, ToggleRight, Sun, Moon,
   GripVertical, Minus, Truck, Box, Shirt, Package2, ImagePlus, RotateCcw, Play, SkipForward, SkipBack, Sparkle, Lightbulb, VolumeX,
+  Flame, MailCheck,
 } from "lucide-react";
 
 // Panel admin ada di file terpisah (src/AdminDashboard.jsx) dan baru diunduh saat dibuka admin,
@@ -51,20 +52,32 @@ const SUPABASE_URL = "https://addtajuxfoxcaezmkice.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zc3y05OhRgEJQlum3x-brg_iehDElTb";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Pesan error untuk PEMBELI: jangan pernah menampilkan istilah teknis (nama server, kode, bahasa Inggris).
+// Pesan dari database kita sendiri (raise exception, kode P0001) sudah berbahasa Indonesia -> dipakai.
+// Selain itu diganti kalimat umum yang ramah.
+const NET_ERROR = "Koneksi internet sedang bermasalah. Periksa sinyal lalu coba lagi.";
+const isNetError = (m) => /failed to fetch|networkerror|network request failed|load failed|timeout|fetch/i.test(m || "");
+const friendlyError = (err, fallback = "Terjadi kendala. Coba lagi sebentar lagi.") => {
+  const m = String(err?.message || err || "");
+  if (err?.code === "P0001" && m) return m;
+  if (isNetError(m)) return NET_ERROR;
+  return fallback;
+};
+
 // Panggil Supabase Edge Function dengan token sesi login (bukan publishable key), supaya
 // function bisa memastikan siapa yang memanggil. Pesan error dari function ikut diteruskan.
 const invokeFn = async (name, body) => {
   try {
     const { data, error } = await supabase.functions.invoke(name, { body });
     if (error) {
-      let msg = error.message;
+      let msg = isNetError(error.message) ? NET_ERROR : "Gagal menghubungi server. Coba lagi sebentar lagi.";
       try { const j = await error.context?.json?.(); if (j?.error) msg = j.error; } catch (e) { /* bukan JSON */ }
       return { ok: false, error: msg };
     }
     if (data && data.ok === false) return { ok: false, error: data.error };
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, error: e?.message || "Gagal menghubungi server." };
+    return { ok: false, error: isNetError(e?.message) ? NET_ERROR : "Gagal menghubungi server. Coba lagi sebentar lagi." };
   }
 };
 
@@ -143,6 +156,41 @@ const HERO_BG_URL = "/gitar-sakti-bg.jpg";
 // Satu aturan panjang kata sandi untuk daftar, reset, dan ganti kata sandi admin. Akun lama dengan
 // kata sandi lebih pendek tetap bisa masuk (aturan ini hanya berlaku saat membuat/mengganti).
 const MIN_PASSWORD = 8;
+
+// Tujuan pembeli sebelum diminta masuk/daftar (mis. "beli Secret Of Shredding"). Disimpan di browser
+// supaya setelah verifikasi email / Masuk dengan Google (halaman dimuat ulang) pembeli kembali ke sana,
+// bukan ke beranda. Juga ditempel ke link verifikasi (?lanjut=<slug>) untuk HP/browser lain.
+const AFTER_AUTH_KEY = "gs-after-auth";
+const saveAuthIntent = (it) => {
+  try {
+    if (it) localStorage.setItem(AFTER_AUTH_KEY, JSON.stringify({ ...it, at: Date.now() }));
+    else localStorage.removeItem(AFTER_AUTH_KEY);
+  } catch (e) { /* abaikan */ }
+};
+const readAuthIntent = () => {
+  try {
+    const j = JSON.parse(localStorage.getItem(AFTER_AUTH_KEY) || "null");
+    if (j && Date.now() - (j.at || 0) < 3 * 86400000) return j;
+  } catch (e) { /* abaikan */ }
+  return null;
+};
+const authReturnUrl = (it) => {
+  if (typeof window === "undefined") return undefined;
+  const base = `${window.location.origin}/`;
+  return it?.buy && it.slug ? `${base}?lanjut=${encodeURIComponent(it.slug)}` : base;
+};
+// Pesan dari Supabase Auth (bahasa Inggris) -> kalimat sederhana untuk pembeli.
+const authError = (err, fallback = "Terjadi kendala. Coba lagi sebentar lagi.") => {
+  const m = String(err?.message || err || "");
+  if (/already registered|already been registered|already exists/i.test(m)) return "Email ini sudah terdaftar. Silakan masuk.";
+  if (/rate limit|after \d+ seconds|too many|security purposes/i.test(m)) return "Terlalu sering mencoba. Tunggu sebentar lalu coba lagi.";
+  if (/invalid.*email|unable to validate email|email address .* invalid/i.test(m)) return "Alamat email sepertinya belum benar.";
+  if (/should be different/i.test(m)) return "Kata sandi baru harus berbeda dari kata sandi lama.";
+  if (/password/i.test(m) && /least|short|weak/i.test(m)) return `Kata sandi minimal ${MIN_PASSWORD} karakter, gabungkan huruf dan angka.`;
+  if (/expired|invalid.*(token|link)/i.test(m)) return "Link sudah kedaluwarsa. Minta link baru lalu coba lagi.";
+  if (isNetError(m)) return NET_ERROR;
+  return fallback;
+};
 
 const rp = (n) => "Rp" + (Number(n) || 0).toLocaleString("id-ID");
 
@@ -1063,6 +1111,19 @@ function VideoDescription({ desc, admin, onSave }) {
   );
 }
 
+/* ---------------- harga pendiri ---------------- */
+// Satu-satunya sumber harga pendiri = fungsi database product_pricing() (dibaca App, lalu ditempel ke
+// produk sebagai p.founder). Halaman tidak menghitung harga sendiri; ini hanya tampilannya.
+// Saat slot habis / tanggal lewat, p.founder kosong -> baris ini, coretan & banner hilang sendiri.
+function FounderNote({ p, size = 12, style }) {
+  if (!p?.founder) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Manrope',sans-serif", fontSize: size, fontWeight: 800, color: C.emberLight, lineHeight: 1.35, ...style }}>
+      <Flame size={size + 1} color={C.ember} style={{ flexShrink: 0 }} />Harga pendiri, sisa {p.founder.left} dari {p.founder.slots} slot
+    </span>
+  );
+}
+
 /* ---------------- product card ---------------- */
 const isShown = (p) => ["published", "soon"].includes(p.status || "published");
 
@@ -1120,6 +1181,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
           <div style={{ marginTop: "auto", display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 17, color: C.goldLight }}>{rp(p.price)}</span>
             {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
+            {p.founder && <FounderNote p={p} size={11.5} style={{ flexBasis: "100%" }} />}
           </div>
         )}
         <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
@@ -1959,12 +2021,9 @@ function SoonNotify({ p, role, defaultEmail }) {
   );
 }
 
-function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping, landingPages = [], openLp }) {
+function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessProduct, videoProgress, products, curriculumData, testimonials, addTestimonial, role, onToggleStatus, shipping }) {
   const [previewBuyer, setPreviewBuyer] = useState(false);
   const p = products.find((x) => x.slug === slug);
-  const promoLp = p && openLp ? landingPages.find((l) => l.productId === p.id && l.status === "published" && l.extra?.promo?.enabled
-    && Number(l.extra.promo.founderPrice) > 0 && Number(l.extra.promo.founderPrice) < p.price && (p.sold || 0) < Number(l.extra.promo.founderSlots || 0)
-    && !(/^\d{4}-\d{2}-\d{2}$/.test(l.extra.promo.endsAt || "") && Date.now() > Date.parse(`${l.extra.promo.endsAt}T23:59:59+07:00`))) : null;
   // Meta Pixel: ViewContent sekali per produk yang dibuka (kelas maupun merchandise).
   useEffect(() => {
     if (p) trackEvent("ViewContent", { content_ids: [String(p.id)], content_name: p.name, content_type: "product", value: p.price, currency: "IDR" });
@@ -2147,13 +2206,8 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 24, color: C.goldLight }}>{rp(p.price)}</span>
                   {disc > 0 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.oldPrice)}</span>}
                 </div>
-                {disc > 0 && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Hemat {disc}%</span>}
-                {/* Harga pendiri hanya berlaku lewat landing page promo -> arahkan ke sana */}
-                {promoLp && (
-                  <button onClick={() => openLp(promoLp.slug)} style={{ marginTop: 10, width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.ember}88`, background: `${C.ember}18`, cursor: "pointer", fontFamily: "'Manrope',sans-serif", fontSize: 12.5, fontWeight: 700, color: C.emberLight, lineHeight: 1.4 }}>
-                    🔥 Harga pendiri {rp(promoLp.extra.promo.founderPrice)} untuk {promoLp.extra.promo.founderSlots} pembeli pertama — lihat penawaran →
-                  </button>
-                )}
+                {p.founder ? <div><FounderNote p={p} size={12.5} /></div>
+                  : disc > 0 && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.ember, fontWeight: 700 }}>Hemat {disc}%</span>}
               </>
             )}
 
@@ -2256,6 +2310,35 @@ const calcShipping = (shipping, cartProducts, subtotalAfterDiscount) => {
   return free > 0 && subtotalAfterDiscount >= free ? 0 : fee;
 };
 
+// Rincian harga keranjang/checkout. Semua angka berasal dari harga server yang sudah ditempel di produk
+// (p.price = yang ditagih, p.listPrice = harga normal); kupon tidak bisa digabung dengan harga pendiri.
+const cartSummary = (cartProducts, coupon, calcDiscount, shipping) => {
+  const listSubtotal = cartProducts.reduce((s, p) => s + (p.listPrice || p.price) * (p.qty || 1), 0);
+  const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
+  const founderDiscount = listSubtotal - subtotal;
+  const hasFounder = cartProducts.some((p) => p.founder);
+  const discount = hasFounder ? 0 : calcDiscount(subtotal, coupon);
+  const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
+  return { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total: subtotal - discount + shipFee };
+};
+function SummaryRow({ label, value, tone }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+      <span style={{ color: C.muted }}>{label}</span>
+      <span style={{ color: tone === "good" ? C.gold : C.text, fontWeight: tone === "good" ? 700 : 400, whiteSpace: "nowrap" }}>{value}</span>
+    </div>
+  );
+}
+// Harga per baris produk di keranjang/checkout: harga normal dicoret bila harga pendiri berlaku.
+function LinePrice({ p, size = 14 }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+      {p.founder && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: size - 2.5, color: C.mutedDark, textDecoration: "line-through" }}>{rp(p.listPrice * (p.qty || 1))}</span>}
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: size }}>{rp(p.price * (p.qty || 1))}</span>
+    </span>
+  );
+}
+
 function QtyStepper({ value, onChange, max }) {
   const btn = { width: 30, height: 30, borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
   return (
@@ -2268,11 +2351,10 @@ function QtyStepper({ value, onChange, max }) {
 }
 
 function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, coupon, setCoupon, validateCoupon, calcDiscount }) {
-  const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
-  const discount = calcDiscount(subtotal, coupon);
-  const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
+  const { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
   const hasPhysical = cartProducts.some((p) => p.productType === "physical");
-  const total = subtotal - discount + shipFee;
+  // Kupon tidak bisa digabung dengan harga pendiri: kupon yang sudah terpasang dilepas.
+  useEffect(() => { if (hasFounder && coupon) setCoupon(null); }, [hasFounder, coupon]); // eslint-disable-line react-hooks/exhaustive-deps
   const freeAbove = Number(shipping?.freeAbove) || 0;
 
   return (
@@ -2301,8 +2383,9 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                         {physical && <QtyStepper value={p.qty} max={max === "" ? null : max} onChange={(q) => updateCartQty(p.cartKey, q)} />}
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: C.goldLight, fontSize: 14 }}>{rp(p.price * (p.qty || 1))}</span>
+                        <LinePrice p={p} />
                       </div>
+                      {p.founder && <div style={{ marginTop: 4 }}><FounderNote p={p} size={11.5} /></div>}
                     </div>
                     <button onClick={() => removeFromCart(p.cartKey)} className="gs-icon-btn" title="Hapus" style={{ background: C.surface2, border: "none", cursor: "pointer", width: 36, height: 36, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "flex-start" }}><Trash2 size={15} color={C.muted} /></button>
                   </Card>
@@ -2315,8 +2398,9 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
               <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, margin: 0 }}>Ringkasan Pesanan</h3>
               <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
-                {discount > 0 && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon</span><span style={{ color: C.gold }}>-{rp(discount)}</span></div>}
+                <SummaryRow label="Subtotal" value={rp(listSubtotal)} />
+                {founderDiscount > 0 && <SummaryRow label="Diskon harga pendiri" value={`-${rp(founderDiscount)}`} tone="good" />}
+                {discount > 0 && <SummaryRow label={`Diskon${coupon ? ` (${coupon.code})` : ""}`} value={`-${rp(discount)}`} tone="good" />}
                 {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
                 {hasPhysical && freeAbove > 0 && shipFee > 0 && (
                   <div style={{ fontSize: 11.5, color: C.mutedDark, background: C.surface2, borderRadius: 10, padding: "8px 10px" }}>
@@ -2336,11 +2420,11 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
 
 /* ---------------- CHECKOUT ---------------- */
 function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCoupon, validateCoupon, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
-  const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
-  const discount = calcDiscount(subtotal, coupon);
+  const { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
   const hasPhysical = cartProducts.some((p) => p.productType === "physical");
-  const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
-  const total = subtotal - discount + shipFee;
+  useEffect(() => { if (hasFounder && coupon) setCoupon(null); }, [hasFounder, coupon]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Slot pendiri habis saat pembeli di checkout -> server menolak pesanan; pembeli harus menyetujui harga baru.
+  const [priceChanged, setPriceChanged] = useState(false);
   const [form, setForm] = useState({ name: account.name, phone: account.phone });
   const [addr, setAddr] = useState(() => ({ name: account.name || "", phone: account.phone || "", address: "", city: "", province: "", postal: "", note: "", ...(savedAddress || {}) }));
   const activeMethods = (paymentMethods || []).filter((m) => m.enabled);
@@ -2375,6 +2459,7 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
       shippingAddress: hasPhysical ? Object.fromEntries(Object.entries(addr).map(([k, v]) => [k, String(v || "").trim()])) : null,
     });
     setSubmitting(false);
+    if (result.priceChanged) { setPriceChanged(true); return; }
     if (!result.ok) { setError(result.error || "Gagal membuat pesanan. Coba lagi."); return; }
     clearCart();
     goToPaymentConfirm(result.orderId);
@@ -2460,14 +2545,16 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
                 <div key={p.cartKey} style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
                   <ProductThumb p={p} size={36} radius={10} />
                   <span style={{ color: C.muted, flex: 1, minWidth: 0 }}>{p.name}{p.variant ? ` (${p.variant})` : ""}{p.qty > 1 ? ` ×${p.qty}` : ""}</span>
-                  <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5 }}>{rp(p.price * (p.qty || 1))}</span>
+                  <LinePrice p={p} size={12.5} />
                 </div>
               ))}
+              {cartProducts.filter((p) => p.founder).map((p) => <FounderNote key={`f${p.id}`} p={p} size={11.5} />)}
             </div>
             <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Subtotal</span><span style={{ color: C.text }}>{rp(subtotal)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Diskon{coupon ? ` (${coupon.code})` : ""}</span><span style={{ color: discount ? C.gold : C.text }}>-{rp(discount)}</span></div>
+              <SummaryRow label="Subtotal" value={rp(listSubtotal)} />
+              {founderDiscount > 0 && <SummaryRow label="Diskon harga pendiri" value={`-${rp(founderDiscount)}`} tone="good" />}
+              {discount > 0 && <SummaryRow label={`Diskon${coupon ? ` (${coupon.code})` : ""}`} value={`-${rp(discount)}`} tone="good" />}
               {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 18, color: C.goldLight }}>{rp(total)}</span></div>
             </div>
@@ -2479,6 +2566,27 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
           </Card>
         </div>
       </div>
+      {priceChanged && (
+        <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <Card className="gs-anim-in" style={{ maxWidth: 400, width: "100%", padding: 24, textAlign: "center" }}>
+            <div style={{ width: 54, height: 54, borderRadius: "50%", background: `${C.ember}1f`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}><Flame size={26} color={C.ember} /></div>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, color: C.text, margin: "0 0 8px" }}>Harga pendiri sudah habis</h3>
+            <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: "0 0 14px" }}>
+              Maaf, slot harga pendiri baru saja terisi penuh saat kamu di halaman ini. Sekarang berlaku harga normal. Pesanan belum dibuat dan kamu belum ditagih apa pun.
+            </p>
+            <div style={{ background: C.surface2, borderRadius: 12, padding: "12px 14px", marginBottom: 18, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
+              {cartProducts.map((p) => (
+                <div key={p.cartKey} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><span style={{ color: C.muted, textAlign: "left" }}>{p.name}</span><LinePrice p={p} size={13} /></div>
+              ))}
+              <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between" }}><b style={{ color: C.text }}>Total baru</b><b style={{ fontFamily: "'JetBrains Mono',monospace", color: C.goldLight }}>{rp(total)}</b></div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <PrimaryBtn full loading={submitting} onClick={() => { setPriceChanged(false); placeOrder(); }}>Setuju, lanjut dengan {rp(total)}</PrimaryBtn>
+              <GhostBtn full onClick={() => { setPriceChanged(false); go("cart"); }}>Tidak, kembali ke keranjang</GhostBtn>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -2721,7 +2829,93 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
 }
 
 /* ---------------- AUTH ---------------- */
-function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onForgotPassword, onBack }) {
+// Tombol "Masuk dengan Google" hanya tampil kalau Google memang aktif di pengaturan login
+// (dicek sekali ke server, sama seperti di FerTune).
+let googleAuthCheck = null;
+const googleEnabled = () => {
+  if (!googleAuthCheck) {
+    googleAuthCheck = fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_PUBLISHABLE_KEY } })
+      .then((r) => r.json()).then((j) => !!j?.external?.google).catch(() => false);
+  }
+  return googleAuthCheck;
+};
+function GoogleLogo({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  );
+}
+function GoogleSignInButton({ onGoogle, onError }) {
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { let on = true; googleEnabled().then((v) => on && setEnabled(v)); return () => { on = false; }; }, []);
+  if (!enabled || !onGoogle) return null;
+  const click = async () => {
+    setBusy(true);
+    const r = await onGoogle();
+    if (!r.ok) { setBusy(false); onError?.(r.error); }
+  };
+  return (
+    <>
+      <button type="button" onClick={busy ? undefined : click} className="gs-btn" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px 16px", borderRadius: 980, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14.5, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>
+        {busy ? <span className="gs-spinner" /> : <GoogleLogo />}Masuk dengan Google
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+        <span style={{ flex: 1, height: 1, background: C.border }} />
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.mutedDark }}>atau pakai email</span>
+        <span style={{ flex: 1, height: 1, background: C.border }} />
+      </div>
+    </>
+  );
+}
+
+// Layar setelah daftar berhasil (menggantikan form). Juga dipakai saat mencoba masuk dengan akun
+// yang emailnya belum diverifikasi.
+function VerifyEmailScreen({ email, unverified, onResend, onChangeEmail }) {
+  const [wait, setWait] = useState(unverified ? 0 : 60);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+  const resend = async () => {
+    setSending(true); setErr(""); setMsg("");
+    const r = await onResend(email);
+    setSending(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setMsg("Email verifikasi sudah dikirim ulang.");
+    setWait(60);
+  };
+  const t = { fontFamily: "'Manrope',sans-serif" };
+  return (
+    <div className="gs-anim-in" style={{ textAlign: "center" }}>
+      <div style={{ width: 64, height: 64, borderRadius: "50%", background: `${C.gold}1f`, border: `2px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+        <Check size={30} color={C.gold} strokeWidth={3} />
+      </div>
+      <h2 style={{ ...t, fontWeight: 800, fontSize: 22, color: C.text, margin: "0 0 10px", lineHeight: 1.3 }}>{unverified ? "Verifikasi email kamu dulu, ya" : "Akun kamu sudah dibuat"}</h2>
+      <p style={{ ...t, fontSize: 14, color: C.muted, lineHeight: 1.65, margin: "0 0 22px" }}>
+        Tinggal satu langkah. Kami mengirim email ke <b style={{ color: C.text, wordBreak: "break-all" }}>{email}</b>. Buka email itu dan tekan tombol <b style={{ color: C.text }}>Verifikasi</b>, lalu kamu langsung bisa lanjut membeli.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <PrimaryBtn full icon={MailCheck} onClick={() => window.open("https://mail.google.com/mail/u/0/#inbox", "_blank", "noopener")}>Buka Gmail</PrimaryBtn>
+        <GhostBtn full onClick={resend} loading={sending} disabled={wait > 0}>{wait > 0 ? `Kirim ulang email (${wait})` : "Kirim ulang email"}</GhostBtn>
+      </div>
+      {msg && <p style={{ ...t, fontSize: 12.5, color: C.gold, fontWeight: 700, margin: "12px 0 0" }}>{msg}</p>}
+      {err && <p style={{ ...t, fontSize: 12.5, color: C.emberLight, margin: "12px 0 0" }}>{err}</p>}
+      <p style={{ ...t, fontSize: 12, color: C.mutedDark, margin: "16px 0 0", lineHeight: 1.5 }}>Tidak ada di kotak masuk? Cek folder Spam atau Promosi.</p>
+      <button onClick={onChangeEmail} style={{ ...t, marginTop: 14, background: "none", border: "none", cursor: "pointer", color: C.gold, fontSize: 13, fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 3, padding: 6 }}>Salah alamat? Ganti email</button>
+    </div>
+  );
+}
+
+function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onForgotPassword, onBack, onResendVerification, onGoogle }) {
   const [tab, setTab] = useState("customer"); // "customer" | "admin"
   const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
   const [name, setName] = useState("");
@@ -2733,6 +2927,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [verify, setVerify] = useState(null); // { email, unverified } -> layar "Akun kamu sudah dibuat"
   // Tombol tab "Admin" cuma muncul kalau buka halaman ini dengan tambahan
   // ?admin=1 di URL (mis. https://situskamu.com/?admin=1). Pengunjung biasa
   // tidak akan pernah lihat opsi ini.
@@ -2744,7 +2939,8 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
     setSubmitting(true);
     const result = mode === "login" ? await onCustomerLogin({ email, password }) : await onCustomerRegister({ name, email, phone, password });
     setSubmitting(false);
-    if (!result.ok) setError(result.error);
+    if (!result.ok) { setError(result.error); return; }
+    if (result.needsVerify) { setError(""); setPassword(""); setVerify({ email: result.email, unverified: !!result.unverified }); window.scrollTo?.({ top: 0, behavior: "smooth" }); }
   };
   const submitAdmin = async () => {
     setSubmitting(true);
@@ -2774,7 +2970,10 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
         </div>
         )}
 
-        {mode === "forgot" ? (
+        {verify ? (
+          <VerifyEmailScreen email={verify.email} unverified={verify.unverified} onResend={onResendVerification}
+            onChangeEmail={() => { setVerify(null); setMode("register"); setError(""); setTimeout(() => document.getElementById("gs-auth-email")?.focus(), 50); }} />
+        ) : mode === "forgot" ? (
           forgotSent ? (
             <>
               <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.surface2, border: `1px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -2802,8 +3001,9 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
             </div>
             <h2 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 24, color: C.text, margin: "0 0 4px" }}>{mode === "login" ? "MASUK KE AKUN" : "BUAT AKUN BARU"}</h2>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12.5, color: C.mutedDark, marginBottom: 18 }}>Masuk atau daftar diperlukan sebelum menambahkan produk ke keranjang.</p>
-            {mode === "register" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" style={inputStyle} />}
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={inputStyle} />
+            <GoogleSignInButton onGoogle={onGoogle} onError={setError} />
+            {mode === "register" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" autoComplete="name" style={inputStyle} />}
+            <input id="gs-auth-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" autoComplete="email" style={inputStyle} />
             {mode === "register" && <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Nomor WhatsApp" style={inputStyle} />}
             <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "register" ? `Kata sandi (minimal ${MIN_PASSWORD} karakter)` : "Kata sandi"} type="password" style={{ ...inputStyle, marginBottom: 6 }} />
             {mode === "login" && (
@@ -4076,7 +4276,7 @@ function BookMockup({ item, idx, brand, w = 70, onClick }) {
   );
 }
 
-function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin, whatsapp }) {
+function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin, whatsapp }) {
   const p = products.find((x) => x.id === lp?.productId);
 
   if (!lp || !p) {
@@ -4091,11 +4291,11 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
   // per-landing-page lewat "Edit Promo" di Pengaturan Landing Page, bukan lagi hardcode di data
   // produk. Kalau LP ini belum pernah diatur promonya, jatuh ke pricingTiers lama dari produk
   // (kalau ada) supaya landing page yang sudah jalan sebelumnya tidak tiba-tiba berubah.
-  const legacyTiers = p.pricingTiers || null;
-  const promo = lp.extra?.promo || (legacyTiers
-    ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours }
-    : { enabled: false, founderPrice: p.price, founderSlots: 100, earlyBirdHours: 72 });
-  const hasTiers = !!promo.enabled;
+  // Harga pendiri dari SATU sumber: fungsi server product_pricing(), ditempel App sebagai p.founder.
+  // Slot habis / tanggal lewat -> p.founder kosong -> harga normal; banner, coretan & teks slot hilang.
+  const fd = p.founder || null;
+  const promo = fd ? { endsAt: fd.endsAt } : {};
+  const hasTiers = !!fd;
   const owned = ownedIds?.includes(p.id);
   const pending = pendingIds?.includes(p.id);
   const productReviews = testimonials?.[p.id] || [];
@@ -4188,21 +4388,12 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
     hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
     mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
     ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
-    founderSlotsLeft = Math.max(0, (promo.founderSlots || 0) - (p.sold || 0));
-    // Promo aktif HANYA kalau slot masih ada DAN waktunya belum habis -- dua-duanya. Begitu
-    // salah satu habis duluan, promoActive langsung false, jadi countdown-nya ikut disembunyikan
-    // (bukan cuma teksnya yang berubah tapi timer-nya tetap jalan seolah masih ada promo).
-    promoActive = !expired && founderSlotsLeft > 0;
-    if (promoActive) {
-      currentPrice = promo.founderPrice;
-      tierNoteKey = "promoActiveNote";
-      tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", promo.founderSlots);
-    } else {
-      currentPrice = p.price;
-      tierNoteKey = expired ? "promoExpiredTimeNote" : "promoExpiredSlotNote";
-      tierNote = getExtra(tierNoteKey);
-    }
-    anchorPrice = p.price;
+    founderSlotsLeft = fd.left;
+    promoActive = !expired;
+    currentPrice = promoActive ? fd.price : fd.listPrice;
+    anchorPrice = fd.listPrice;
+    tierNoteKey = "promoActiveNote";
+    tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", fd.slots);
     disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
   } else {
     expired = true; // tanpa promo, langsung tampil harga apa adanya
@@ -4216,7 +4407,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice, lp.slug)) go("checkout");
+    if (buyFromLp(p.id, lp.slug)) go("checkout");
   };
 
   return (
@@ -4640,11 +4831,11 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
                 admin={admin}
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 999, background: `${C.ember}22`, border: `1.5px solid ${C.ember}88`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 18, fontWeight: 800, lineHeight: 1.35, textAlign: "center", boxShadow: `0 0 18px ${C.ember}33` }}
               />
-            ) : (
+            ) : hasTiers && promoActive ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 999, background: `${C.ember}22`, border: `1.5px solid ${C.ember}88`, color: C.emberLight, fontFamily: "'Manrope',sans-serif", fontSize: 18, fontWeight: 800, lineHeight: 1.35, textAlign: "center", boxShadow: `0 0 18px ${C.ember}33` }}>
                 {tierNote}
               </span>
-            )}
+            ) : null}
             {admin && (
               <div style={{ marginTop: 8 }}>
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10.5, color: C.mutedDark, fontStyle: "italic" }}>
@@ -4683,6 +4874,7 @@ function LandingPageTemplate({ lp, go, applyPricingAndBuy, products, testimonial
               <SpellPrice>
                 <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 42, color: C.goldLight, whiteSpace: "nowrap" }}>{rp(currentPrice)}</div>
               </SpellPrice>
+              {promoActive && <div style={{ margin: "2px 0 6px" }}><FounderNote p={p} size={13} /></div>}
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
             <div style={{ padding: 20 }}>
@@ -4939,13 +5131,13 @@ function LandingPageTemplateViolet(props) {
   return <LpVioletBody {...props} p={p} />;
 }
 
-function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
+function LpVioletBody({ lp, p, go, buyFromLp, testimonials, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin }) {
   // --- Promo harga bertingkat: logika identik dengan template klasik ---
-  const legacyTiers = p.pricingTiers || null;
-  const promo = lp.extra?.promo || (legacyTiers
-    ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours }
-    : { enabled: false, founderPrice: p.price, founderSlots: 100, earlyBirdHours: 72 });
-  const hasTiers = !!promo.enabled;
+  // Harga pendiri dari SATU sumber: fungsi server product_pricing(), ditempel App sebagai p.founder.
+  // Slot habis / tanggal lewat -> p.founder kosong -> harga normal; banner, coretan & teks slot hilang.
+  const fd = p.founder || null;
+  const promo = fd ? { endsAt: fd.endsAt } : {};
+  const hasTiers = !!fd;
   const owned = ownedIds?.includes(p.id);
   const pending = pendingIds?.includes(p.id);
   const realReviews = testimonials?.[p.id] || [];
@@ -5039,18 +5231,12 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
     hh = String(Math.floor(timeLeft / 3600)).padStart(2, "0");
     mm = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, "0");
     ss = String(Math.floor(timeLeft % 60)).padStart(2, "0");
-    founderSlotsLeft = Math.max(0, (promo.founderSlots || 0) - (p.sold || 0));
-    promoActive = !expired && founderSlotsLeft > 0;
-    if (promoActive) {
-      currentPrice = promo.founderPrice;
-      tierNoteKey = "promoActiveNote";
-      tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", promo.founderSlots);
-    } else {
-      currentPrice = p.price;
-      tierNoteKey = expired ? "promoExpiredTimeNote" : "promoExpiredSlotNote";
-      tierNote = getExtra(tierNoteKey);
-    }
-    anchorPrice = p.price;
+    founderSlotsLeft = fd.left;
+    promoActive = !expired;
+    currentPrice = promoActive ? fd.price : fd.listPrice;
+    anchorPrice = fd.listPrice;
+    tierNoteKey = "promoActiveNote";
+    tierNote = getExtra("promoActiveNote").replace("{sisa}", founderSlotsLeft).replace("{total}", fd.slots);
     disc = anchorPrice > currentPrice ? Math.round((1 - currentPrice / anchorPrice) * 100) : 0;
   } else {
     expired = true;
@@ -5064,7 +5250,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
-    if (applyPricingAndBuy(p.id, currentPrice, anchorPrice, lp.slug)) go("checkout");
+    if (buyFromLp(p.id, lp.slug)) go("checkout");
   };
 
   const descPlain = String(p.desc || "").replace(/\*\*/g, "").replace(/^##\s+/gm, "").replace(/^\*\s+/gm, "• ");
@@ -5455,11 +5641,11 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
               admin={admin}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: V.red, fontFamily: V_BODY, fontSize: 14 }}
             />
-          ) : (
-            <span className={promoActive ? "lp2-pulse" : undefined} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: V.red, fontFamily: V_BODY, fontSize: 14 }}>
+          ) : hasTiers && promoActive ? (
+            <span className="lp2-pulse" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 999, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: V.red, fontFamily: V_BODY, fontSize: 14 }}>
               <Lp2Icon d={V_PATH.warn} size={16} />{tierNote}
             </span>
-          )}
+          ) : null}
           {admin && (
             <div style={{ marginTop: 8 }}>
               <span style={{ fontFamily: V_BODY, fontSize: 10.5, color: V.muted, fontStyle: "italic" }}>
@@ -5495,6 +5681,7 @@ function LpVioletBody({ lp, p, go, applyPricingAndBuy, testimonials, ownedIds, p
                 </div>
               )}
               <div className="lp2-gradient-text" style={{ fontFamily: V_DISPLAY, fontWeight: 700, fontSize: 48, margin: disc > 0 ? "0 0 8px" : "16px 0 8px", lineHeight: 1.15 }}>{rp(currentPrice)}</div>
+              {promoActive && <div style={{ margin: "0 0 8px" }}><FounderNote p={p} size={13.5} /></div>}
               <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }}>Akses selamanya, one-time payment</p>
             </div>
 
@@ -5730,9 +5917,14 @@ export default function App() {
   const [curriculumOutline, setCurriculumOutline] = useState({});
   const [cart, setCart] = useState([]);
   // Harga khusus per produk di keranjang (mis. harga promo dari landing page) + asal LP-nya.
-  const [cartPrices, setCartPrices] = useState({});
+  // Slug landing page asal per produk di keranjang -- HANYA untuk catatan sumber pembeli, bukan harga.
+  const [cartLp, setCartLp] = useState({});
+  // Harga dari server (product_pricing): satu-satunya sumber harga pendiri untuk semua halaman.
+  const [pricing, setPricing] = useState({});
   const [coupon, setCoupon] = useState(null);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
+  const [pendingIntent, setPendingIntent] = useState(null); // tujuan yang dilanjutkan setelah masuk
+  const [ordersUid, setOrdersUid] = useState(undefined); // akun yang pesanannya sudah dimuat
   const [preAuthView, setPreAuthView] = useState(null);
   const [customerSub, setCustomerSub] = useState("overview");
   const [adminSub, setAdminSub] = useState("overview");
@@ -5812,6 +6004,18 @@ export default function App() {
     const { data, error } = await supabase.from("products").select("*").order("sort_order");
     if (!error && data) setProducts(data.map(mapProductRow));
     setProductsLoaded(true);
+    fetchPricing();
+  };
+  // Harga pendiri (harga normal, harga pendiri, sisa slot, aktif) dihitung di server oleh product_pricing().
+  // Gagal dibaca -> tidak ada harga pendiri yang ditampilkan (server tetap menentukan harga saat pesanan dibuat).
+  const pricingAt = useRef(0);
+  const fetchPricing = async () => {
+    pricingAt.current = Date.now();
+    const { data, error } = await supabase.rpc("product_pricing");
+    if (error || !Array.isArray(data)) return;
+    const map = {};
+    data.forEach((r) => { map[r.product_id] = r; });
+    setPricing(map);
   };
   const fetchCurriculum = async () => {
     const { data, error } = await supabase.from("curriculum_videos").select("*").order("sort_order");
@@ -5905,8 +6109,10 @@ export default function App() {
   };
   const fetchOrders = async () => {
     // RLS otomatis membatasi hasil: customer hanya lihat order miliknya, admin lihat semua.
+    const { data: { session: cur } } = await supabase.auth.getSession();
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
     if (!error && data) setOrders(data.map(mapOrderRow));
+    setOrdersUid(cur?.user?.id || null);
   };
   const fetchPaymentMethods = async () => {
     // enabled=true kelihatan oleh semua orang (perlu tampil di checkout publik), admin juga
@@ -6145,26 +6351,51 @@ export default function App() {
     const normalizedEmail = email.trim().toLowerCase();
     if (!name.trim() || !normalizedEmail || !password) return { ok: false, error: "Lengkapi semua kolom." };
     if (password.length < MIN_PASSWORD) return { ok: false, error: `Kata sandi minimal ${MIN_PASSWORD} karakter.` };
+    const intent = redirectAfterAuth || readAuthIntent();
+    if (intent) saveAuthIntent(intent);
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail, password,
-      options: { data: { name: name.trim(), phone: phone?.trim() || "" } },
+      options: { data: { name: name.trim(), phone: phone?.trim() || "" }, emailRedirectTo: authReturnUrl(intent) },
     });
-    if (error) return { ok: false, error: error.message === "User already registered" ? "Email sudah terdaftar. Silakan masuk." : error.message };
+    if (error) return { ok: false, error: authError(error, "Pendaftaran belum berhasil. Coba lagi sebentar lagi.") };
+    // Email yang sudah terdaftar: Supabase tidak memberi error (demi privasi), tapi identities kosong.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { ok: false, error: "Email ini sudah terdaftar. Silakan masuk, atau pakai Lupa kata sandi." };
+    }
     trackEvent("CompleteRegistration", { content_name: "Akun Gitar Sakti", status: true });
     if (!data.session) {
-      // Kalau "Confirm email" masih aktif di Supabase Auth settings, akun dibuat tapi belum
-      // langsung bisa login sampai email diverifikasi.
-      return { ok: false, error: "Akun dibuat. Silakan cek email untuk verifikasi sebelum masuk (atau matikan 'Confirm email' di Supabase untuk testing)." };
+      // Akun dibuat, tinggal verifikasi email -> AuthPage menampilkan layar "Akun kamu sudah dibuat".
+      return { ok: true, needsVerify: true, email: normalizedEmail };
     }
     setSession(data.session);
     await fetchProfile(data.session.user.id);
     return { ok: true };
   };
   const loginCustomer = async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-    if (error) return { ok: false, error: "Email atau kata sandi salah." };
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    if (error) {
+      if (/not confirmed/i.test(error.message || "")) return { ok: true, needsVerify: true, email: normalizedEmail, unverified: true };
+      if (isNetError(error.message)) return { ok: false, error: NET_ERROR };
+      return { ok: false, error: "Email atau kata sandi salah." };
+    }
     setSession(data.session);
     await fetchProfile(data.user.id);
+    return { ok: true };
+  };
+  // Kirim ulang email verifikasi (tombol di layar "Akun kamu sudah dibuat").
+  const resendVerification = async (email) => {
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: authReturnUrl(redirectAfterAuth || readAuthIntent()) } });
+    if (error) return { ok: false, error: authError(error, "Email belum bisa dikirim ulang. Coba lagi sebentar lagi.") };
+    return { ok: true };
+  };
+  // Masuk / daftar dengan Google (pengaturan Google yang sama dengan FerTune). Halaman berpindah ke
+  // Google lalu kembali ke sini; tujuan pembeli diambil dari penyimpanan browser.
+  const loginWithGoogle = async () => {
+    const intent = redirectAfterAuth || readAuthIntent();
+    if (intent) saveAuthIntent(intent);
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: authReturnUrl(intent) } });
+    if (error) return { ok: false, error: authError(error, "Masuk dengan Google belum berhasil. Coba lagi.") };
     return { ok: true };
   };
   const loginAdmin = async ({ email, password }) => {
@@ -6187,7 +6418,7 @@ export default function App() {
   const logout = async () => {
     await supabase.auth.signOut();
     setCart([]);
-    setCartPrices({});
+    setCartLp({});
     setCoupon(null);
     go("home");
   };
@@ -6212,13 +6443,13 @@ export default function App() {
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?resetpw=1` : undefined,
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: authError(error, "Link belum bisa dikirim. Coba lagi sebentar lagi.") };
     return { ok: true };
   };
   const resetPasswordConfirm = async (newPw) => {
     if (newPw.length < MIN_PASSWORD) return { ok: false, error: `Kata sandi minimal ${MIN_PASSWORD} karakter.` };
     const { error } = await supabase.auth.updateUser({ password: newPw });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: authError(error, "Kata sandi belum berhasil disimpan. Minta link baru lalu coba lagi.") };
     return { ok: true };
   };
 
@@ -6366,7 +6597,9 @@ export default function App() {
   const addToCart = (id, opts = {}) => {
     if (!role) {
       const prod = products.find((pr) => pr.id === id);
-      setRedirectAfterAuth(prod ? { view: "product", slug: prod.slug } : null);
+      const it = prod ? { view: "product", slug: prod.slug, buy: true, ...(opts.lp ? { lp: opts.lp } : {}) } : null;
+      setRedirectAfterAuth(it);
+      saveAuthIntent(it);
       setPreAuthView({ view, slug: productSlug });
       go("auth");
       return false;
@@ -6406,25 +6639,73 @@ export default function App() {
     setCart((c) => c.map((e) => (e.key === key ? { ...e, qty: q } : e)));
   };
   const goOrAuth = (target, slug) => {
-    if (!role) { setRedirectAfterAuth({ view: target, slug }); setPreAuthView({ view, slug: productSlug }); go("auth"); return; }
+    if (!role) { setRedirectAfterAuth({ view: target, slug }); saveAuthIntent({ view: target, slug }); setPreAuthView({ view, slug: productSlug }); go("auth"); return; }
     go(target, slug);
+  };
+  // Setelah berhasil masuk: lanjut ke tujuan semula (produk yang mau dibeli -> masuk keranjang),
+  // kalau tidak ada tujuan -> dasbor pelanggan.
+  const finishAuth = () => {
+    const it = redirectAfterAuth || readAuthIntent();
+    setRedirectAfterAuth(null);
+    saveAuthIntent(null);
+    if (it) setPendingIntent(it); else go("customer");
   };
   const onCustomerLogin = async ({ email, password }) => {
     const result = await loginCustomer({ email, password });
-    if (result.ok) {
-      if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
-      else go("customer");
-    }
+    if (result.ok && !result.needsVerify) finishAuth();
     return result;
   };
   const onCustomerRegister = async ({ name, email, phone, password }) => {
     const result = await registerCustomer({ name, email, phone, password });
-    if (result.ok) {
-      if (redirectAfterAuth) { go(redirectAfterAuth.view, redirectAfterAuth.slug); setRedirectAfterAuth(null); }
-      else go("customer");
-    }
+    if (result.ok && !result.needsVerify) finishAuth();
     return result;
   };
+  // Sisa slot selalu segar: dibaca ulang saat membuka halaman yang menampilkan harga (maks. 1x per 20 dtk),
+  // dan tiap 60 dtk selama pembeli berada di keranjang/checkout.
+  useEffect(() => {
+    if (!["home", "shop", "product", "lp", "cart", "checkout", "custompage"].includes(view)) return;
+    if (Date.now() - pricingAt.current > 20000) fetchPricing();
+    if (view !== "cart" && view !== "checkout") return;
+    const t = setInterval(fetchPricing, 60000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, productSlug, lpSlug]);
+  // Kembali dari link verifikasi email / Masuk dengan Google (halaman dimuat ulang): ambil tujuan
+  // dari ?lanjut=<slug> atau penyimpanan browser.
+  useEffect(() => {
+    if (role !== "customer" || typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    const slug = u.searchParams.get("lanjut");
+    if (slug) { u.searchParams.delete("lanjut"); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash); }
+    const it = readAuthIntent() || (slug ? { view: "product", slug, buy: true } : null);
+    if (!it) return;
+    saveAuthIntent(null);
+    setPendingIntent(it);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+  // Jalankan tujuan setelah produk & pesanan akun ini termuat (supaya produk yang sudah dimiliki
+  // tidak dimasukkan keranjang lagi).
+  useEffect(() => {
+    if (!pendingIntent || role !== "customer" || !productsLoaded || !session || ordersUid !== session.user.id) return;
+    const it = pendingIntent;
+    setPendingIntent(null);
+    setRedirectAfterAuth(null);
+    if (it.buy) {
+      const prod = products.find((x) => x.slug === it.slug);
+      if (prod && prod.productType !== "physical" && prod.status === "published" && !ownedIds.includes(prod.id) && !pendingIds.includes(prod.id)) {
+        setCart((c) => (c.some((e) => e.id === prod.id) ? c : [...c, { key: `${prod.id}|`, id: prod.id, variant: null, qty: 1 }]));
+        if (it.lp) setCartLp((prev) => ({ ...prev, [prod.id]: it.lp }));
+        trackEvent("AddToCart", { content_ids: [String(prod.id)], content_name: prod.name, value: prod.price, currency: "IDR" });
+        go("cart");
+        return;
+      }
+      if (prod) { go("product", prod.slug); return; }
+      go("shop");
+      return;
+    }
+    go(it.view || "customer", it.slug);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingIntent, role, productsLoaded, ordersUid, session?.user?.id]);
   const onAdminLogin = async ({ email, password }) => {
     const result = await loginAdmin({ email, password });
     if (result.ok) { setRedirectAfterAuth(null); go("admin"); }
@@ -6475,9 +6756,9 @@ export default function App() {
     const entry = cart.find((e) => e.key === key || e.id === key);
     if (!entry) return;
     setCart((c) => c.filter((e) => e.key !== entry.key));
-    if (!cart.some((e) => e.id === entry.id && e.key !== entry.key)) setCartPrices((prev) => { const n = { ...prev }; delete n[entry.id]; return n; });
+    if (!cart.some((e) => e.id === entry.id && e.key !== entry.key)) setCartLp((prev) => { const n = { ...prev }; delete n[entry.id]; return n; });
   };
-  const clearCart = () => { setCart([]); setCartPrices({}); setCoupon(null); };
+  const clearCart = () => { setCart([]); setCartLp({}); setCoupon(null); };
 
   // Harga, diskon & total yang dikirim di sini hanya "permintaan" — database (trigger
   // orders_before_insert) menghitung ulang semuanya dari harga produk & kupon asli, jadi tidak
@@ -6497,7 +6778,12 @@ export default function App() {
       ...(shippingAddress ? { shipping_address: shippingAddress } : {}),
       ...(attribution ? { attribution } : {}),
     }).select().single();
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      // GS001 = harga di server naik dibanding yang dilihat pembeli (slot pendiri habis saat checkout).
+      if (error.code === "GS001") { await fetchPricing(); return { ok: false, priceChanged: true, error: error.message }; }
+      return { ok: false, error: friendlyError(error, "Pesanan belum berhasil dibuat. Coba lagi sebentar lagi.") };
+    }
+    fetchPricing();
     // Simpan juga nomor WA terbaru ke profil supaya checkout berikutnya otomatis terisi.
     if (customerPhone && customerPhone !== profile?.phone) {
       supabase.from("profiles").update({ phone: customerPhone }).eq("id", session.user.id).then(() => {});
@@ -6515,14 +6801,11 @@ export default function App() {
     trackEvent("InitiateCheckout", { value: data.total, currency: "IDR", content_ids: items.map((i) => String(i.id)) });
     return { ok: true, orderId: data.id };
   };
-  // Mengunci harga tier yang sedang berlaku (founder/early bird/reguler) ke produk sebelum
-  // masuk keranjang, supaya harga di checkout sama persis dengan yang ditampilkan di landing page.
-  // Sebelumnya fungsi ini MENGUBAH harga produk di database (kalau yang klik admin, harga produk
-  // permanen berubah jadi harga promo). Sekarang harga promo cuma "ditempel" di keranjang pembeli
-  // ini, dan tetap diverifikasi ulang oleh database saat pesanan dibuat.
-  const applyPricingAndBuy = (productId, price, oldPrice, lpSlug) => {
-    const ok = addToCart(productId);
-    if (ok) setCartPrices((prev) => ({ ...prev, [productId]: { price, oldPrice, lpSlug } }));
+  // Tombol beli di landing page: harga sama dengan halaman lain (server). Slug LP hanya dicatat
+  // untuk statistik sumber pembeli.
+  const buyFromLp = (productId, lpSlug) => {
+    const ok = addToCart(productId, { lp: lpSlug });
+    if (ok) setCartLp((prev) => ({ ...prev, [productId]: lpSlug }));
     return ok;
   };
   // Perubahan status (terutama jadi PAID) lewat RPC di server — bukan UPDATE langsung — supaya
@@ -6570,9 +6853,9 @@ export default function App() {
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${session.user.id}/${orderId}-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from("payment-proofs").upload(path, file);
-    if (uploadError) return { ok: false, error: uploadError.message };
+    if (uploadError) return { ok: false, error: isNetError(uploadError.message) ? NET_ERROR : "Foto belum berhasil diunggah. Pastikan ukurannya di bawah 5 MB lalu coba lagi." };
     const { error: rpcError } = await supabase.rpc("attach_payment_proof", { p_order_id: orderId, p_proof_url: path, p_note: note });
-    if (rpcError) return { ok: false, error: rpcError.message };
+    if (rpcError) return { ok: false, error: friendlyError(rpcError, "Bukti transfer belum berhasil disimpan. Coba lagi.") };
     sendOrderEmail(orderId, "proof_uploaded");
     sendTelegramNotify(orderId, "proof_uploaded");
     fetchOrders();
@@ -6581,7 +6864,7 @@ export default function App() {
   // Customer membatalkan pesanan yang belum dibayar (misal salah pilih / mau ganti metode).
   const cancelOrder = async (orderId) => {
     const { error } = await supabase.rpc("cancel_my_order", { p_order_id: orderId });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(friendlyError(error, "Pesanan belum bisa dibatalkan. Coba lagi.")); return; }
     fetchOrders();
   };
   const goToPaymentConfirm = (orderId) => {
@@ -6616,12 +6899,21 @@ export default function App() {
     setCustomerSub("overview");
     go("customer");
   };
+  // Produk untuk halaman pembeli: harga dari server ditempel di sini (p.price = harga yang ditagih,
+  // p.listPrice = harga normal, p.founder = info slot). Panel admin tetap memakai `products` asli.
+  const shopProducts = useMemo(() => products.map((p) => {
+    const r = pricing[p.id];
+    if (!r || !r.founder_active || p.productType === "physical") return { ...p, listPrice: p.price };
+    return {
+      ...p, price: r.founder_price, oldPrice: r.list_price, listPrice: r.list_price,
+      founder: { price: r.founder_price, listPrice: r.list_price, slots: r.founder_slots, left: r.founder_left, endsAt: r.ends_at || "" },
+    };
+  }), [products, pricing]);
   const cartProducts = cart.map((e) => {
-    const p = products.find((x) => x.id === e.id);
+    const p = shopProducts.find((x) => x.id === e.id);
     if (!p) return null;
-    const o = p.productType !== "physical" ? cartPrices[e.id] : null;
-    const base = { ...p, cartKey: e.key, variant: e.variant, qty: p.productType === "physical" ? e.qty : 1 };
-    return o ? { ...base, price: o.price, oldPrice: o.oldPrice, lpSlug: o.lpSlug } : base;
+    const lpSlug = p.productType !== "physical" ? cartLp[e.id] : null;
+    return { ...p, cartKey: e.key, variant: e.variant, qty: p.productType === "physical" ? e.qty : 1, ...(lpSlug ? { lpSlug } : {}) };
   }).filter(Boolean);
   const cartIds = cart.map((e) => e.id);
   const cartCount = cart.reduce((sum, e) => sum + (e.qty || 1), 0);
@@ -6764,6 +7056,12 @@ export default function App() {
     if (form.badgeText !== undefined) payload.badge_text = form.badgeText || "";
     if (form.extra !== undefined) payload.extra = form.extra;
     const { error } = await supabase.from("landing_pages").update(payload).eq("id", id);
+    // Harga pendiri disimpan di PRODUK (berlaku di semua halaman), bukan di landing page.
+    if (!error && form.founderTiers !== undefined && form.productId) {
+      const { error: e2 } = await supabase.from("products").update({ pricing_tiers: form.founderTiers }).eq("id", form.productId);
+      if (e2) return { ok: false, error: e2.message };
+      fetchProducts();
+    }
     fetchLandingPages();
     return { ok: !error, error: error?.message };
   };
@@ -6794,7 +7092,8 @@ export default function App() {
   // tetap dihitung ulang oleh database saat pesanan dibuat.
   const validateCoupon = async (code, subtotal) => {
     if (!session) return { ok: false, error: "Masuk dulu untuk memakai kupon." };
-    const { data, error } = await supabase.rpc("validate_coupon", { p_code: code, p_subtotal: subtotal });
+    // Isi keranjang ikut dikirim: server menolak kupon selama harga pendiri berlaku.
+    const { data, error } = await supabase.rpc("validate_coupon", { p_code: code, p_subtotal: subtotal, p_product_ids: [...new Set(cart.map((e) => e.id))] });
     if (error) return { ok: false, error: "Gagal mengecek kupon. Coba lagi." };
     const r = Array.isArray(data) ? data[0] : data;
     if (!r?.ok) return { ok: false, error: r?.error || "Kode kupon tidak valid." };
@@ -7060,9 +7359,9 @@ export default function App() {
       {view !== "lp" && <Header view={view} go={go} goOrAuth={goOrAuth} goToAuth={goToAuth} cartCount={cartCount} role={role} accountName={currentAccount?.name || "Akun"} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} customPages={customPages} openCustomPage={openCustomPage} customPageSlug={customPageSlug} content={siteContent.header} editMode={editMode} setEditMode={setEditMode} onSaveHeader={(data) => updateSiteContent("header", data)} goToAddPage={goToAddPage} theme={theme} onToggleTheme={toggleTheme} onLogout={logout} />}
 
       <div key={view + (productSlug || "") + (customPageSlug || "")} className="gs-page-enter">
-      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
-      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
-      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={products} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} shipping={siteContent.shipping} landingPages={landingPages} openLp={(slug) => openLandingPage(slug)} />}
+      {view === "home" && <HomePage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={shopProducts} curriculumData={curriculumData} content={siteContent} role={role} editMode={editMode} updateSiteContent={updateSiteContent} onToggleStatus={toggleProductStatus} testimonials={testimonials} continueItems={continueItems} onResume={resumeLesson} />}
+      {view === "shop" && <ShopPage go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={shopProducts} curriculumData={curriculumData} content={siteContent} role={role} onToggleStatus={toggleProductStatus} />}
+      {view === "product" && <ProductPage slug={productSlug} go={go} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} products={shopProducts} curriculumData={curriculumData} testimonials={testimonials} addTestimonial={addTestimonial} role={role} onToggleStatus={toggleProductStatus} shipping={siteContent.shipping} landingPages={landingPages} openLp={(slug) => openLandingPage(slug)} />}
       {view === "cart" && <CartPage go={go} cartProducts={cartProducts} removeFromCart={removeFromCart} updateCartQty={updateCartQty} shipping={siteContent.shipping} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} calcDiscount={calcDiscount} />}
       {view === "checkout" && (
         currentAccount ? (
@@ -7075,12 +7374,12 @@ export default function App() {
         )
       )}
       {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPrepareOnline={prepareOnline} onOpenSnap={openSnap} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
-      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} />}
+      {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} onResendVerification={resendVerification} onGoogle={loginWithGoogle} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug) || landingPages.find((l) => l.slug === LP_SLUG_ALIASES[lpSlug])} go={go} applyPricingAndBuy={applyPricingAndBuy} products={products} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
+      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug) || landingPages.find((l) => l.slug === LP_SLUG_ALIASES[lpSlug])} go={go} buyFromLp={buyFromLp} products={shopProducts} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
-      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={products} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
+      {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={shopProducts} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
         currentAccount ? (
           <CustomerDashboard go={go} sub={customerSub} setSub={setCustomerSub} orders={orders} account={currentAccount} onLogout={logout} onUpdateProfile={updateCustomerProfile} videoProgress={videoProgress} products={products} curriculumData={curriculumData} goToPaymentConfirm={goToPaymentConfirm} accessProduct={accessProduct} onCancelOrder={cancelOrder} continueItems={continueItems} onResume={resumeLesson} />

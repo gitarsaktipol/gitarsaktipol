@@ -2465,8 +2465,10 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
   const [error, setError] = useState("");
 
   const selectedProduct = products.find((pr) => pr.id === Number(productId)) || products[0];
-  const legacyTiers = selectedProduct?.pricingTiers || null;
-  const existingPromo = initialLp?.extra?.promo || (legacyTiers ? { enabled: true, founderPrice: legacyTiers.founderPrice, founderSlots: legacyTiers.founderSlots, earlyBirdHours: legacyTiers.earlyBirdHours } : null);
+  // Harga pendiri sekarang disimpan di PRODUK (products.pricing_tiers) dan berlaku di SEMUA halaman
+  // (katalog, halaman produk, semua landing page, keranjang, checkout). Hitungannya di server.
+  const tiers = selectedProduct?.pricingTiers || null;
+  const existingPromo = tiers ? { enabled: true, founderPrice: tiers.founderPrice, founderSlots: tiers.founderSlots, endsAt: tiers.endsAt || "" } : null;
   // "Edit Promo": harga khusus untuk N pembeli pertama (custom, default 100) + batas waktu.
   // Begitu slot habis ATAU waktunya habis (mana lebih dulu), harga otomatis & permanen kembali
   // ke harga normal produk untuk SEMUA pengunjung berikutnya -- bukan cuma tampilan yang berkurang.
@@ -2484,16 +2486,12 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
     setError("");
     const payload = { name: name.trim(), productId: Number(productId), status, template };
     if (initialLp) {
-      payload.extra = {
-        ...(initialLp.extra || {}),
-        template,
-        promo: {
-          enabled: promoEnabled,
-          founderSlots: Number(founderSlots) || 0,
-          founderPrice: Number(founderPrice) || 0,
-          endsAt: /^\d{4}-\d{2}-\d{2}$/.test(endsAt) ? endsAt : "",
-        },
-      };
+      payload.extra = { ...(initialLp.extra || {}), template };
+      payload.founderTiers = promoEnabled ? {
+        founderSlots: Number(founderSlots) || 0,
+        founderPrice: Number(founderPrice) || 0,
+        endsAt: /^\d{4}-\d{2}-\d{2}$/.test(endsAt) ? endsAt : "",
+      } : null;
     }
     onSubmit(payload);
   };
@@ -2566,7 +2564,7 @@ function LandingPageFormModal({ onClose, onSubmit, products, initialLp }) {
                     <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={{ width: "100%", marginTop: 4, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, boxSizing: "border-box" }} />
                   </div>
                   <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>
-                    Slot dihitung dari total penjualan produk ini yang sebenarnya (bukan cuma tampilan) — begitu tembus {founderSlots || "0"}, promo tutup permanen untuk semua orang.
+                    Berlaku untuk produk ini di SEMUA halaman (katalog, halaman produk, semua landing page, keranjang, checkout), untuk semua pembeli. Slot terpakai = terjual + pesanan yang masih menunggu bayar (24 jam); begitu tembus {founderSlots || "0"}, harga kembali normal otomatis. Kupon tidak bisa digabung dengan harga pendiri.
                   </p>
                 </div>
               )}
