@@ -97,7 +97,8 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   = slot saja). Kupon TIDAK bisa digabung (validate_coupon menerima `p_product_ids`). Harga server > harga yang dikirim
   browser → error `GS001` → dialog "Harga pendiri sudah habis" di checkout, pembeli harus setuju dulu. Tampilan seragam:
   `FounderNote` ("Harga pendiri, sisa X dari Y slot"), `cartSummary` (Subtotal normal / Diskon harga pendiri / Total).
-  Teks FAQ/ajakan di landing page yang menyebut Rp247.000 ditulis Ferdi sendiri — tidak ikut hilang otomatis. Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
+  Teks FAQ/ajakan di landing page yang menyebut Rp247.000 ditulis Ferdi sendiri — tidak ikut hilang otomatis.
+  Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
   kupon ditambah sekali per pesanan lewat `order_count_stats` (kolom `orders.stats_counted`), dipanggil
   `admin_update_order_status` & `system_mark_order_paid` (migrasi 20261103000001, audit 3 Nov 2026).
 - **Email otomatis** (`send-order-email`, Resend; templat `template.ts` = kerangka bersama `frameTop`/`frameBottom`,
