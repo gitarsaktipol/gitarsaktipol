@@ -74,6 +74,11 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 
 ## Alur penting
 
+- **Daftar/masuk (Nov 2026)**: tombol "Masuk dengan Google" (provider Google yang sama dengan FerTune; tampil bila
+  `/auth/v1/settings` google=true). Setelah daftar → `VerifyEmailScreen` ("Akun kamu sudah dibuat", Buka Gmail, Kirim ulang
+  jeda 60 dtk, Ganti email); login dengan email belum terverifikasi juga ke layar ini. Tujuan pembeli disimpan
+  `localStorage gs-after-auth` + link verifikasi/Google `?lanjut=<slug>` → setelah masuk produk otomatis ke keranjang
+  (`pendingIntent`). Pesan error pembeli lewat `friendlyError`/`authError` (jangan tampilkan teks teknis/Inggris).
 - **Login**: Supabase Auth email+password. Minimal kata sandi `MIN_PASSWORD` = 8 (daftar, reset,
   ganti kata sandi admin; akun lama yang lebih pendek tetap bisa masuk). Trigger DB `handle_new_user()` membuat baris `profiles`.
   `role` = `customer` | `admin` (kolom `role` TIDAK bisa diubah klien; hanya `name, phone, address`).
@@ -82,7 +87,18 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   → `orders.insert` dengan `payment:"Pending"`. **Harga/diskon/total dihitung ulang di DB**
   (trigger `orders_before_insert`); `orders_block_unavailable` menolak produk draft/soon.
   Kuota kupon & slot harga pendiri menghitung pesanan PAID + Pending ≤24 jam (`coupon_reserved_count`,
-  baris produk/kupon dikunci FOR UPDATE). Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
+  baris produk/kupon dikunci FOR UPDATE).
+  **Harga pendiri = SATU sumber di server** (migrasi 20261112000001, 12 Nov 2026, disetujui Ferdi): pengaturan di
+  `products.pricing_tiers` {founderPrice, founderSlots, endsAt} (BUKAN lagi `landing_pages.extra.promo`; form promo LP
+  di admin menyimpan ke produk). `founder_promo_state(produk)` menghitung; `product_pricing()` (anon boleh) dibaca App
+  → `shopProducts` (p.price = yang ditagih, p.listPrice = normal, p.founder = {slots,left,...}) untuk SEMUA halaman
+  pembeli; admin tetap memakai `products` asli. Berlaku untuk semua pembeli dari semua pintu (tanpa tanda LP). Slot =
+  `sold` + Pending ≤24 jam berharga pendiri (item `founder:true`). Berakhir saat slot habis ATAU `endsAt` lewat (kosong
+  = slot saja). Kupon TIDAK bisa digabung (validate_coupon menerima `p_product_ids`). Harga server > harga yang dikirim
+  browser → error `GS001` → dialog "Harga pendiri sudah habis" di checkout, pembeli harus setuju dulu. Tampilan seragam:
+  `FounderNote` ("Harga pendiri, sisa X dari Y slot"), `cartSummary` (Subtotal normal / Diskon harga pendiri / Total).
+  Teks FAQ/ajakan di landing page yang menyebut Rp247.000 ditulis Ferdi sendiri — tidak ikut hilang otomatis.
+  Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
   kupon ditambah sekali per pesanan lewat `order_count_stats` (kolom `orders.stats_counted`), dipanggil
   `admin_update_order_status` & `system_mark_order_paid` (migrasi 20261103000001, audit 3 Nov 2026).
 - **Email otomatis** (`send-order-email`, Resend; templat `template.ts` = kerangka bersama `frameTop`/`frameBottom`,
@@ -94,6 +110,9 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 - **Bayar manual**: upload bukti ke bucket privat `payment-proofs` (`<uid>/<orderId>-<ts>.ext`,
   maks 5 MB) → RPC `attach_payment_proof` → email + Telegram admin → admin "Verifikasi"
   (RPC `admin_update_order_status`) → email "paid".
+- **Saklar metode bayar**: tombol aktif/nonaktif di Admin › Pengaturan › Metode Pembayaran (`payment_methods.enabled`).
+  Nonaktif = hilang dari checkout DAN ditolak `orders_before_insert`. Midtrans DIMATIKAN 12 Nov 2026 (masih sandbox);
+  nyalakan lagi lewat tombol itu setelah Midtrans produksi aktif (isi Client Key produksi + env production dulu).
 - **Bayar Midtrans (Snap)**: `payment_methods.type='midtrans'` (Client Key + env di tabel;
   Server Key HANYA di secret). `midtrans-create-transaction` buat token dari data DB →
   popup → `midtrans-webhook` (verify_jwt=false; cek signature SHA512, cek ulang status ke API,
