@@ -1112,6 +1112,8 @@ function VideoDescription({ desc, admin, onSave }) {
 }
 
 /* ---------------- harga pendiri ---------------- */
+// Istilah untuk pembeli: "Harga N Pembeli Pertama" (N = jumlah slot di pengaturan promo; diminta Ferdi,
+// karena "harga pendiri" tidak dikenal). Nama internal di kode/database tetap "founder".
 // Satu-satunya sumber harga pendiri = fungsi database product_pricing() (dibaca App, lalu ditempel ke
 // produk sebagai p.founder). Halaman tidak menghitung harga sendiri; ini hanya tampilannya.
 // Saat slot habis / tanggal lewat, p.founder kosong -> baris ini, coretan & banner hilang sendiri.
@@ -1119,7 +1121,7 @@ function FounderNote({ p, size = 12, style }) {
   if (!p?.founder) return null;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Manrope',sans-serif", fontSize: size, fontWeight: 800, color: C.emberLight, lineHeight: 1.35, ...style }}>
-      <Flame size={size + 1} color={C.ember} style={{ flexShrink: 0 }} />Harga pendiri, sisa {p.founder.left} dari {p.founder.slots} slot
+      <Flame size={size + 1} color={C.ember} style={{ flexShrink: 0 }} />Harga {p.founder.slots} Pembeli Pertama · sisa {p.founder.left} slot
     </span>
   );
 }
@@ -2317,9 +2319,11 @@ const cartSummary = (cartProducts, coupon, calcDiscount, shipping) => {
   const subtotal = cartProducts.reduce((s, p) => s + p.price * (p.qty || 1), 0);
   const founderDiscount = listSubtotal - subtotal;
   const hasFounder = cartProducts.some((p) => p.founder);
+  // Jumlah slot dari pengaturan promo (juga saat promo baru saja habis, untuk dialog).
+  const founderSlots = cartProducts.find((p) => p.founderSlots)?.founderSlots || 100;
   const discount = hasFounder ? 0 : calcDiscount(subtotal, coupon);
   const shipFee = calcShipping(shipping, cartProducts, subtotal - discount);
-  return { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total: subtotal - discount + shipFee };
+  return { listSubtotal, subtotal, founderDiscount, hasFounder, founderSlots, discount, shipFee, total: subtotal - discount + shipFee };
 };
 function SummaryRow({ label, value, tone }) {
   return (
@@ -2351,7 +2355,7 @@ function QtyStepper({ value, onChange, max }) {
 }
 
 function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, coupon, setCoupon, validateCoupon, calcDiscount }) {
-  const { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
+  const { listSubtotal, subtotal, founderDiscount, hasFounder, founderSlots, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
   const hasPhysical = cartProducts.some((p) => p.productType === "physical");
   // Kupon tidak bisa digabung dengan harga pendiri: kupon yang sudah terpasang dilepas.
   useEffect(() => { if (hasFounder && coupon) setCoupon(null); }, [hasFounder, coupon]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2399,7 +2403,7 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
               <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
                 <SummaryRow label="Subtotal" value={rp(listSubtotal)} />
-                {founderDiscount > 0 && <SummaryRow label="Diskon harga pendiri" value={`-${rp(founderDiscount)}`} tone="good" />}
+                {founderDiscount > 0 && <SummaryRow label={`Diskon ${founderSlots} Pembeli Pertama`} value={`-${rp(founderDiscount)}`} tone="good" />}
                 {discount > 0 && <SummaryRow label={`Diskon${coupon ? ` (${coupon.code})` : ""}`} value={`-${rp(discount)}`} tone="good" />}
                 {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
                 {hasPhysical && freeAbove > 0 && shipFee > 0 && (
@@ -2420,7 +2424,7 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
 
 /* ---------------- CHECKOUT ---------------- */
 function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCoupon, validateCoupon, clearCart, addOrder, calcDiscount, goToPaymentConfirm, account, paymentMethods }) {
-  const { listSubtotal, subtotal, founderDiscount, hasFounder, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
+  const { listSubtotal, subtotal, founderDiscount, hasFounder, founderSlots, discount, shipFee, total } = cartSummary(cartProducts, coupon, calcDiscount, shipping);
   const hasPhysical = cartProducts.some((p) => p.productType === "physical");
   useEffect(() => { if (hasFounder && coupon) setCoupon(null); }, [hasFounder, coupon]); // eslint-disable-line react-hooks/exhaustive-deps
   // Slot pendiri habis saat pembeli di checkout -> server menolak pesanan; pembeli harus menyetujui harga baru.
@@ -2553,7 +2557,7 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
             <CouponBox subtotal={subtotal} coupon={coupon} setCoupon={setCoupon} validateCoupon={validateCoupon} />
             <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
               <SummaryRow label="Subtotal" value={rp(listSubtotal)} />
-              {founderDiscount > 0 && <SummaryRow label="Diskon harga pendiri" value={`-${rp(founderDiscount)}`} tone="good" />}
+              {founderDiscount > 0 && <SummaryRow label={`Diskon ${founderSlots} Pembeli Pertama`} value={`-${rp(founderDiscount)}`} tone="good" />}
               {discount > 0 && <SummaryRow label={`Diskon${coupon ? ` (${coupon.code})` : ""}`} value={`-${rp(discount)}`} tone="good" />}
               {hasPhysical && <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Ongkir</span><span style={{ color: shipFee === 0 ? C.gold : C.text, fontWeight: shipFee === 0 ? 700 : 400 }}>{shipFee === 0 ? "GRATIS" : rp(shipFee)}</span></div>}
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}><span style={{ color: C.text, fontWeight: 700 }}>Total Bayar</span><span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 18, color: C.goldLight }}>{rp(total)}</span></div>
@@ -2570,9 +2574,9 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
         <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <Card className="gs-anim-in" style={{ maxWidth: 400, width: "100%", padding: 24, textAlign: "center" }}>
             <div style={{ width: 54, height: 54, borderRadius: "50%", background: `${C.ember}1f`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}><Flame size={26} color={C.ember} /></div>
-            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, color: C.text, margin: "0 0 8px" }}>Harga pendiri sudah habis</h3>
+            <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 19, color: C.text, margin: "0 0 8px" }}>Harga {founderSlots} Pembeli Pertama sudah habis</h3>
             <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13.5, color: C.muted, lineHeight: 1.6, margin: "0 0 14px" }}>
-              Maaf, slot harga pendiri baru saja terisi penuh saat kamu di halaman ini. Sekarang berlaku harga normal. Pesanan belum dibuat dan kamu belum ditagih apa pun.
+              Maaf, slot harga {founderSlots} Pembeli Pertama baru saja terisi penuh saat kamu di halaman ini. Sekarang berlaku harga normal. Pesanan belum dibuat dan kamu belum ditagih apa pun.
             </p>
             <div style={{ background: C.surface2, borderRadius: 12, padding: "12px 14px", marginBottom: 18, fontFamily: "'Manrope',sans-serif", fontSize: 13.5 }}>
               {cartProducts.map((p) => (
@@ -4005,7 +4009,7 @@ const LP_EXTRA_DEFAULTS = {
   // Teks-teks di blok harga + countdown (section "Harga Spesial"). Bagian jumlah slot & harga
   // itu sendiri diatur lewat "Edit Promo" di Pengaturan Landing Page, bukan di sini -- ini
   // cuma teksnya saja, silakan sesuaikan gaya bahasanya lewat pensil di halaman.
-  promoActiveNote: "Harga Spesial Pendiri — sisa {sisa} dari {total} slot",
+  promoActiveNote: "Harga {total} Pembeli Pertama · sisa {sisa} slot",
   promoExpiredTimeNote: "Harga sudah kembali ke harga normal",
   promoExpiredSlotNote: "Slot harga spesial sudah penuh — harga sudah kembali normal",
   promoOffNote: "Harga Spesial",
@@ -6903,9 +6907,10 @@ export default function App() {
   // p.listPrice = harga normal, p.founder = info slot). Panel admin tetap memakai `products` asli.
   const shopProducts = useMemo(() => products.map((p) => {
     const r = pricing[p.id];
-    if (!r || !r.founder_active || p.productType === "physical") return { ...p, listPrice: p.price };
+    if (!r || p.productType === "physical") return { ...p, listPrice: p.price };
+    if (!r.founder_active) return { ...p, listPrice: p.price, founderSlots: r.founder_slots };
     return {
-      ...p, price: r.founder_price, oldPrice: r.list_price, listPrice: r.list_price,
+      ...p, price: r.founder_price, oldPrice: r.list_price, listPrice: r.list_price, founderSlots: r.founder_slots,
       founder: { price: r.founder_price, listPrice: r.list_price, slots: r.founder_slots, left: r.founder_left, endsAt: r.ends_at || "" },
     };
   }), [products, pricing]);
