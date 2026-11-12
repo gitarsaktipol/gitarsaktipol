@@ -96,7 +96,9 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
   `sold` + Pending ≤24 jam berharga pendiri (item `founder:true`). Berakhir saat slot habis ATAU `endsAt` lewat (kosong
   = slot saja). Kupon TIDAK bisa digabung (validate_coupon menerima `p_product_ids`). Harga server > harga yang dikirim
   browser → error `GS001` → dialog "Harga pendiri sudah habis" di checkout, pembeli harus setuju dulu. Tampilan seragam:
-  `FounderNote` ("Harga pendiri, sisa X dari Y slot"), `cartSummary` (Subtotal normal / Diskon harga pendiri / Total).
+  `FounderNote` ("Harga N Pembeli Pertama · sisa X slot"), `cartSummary` (Subtotal normal / "Diskon N Pembeli Pertama" / Total).
+  Istilah untuk pembeli = "N Pembeli Pertama" (N = founderSlots), BUKAN "harga pendiri" (diganti 13 Nov 2026, migrasi
+  20261113000001 untuk pesan kupon/GS001); nama internal di kode/DB tetap founder.
   Teks FAQ/ajakan di landing page yang menyebut Rp247.000 ditulis Ferdi sendiri — tidak ikut hilang otomatis.
   Constraint kupon: nilai >0, persen ≤100. Terjual/stok/`used`
   kupon ditambah sekali per pesanan lewat `order_count_stats` (kolom `orders.stats_counted`), dipanggil
