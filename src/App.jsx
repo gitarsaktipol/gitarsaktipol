@@ -4351,7 +4351,8 @@ function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTes
     return sum + (isNaN(n) ? 0 : n);
   }, 0);
   // Mode "normal": angka yang dicoret = harga normal produk (yang benar-benar berlaku setelah promo habis).
-  const bonusCutAmount = extra.bonusCutMode === "normal" ? (p?.price || 0) : bonusCutPct > 0 ? Math.round(bonusValueTotal * (100 - bonusCutPct) / 100) : 0;
+  // Mode "normal" = harga NORMAL produk (listPrice), bukan harga 100 Pembeli Pertama yang sedang berlaku.
+  const bonusCutAmount = extra.bonusCutMode === "normal" ? (p?.listPrice || p?.price || 0) : bonusCutPct > 0 ? Math.round(bonusValueTotal * (100 - bonusCutPct) / 100) : 0;
 
   useEffect(() => {
     // Catat 1 kunjungan landing page ini ke database (dipakai untuk statistik admin).
