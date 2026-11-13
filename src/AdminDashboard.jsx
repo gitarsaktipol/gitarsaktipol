@@ -177,7 +177,7 @@ function PaymentMethodEditor({ initial, onSave, onCancel }) {
 
 // Daftar + kelola metode pembayaran. Ini yang bikin metode pembayaran bisa ditambah/diedit/
 // dihapus/diaktif-nonaktifkan sendiri oleh admin tanpa perlu ubah kode sama sekali.
-function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelete, onReorder }) {
+function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onToggleReview, onDelete, onReorder }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const iconLabel = { bank: "Bank / Transfer", qris: "QRIS", ewallet: "E-Wallet", card: "Kartu" };
@@ -224,6 +224,12 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
                   {m.type === "midtrans" && <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 10, fontWeight: 700, color: C.gold, background: `${C.gold}18`, padding: "2px 7px", borderRadius: 999 }}>OTOMATIS</span>}
                 </div>
                 <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>{iconLabel[m.icon] || m.icon}{m.type === "manual" && m.accountNumber ? ` • ${m.accountNumber}` : ""}</span>
+                {!m.enabled && onToggleReview && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: m.reviewOnly ? C.gold : C.mutedDark, cursor: "pointer" }}>
+                    <input type="checkbox" checked={!!m.reviewOnly} onChange={(e) => onToggleReview(m.id, e.target.checked)} />
+                    Tetap tampil untuk akun review
+                  </label>
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                 <button onClick={() => onToggle(m.id, !m.enabled)} title={m.enabled ? "Nonaktifkan" : "Aktifkan"} style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}>
@@ -246,7 +252,52 @@ function PaymentMethodsForm({ paymentMethods, onAdd, onUpdate, onToggle, onDelet
       ) : (
         <GhostBtn onClick={() => setAdding(true)} icon={Plus}>Tambah Metode Pembayaran</GhostBtn>
       )}
+      <ReviewAccountsCard />
     </div>
+  );
+}
+
+// Akun review (mis. peninjau Midtrans): metode nonaktif yang dicentang "Tetap tampil untuk akun review"
+// hanya tampil & diterima server untuk email di daftar ini. Pesanannya tidak dihitung ke terjual/stok/kupon
+// maupun slot "N Pembeli Pertama". Hapus emailnya setelah review selesai.
+function ReviewAccountsCard() {
+  const [rows, setRows] = useState(null);
+  const [email, setEmail] = useState("");
+  const [msg, setMsg] = useState("");
+  const load = async () => {
+    const { data } = await supabase.from("review_accounts").select("*").order("created_at");
+    setRows(data || []);
+  };
+  useEffect(() => { load(); }, []);
+  const add = async () => {
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { setMsg("Email belum benar."); return; }
+    const { error } = await supabase.from("review_accounts").insert({ email: e, note: "Akun review" });
+    if (error) { setMsg(error.code === "23505" ? "Email ini sudah ada di daftar." : "Gagal menyimpan."); return; }
+    setEmail(""); setMsg(""); load();
+  };
+  const remove = async (e) => {
+    if (!window.confirm(`Hapus ${e} dari akun review?`)) return;
+    await supabase.from("review_accounts").delete().eq("email", e);
+    load();
+  };
+  const f = "'Manrope',sans-serif";
+  return (
+    <Card style={{ padding: 16, marginTop: 6 }}>
+      <h4 style={{ fontFamily: f, fontWeight: 700, fontSize: 13.5, color: C.text, margin: "0 0 4px" }}>Akun review</h4>
+      <p style={{ fontFamily: f, fontSize: 11.5, color: C.mutedDark, margin: "0 0 10px", lineHeight: 1.55 }}>Email di sini bisa memakai metode nonaktif yang dicentang "Tetap tampil untuk akun review" (mis. Midtrans sandbox untuk peninjau Midtrans). Pesanannya tidak dihitung ke terjual maupun slot Pembeli Pertama. Hapus setelah review selesai.</p>
+      {rows === null ? <p style={{ fontFamily: f, fontSize: 12, color: C.muted }}>Memuat…</p> : rows.length === 0 ? <p style={{ fontFamily: f, fontSize: 12, color: C.muted, margin: "0 0 10px" }}>Belum ada akun review.</p> : rows.map((r) => (
+        <div key={r.email} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: `1px solid ${C.border}` }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: f, fontSize: 12.5, color: C.text, overflowWrap: "anywhere" }}>{r.email}</span>
+          <button onClick={() => remove(r.email)} title="Hapus" style={{ background: "none", border: "none", cursor: "pointer", padding: 5 }}><Trash2 size={14} color={C.emberLight} /></button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@contoh.com" type="email" style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface2, color: C.text, fontFamily: f, fontSize: 13 }} />
+        <GhostBtn onClick={add} icon={Plus}>Tambah</GhostBtn>
+      </div>
+      {msg && <p style={{ fontFamily: f, fontSize: 11.5, color: C.emberLight, margin: "6px 0 0" }}>{msg}</p>}
+    </Card>
   );
 }
 
@@ -708,7 +759,7 @@ function AdminFertune() {
   );
 }
 
-export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, updateFulfillment, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
+export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct, updateProduct, toggleProductStatus, deleteProduct, reorderProducts, curriculumData, curriculumOutline, coupons, addCoupon, deleteCoupon, siteContent, updateSiteContent, customPages, addCustomPage, updateCustomPage, deleteCustomPage, tampilanSub, setTampilanSub, orders, updateOrderStatus, updateFulfillment, bankInfo, updateBankInfo, paymentMethods, addPaymentMethod, updatePaymentMethod, togglePaymentMethod, toggleReviewOnly, deletePaymentMethod, reorderPaymentMethods, onChangeAdminPassword, onExportData, onResetData, totalVisits, countVisitsSince, members, landingPages, addLandingPage, updateLandingPage, deleteLandingPage, openLandingPage, openLearnEditor }) {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showQuickProductForm, setShowQuickProductForm] = useState(false);
@@ -1385,7 +1436,7 @@ export function AdminDashboard({ go, sub, setSub, onLogout, products, addProduct
         {sub === "settings" && settingsSub === "rekening" && (
           <div>
             <button onClick={() => setSettingsSub("menu")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: C.muted, fontFamily: "'Manrope',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 16 }}><ArrowLeft size={14} />Kembali ke Pengaturan</button>
-            <PaymentMethodsForm paymentMethods={paymentMethods} onAdd={addPaymentMethod} onUpdate={updatePaymentMethod} onToggle={togglePaymentMethod} onDelete={deletePaymentMethod} onReorder={reorderPaymentMethods} />
+            <PaymentMethodsForm paymentMethods={paymentMethods} onAdd={addPaymentMethod} onUpdate={updatePaymentMethod} onToggle={togglePaymentMethod} onToggleReview={toggleReviewOnly} onDelete={deletePaymentMethod} onReorder={reorderPaymentMethods} />
           </div>
         )}
 

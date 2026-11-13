@@ -2431,7 +2431,8 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
   const [priceChanged, setPriceChanged] = useState(false);
   const [form, setForm] = useState({ name: account.name, phone: account.phone });
   const [addr, setAddr] = useState(() => ({ name: account.name || "", phone: account.phone || "", address: "", city: "", province: "", postal: "", note: "", ...(savedAddress || {}) }));
-  const activeMethods = (paymentMethods || []).filter((m) => m.enabled);
+  // reviewOnly: metode nonaktif yang khusus akun review (RLS hanya mengirim baris ini ke akun review).
+  const activeMethods = (paymentMethods || []).filter((m) => m.enabled || m.reviewOnly);
   const [methodId, setMethodId] = useState(null);
   useEffect(() => { if (!methodId && activeMethods.length > 0) setMethodId(activeMethods[0].id); }, [activeMethods.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const iconForMethod = (icon) => ({ bank: Landmark, qris: QrCode, ewallet: Wallet, card: CreditCard }[icon] || CreditCard);
@@ -6002,6 +6003,7 @@ export default function App() {
     bankName: row.bank_name, accountNumber: row.account_number, accountHolder: row.account_holder,
     qrisImageUrl: row.qris_image_url, instructions: row.instructions,
     midtransClientKey: row.midtrans_client_key, midtransEnv: row.midtrans_env || "sandbox",
+    reviewOnly: !!row.review_only,
   });
 
   /* ---------------- FETCH DATA DARI SUPABASE ---------------- */
@@ -6198,6 +6200,10 @@ export default function App() {
     if (error) return { ok: false, error: error.message };
     fetchPaymentMethods();
     return { ok: true };
+  };
+  const toggleReviewOnly = async (id, reviewOnly) => {
+    setPaymentMethods((prev) => prev.map((p) => (p.id === id ? { ...p, reviewOnly } : p)));
+    await supabase.from("payment_methods").update({ review_only: reviewOnly }).eq("id", id);
   };
   const togglePaymentMethod = async (id, enabled) => {
     setPaymentMethods((prev) => prev.map((p) => (p.id === id ? { ...p, enabled } : p))); // optimistic
@@ -7413,7 +7419,7 @@ export default function App() {
         }
         return <LearnPage slug={productSlug} go={go} progress={videoProgress} onMarkComplete={markVideoComplete} current={videoCurrent} setCurrent={setVideoCurrent} products={products} curriculumData={curriculumData} curriculumOutline={curriculumOutline} role={role} learnEditMode={learnEditMode} setLearnEditMode={setLearnEditMode} onSaveProduct={updateProduct} goToAdmin={() => go("admin")} />;
       })()}
-      {view === "admin" && <LoadErrorBoundary><Suspense fallback={<AdminLoading />}><AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} updateFulfillment={updateFulfillment} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} /></Suspense></LoadErrorBoundary>}
+      {view === "admin" && <LoadErrorBoundary><Suspense fallback={<AdminLoading />}><AdminDashboard go={go} sub={adminSub} setSub={setAdminSub} onLogout={logout} products={products} addProduct={addProduct} updateProduct={updateProduct} toggleProductStatus={toggleProductStatus} deleteProduct={deleteProduct} reorderProducts={reorderProducts} curriculumData={curriculumData} curriculumOutline={curriculumOutline} coupons={coupons} addCoupon={addCoupon} deleteCoupon={deleteCoupon} siteContent={siteContent} updateSiteContent={updateSiteContent} customPages={customPages} addCustomPage={addCustomPage} updateCustomPage={updateCustomPage} deleteCustomPage={deleteCustomPage} tampilanSub={tampilanSub} setTampilanSub={setTampilanSub} orders={orders} updateOrderStatus={updateOrderStatus} updateFulfillment={updateFulfillment} bankInfo={bankInfo} updateBankInfo={updateBankInfo} paymentMethods={paymentMethods} addPaymentMethod={addPaymentMethod} updatePaymentMethod={updatePaymentMethod} togglePaymentMethod={togglePaymentMethod} toggleReviewOnly={toggleReviewOnly} deletePaymentMethod={deletePaymentMethod} reorderPaymentMethods={reorderPaymentMethods} onChangeAdminPassword={changeAdminPassword} onExportData={exportAllData} onResetData={resetAllData} totalVisits={totalVisits} countVisitsSince={countVisitsSince} members={members} landingPages={landingPages} addLandingPage={addLandingPage} updateLandingPage={updateLandingPage} deleteLandingPage={deleteLandingPage} openLandingPage={openLandingPage} openLearnEditor={openLearnEditor} /></Suspense></LoadErrorBoundary>}
       </div>
     </div>
   );

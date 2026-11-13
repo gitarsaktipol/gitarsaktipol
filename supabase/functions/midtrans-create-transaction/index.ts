@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     if (order.payment !== "Pending") return json({ ok: false, error: "Pesanan ini sudah diproses." }, 409);
 
     const { data: method } = await db.from("payment_methods").select("*").eq("id", order.payment_method_id).maybeSingle();
-    if (!method || method.type !== "midtrans" || !method.enabled) {
+    // Metode nonaktif tetap boleh untuk pesanan akun review (orders.is_review diisi trigger DB, payment_methods.review_only).
+    if (!method || method.type !== "midtrans" || !(method.enabled || (method.review_only && order.is_review))) {
       return json({ ok: false, error: "Metode pembayaran online tidak tersedia untuk pesanan ini." }, 400);
     }
     const env: "sandbox" | "production" = method.midtrans_env === "production" ? "production" : "sandbox";
