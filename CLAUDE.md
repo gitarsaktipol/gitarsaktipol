@@ -115,6 +115,11 @@ Parameter URL: `?admin=1` (form login admin), `?halaman=<slug>` (landing page ik
 - **Saklar metode bayar**: tombol aktif/nonaktif di Admin › Pengaturan › Metode Pembayaran (`payment_methods.enabled`).
   Nonaktif = hilang dari checkout DAN ditolak `orders_before_insert`. Midtrans DIMATIKAN 12 Nov 2026 (masih sandbox);
   nyalakan lagi lewat tombol itu setelah Midtrans produksi aktif (isi Client Key produksi + env production dulu).
+- **Akun review** (13 Nov 2026, peninjau Midtrans): tabel `review_accounts` (email; diatur di Admin › Pengaturan › Metode Pembayaran,
+  kartu "Akun review") + `payment_methods.review_only` (centang "Tetap tampil untuk akun review" pada metode NONAKTIF) → metode itu
+  hanya terlihat (RLS `is_review_account`) & diterima (`orders_before_insert`, `midtrans-create-transaction`) untuk akun review.
+  `orders.is_review` (diisi trigger): tidak menambah terjual/stok/kupon, tidak memakan slot Pembeli Pertama, boleh beli ulang produk
+  yang sama. Midtrans sandbox tidak masuk FerCash. Hapus email review setelah Midtrans produksi aktif.
 - **Bayar Midtrans (Snap)**: `payment_methods.type='midtrans'` (Client Key + env di tabel;
   Server Key HANYA di secret). `midtrans-create-transaction` buat token dari data DB →
   popup → `midtrans-webhook` (verify_jwt=false; cek signature SHA512, cek ulang status ke API,
