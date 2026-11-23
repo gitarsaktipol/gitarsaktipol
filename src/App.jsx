@@ -2217,7 +2217,7 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
 
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, fontFamily: "'Manrope',sans-serif", fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Level</span><span style={{ color: C.text }}>{p.level}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>{p.fertuneDays ? "Masa aktif" : "Durasi"}</span><span style={{ color: C.text }}>{p.duration}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>{p.fertuneDays ? "Masa aktif" : "Durasi"}</span><span style={{ color: C.text }}>{status === "soon" && /^0\s/.test(String(p.duration || "")) ? "Segera diumumkan" : p.duration}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.muted }}>Format</span><span style={{ color: C.text, textAlign: "right" }}>{p.format}</span></div>
             </div>
 
@@ -2264,10 +2264,12 @@ function ProductPage({ slug, go, addToCart, cart, ownedIds, pendingIds, accessPr
               </div>
             )}
 
+            {status !== "soon" && !owned && (
             <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
               <ShieldCheck size={14} color={C.muted} />
               <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark }}>Akses otomatis terbuka setelah pembayaran terverifikasi</span>
             </div>
+            )}
           </Card>
         </div>
       </div>
@@ -2383,7 +2385,7 @@ function CartPage({ go, cartProducts, removeFromCart, updateCartQty, shipping, c
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text }}>{p.name}</div>
                       <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted, marginTop: 2 }}>
-                        {physical ? <>{p.variant ? <b style={{ color: C.text }}>{p.variant}</b> : null}{p.variant ? " · " : ""}Dikirim ke alamatmu</> : "Kelas digital · akses selamanya"}
+                        {physical ? <>{p.variant ? <b style={{ color: C.text }}>{p.variant}</b> : null}{p.variant ? " · " : ""}Dikirim ke alamatmu</> : p.fertuneDays ? `FerTune Premium · aktif ${p.fertuneDays >= 365 ? `${Math.round(p.fertuneDays / 365)} tahun` : `${p.fertuneDays} hari`}` : "Kelas digital · akses selamanya"}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
                         {physical && <QtyStepper value={p.qty} max={max === "" ? null : max} onChange={(q) => updateCartQty(p.cartKey, q)} />}
@@ -2429,7 +2431,7 @@ function CheckoutPage({ go, cartProducts, shipping, savedAddress, coupon, setCou
   useEffect(() => { if (hasFounder && coupon) setCoupon(null); }, [hasFounder, coupon]); // eslint-disable-line react-hooks/exhaustive-deps
   // Slot pendiri habis saat pembeli di checkout -> server menolak pesanan; pembeli harus menyetujui harga baru.
   const [priceChanged, setPriceChanged] = useState(false);
-  const [form, setForm] = useState({ name: account.name, phone: account.phone });
+  const [form, setForm] = useState({ name: account.name || "", phone: account.phone || "" });
   const [addr, setAddr] = useState(() => ({ name: account.name || "", phone: account.phone || "", address: "", city: "", province: "", postal: "", note: "", ...(savedAddress || {}) }));
   // reviewOnly: metode nonaktif yang khusus akun review (RLS hanya mengirim baris ini ke akun review).
   const activeMethods = (paymentMethods || []).filter((m) => m.enabled || m.reviewOnly);
@@ -2941,6 +2943,7 @@ function AuthPage({ go, onCustomerLogin, onCustomerRegister, onAdminLogin, onFor
   const inputStyle = { width: "100%", marginBottom: 10, background: C.surface2, border: "1px solid transparent", borderRadius: 12, padding: "12px 14px", color: C.text, fontFamily: "'Manrope',sans-serif", fontSize: 14, boxSizing: "border-box" };
 
   const submitCustomer = async () => {
+    if (mode === "login" && (!email.trim() || !password)) { setError("Isi email dan kata sandi dulu."); return; }
     setSubmitting(true);
     const result = mode === "login" ? await onCustomerLogin({ email, password }) : await onCustomerRegister({ name, email, phone, password });
     setSubmitting(false);
@@ -4287,7 +4290,10 @@ function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTes
   if (!lp || !p) {
     return (
       <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
-        <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+        <div>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 14, color: C.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+          <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => go("shop")}>Lihat Semua Produk</PrimaryBtn></div>
+        </div>
       </div>
     );
   }
@@ -5130,7 +5136,10 @@ function LandingPageTemplateViolet(props) {
     return (
       <div className="lp2-root" style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
         <style>{V_CSS}</style>
-        <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+        <div>
+          <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted }}>Landing page tidak ditemukan, atau produknya sudah tidak tersedia.</p>
+          <div style={{ marginTop: 16 }}><PrimaryBtn onClick={() => props.go("shop")}>Lihat Semua Produk</PrimaryBtn></div>
+        </div>
       </div>
     );
   }
@@ -5805,6 +5814,13 @@ const LP_SLUG_ALIASES = { "secret-of-shredding-baru": "secret-of-shredding" };
 
 // Pemilih template: landing page yang belum pernah diatur otomatis pakai template klasik (emas).
 function LandingPageRouter(props) {
+  if (props.loading) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+        <span style={{ fontFamily: "'Manrope',sans-serif", fontSize: 13, color: C.muted }}>Memuat...</span>
+      </div>
+    );
+  }
   const Tpl = props.lp?.extra?.template === "violet" ? LandingPageTemplateViolet : LandingPageTemplate;
   return <Tpl {...props} />;
 }
@@ -5913,6 +5929,8 @@ export default function App() {
   // kurikulum (judul kelas, video, link) langsung di tampilan asli yang dilihat pembeli.
   const [learnEditMode, setLearnEditMode] = useState(false);
   const [landingPages, setLandingPages] = useState([]);
+  // Supaya tautan iklan (?halaman=...) tidak sempat menampilkan "tidak ditemukan" saat data masih dimuat.
+  const [landingPagesLoaded, setLandingPagesLoaded] = useState(false);
   // ?produk=<slug> = tautan langsung ke halaman produk (dipakai tombol Upgrade di FerTune web)
   const [productSlug, setProductSlug] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("produk") : null));
   // Mulai kosong (bukan data contoh) supaya pengunjung tidak pernah melihat/membeli produk fiktif
@@ -5927,6 +5945,7 @@ export default function App() {
   const [cartLp, setCartLp] = useState({});
   // Harga dari server (product_pricing): satu-satunya sumber harga pendiri untuk semua halaman.
   const [pricing, setPricing] = useState({});
+  const [pricingLoaded, setPricingLoaded] = useState(false);
   const [coupon, setCoupon] = useState(null);
   const [redirectAfterAuth, setRedirectAfterAuth] = useState(null);
   const [pendingIntent, setPendingIntent] = useState(null); // tujuan yang dilanjutkan setelah masuk
@@ -6019,6 +6038,7 @@ export default function App() {
   const fetchPricing = async () => {
     pricingAt.current = Date.now();
     const { data, error } = await supabase.rpc("product_pricing");
+    setPricingLoaded(true);
     if (error || !Array.isArray(data)) return;
     const map = {};
     data.forEach((r) => { map[r.product_id] = r; });
@@ -6113,6 +6133,7 @@ export default function App() {
         extra: l.extra || {},
       })));
     }
+    setLandingPagesLoaded(true);
   };
   const fetchOrders = async () => {
     // RLS otomatis membatasi hasil: customer hanya lihat order miliknya, admin lihat semua.
@@ -7389,7 +7410,7 @@ export default function App() {
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} onResendVerification={resendVerification} onGoogle={loginWithGoogle} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
-      {view === "lp" && <LandingPageRouter lp={landingPages.find((l) => l.slug === lpSlug) || landingPages.find((l) => l.slug === LP_SLUG_ALIASES[lpSlug])} go={go} buyFromLp={buyFromLp} products={shopProducts} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
+      {view === "lp" && <LandingPageRouter loading={!landingPagesLoaded || !productsLoaded || !pricingLoaded} lp={landingPages.find((l) => l.slug === lpSlug) || landingPages.find((l) => l.slug === LP_SLUG_ALIASES[lpSlug])} go={go} buyFromLp={buyFromLp} products={shopProducts} testimonials={testimonials} addTestimonial={addTestimonial} ownedIds={ownedIds} pendingIds={pendingIds} role={role} lpEditMode={lpEditMode} setLpEditMode={setLpEditMode} onSaveLp={updateLandingPage} goToAdmin={() => go("admin")} whatsapp={siteContent.footer?.whatsapp} />}
       {(view === "privacy" || view === "terms" || view === "refund") && <LegalPage slug={view} go={go} />}
       {view === "custompage" && <CustomPageView slug={customPageSlug} customPages={customPages} products={shopProducts} go={go} openProduct={openProduct} addToCart={addToCart} cart={cartIds} ownedIds={ownedIds} pendingIds={pendingIds} accessProduct={accessProduct} videoProgress={videoProgress} curriculumData={curriculumData} role={role} onToggleStatus={toggleProductStatus} />}
       {view === "customer" && (
