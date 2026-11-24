@@ -4035,7 +4035,7 @@ const LP_EXTRA_DEFAULTS = {
   promoEndedLabel: "Periode harga spesial untuk kamu sudah berakhir",
   promoActivePriceLabel: "Harga Spesial Terbatas",
   promoNormalPriceLabel: "Harga Normal",
-  trustBadge1: "Pembayaran Aman",
+  trustBadge1: "Transfer BCA · Aman",
   trustBadge2: "Akses Setelah Verifikasi",
 };
 
@@ -4299,7 +4299,7 @@ function BookMockup({ item, idx, brand, w = 70, onClick }) {
 }
 
 // Bilah beli melayang di bawah layar HP (≤480 px) untuk landing page: harga yang ditagih + tombol beli
-// (aksi yang sama dengan tombol "Beli Sekarang" di kartu harga). Muncul setelah menggulir sedikit,
+// (aksi yang sama dengan tombol "Beli Sekarang" di kartu harga). Tampil sejak layar pertama (harga terlihat tanpa menggulir),
 // disembunyikan saat kartu harga sendiri terlihat. Body diberi padding bawah supaya footer tidak tertutup.
 function LpMobileBuyBar({ price, anchorPrice, showAnchor, p, promoActive, onBuy, label = "Beli Sekarang", palette }) {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 480px)").matches);
@@ -4314,7 +4314,7 @@ function LpMobileBuyBar({ price, anchorPrice, showAnchor, p, promoActive, onBuy,
   useEffect(() => {
     if (!isMobile) { setShow(false); return undefined; }
     let pricingVisible = false;
-    const upd = () => setShow(window.scrollY > 260 && !pricingVisible);
+    const upd = () => setShow(!pricingVisible);
     let io = null;
     const el = document.getElementById("lp-pricing-buy");
     if (el && "IntersectionObserver" in window) {
