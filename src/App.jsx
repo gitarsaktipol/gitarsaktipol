@@ -388,7 +388,7 @@ const SECTION_MARKER = "__section__";
 const FAQ_HOME = [
   { q: "Apakah materi bisa diakses selamanya?", a: "Ya. Setelah pembayaran terverifikasi, produk masuk ke akun kamu dan dapat diakses kapan saja tanpa batas waktu." },
   { q: "Apakah cocok untuk yang belum pernah pegang gitar?", a: "Cocok. Tersedia kategori Beginner Guitar yang disusun dari nol tanpa asumsi kemampuan sebelumnya." },
-  { q: "Metode pembayaran apa saja yang tersedia?", a: "Sesuai metode yang tersedia di halaman checkout (mis. transfer bank atau QRIS). Setelah membayar, unggah bukti pembayaran — materi terbuka di akunmu begitu pembayaran diverifikasi admin, biasanya dalam 1x24 jam pada hari kerja." },
+  { q: "Metode pembayaran apa saja yang tersedia?", a: "Saat ini pembayaran lewat transfer bank BCA (metode lain akan menyusul). Setelah transfer, unggah bukti pembayaran — materi terbuka di akunmu begitu pembayaran diverifikasi admin, biasanya dalam 1x24 jam pada hari kerja." },
   { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman." },
 ];
 
@@ -1157,7 +1157,7 @@ function ProductCard({ p, onOpen, onAdd, inCart, owned, pending, onAccess, video
           {owned ? <Badge tone="gold">Dimiliki</Badge> : pending ? <Badge tone="ember" dot>Menunggu Bayar</Badge> : p.badge ? <Badge tone={p.badge === "Best Seller" ? "ember" : "gold"}>{p.badge}</Badge> : null}
           {physical && !owned && <span style={{ padding: "4px 9px", borderRadius: 999, background: "rgba(0,0,0,0.55)", color: "#fff", fontFamily: "'Manrope',sans-serif", fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, backdropFilter: "blur(6px)" }}>MERCH</span>}
         </div>
-        {!owned && !pending && disc > 0 && !soldOut && <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg, #FF6B4A, #C1442A)", color: "#fff", fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, fontFamily: "'JetBrains Mono',monospace", boxShadow: "0 4px 12px rgba(193,68,42,0.35)" }}>-{disc}%</div>}
+        {!owned && !pending && disc > 0 && !soldOut && !(status === "soon" && !isAdmin) && <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg, #FF6B4A, #C1442A)", color: "#fff", fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, fontFamily: "'JetBrains Mono',monospace", boxShadow: "0 4px 12px rgba(193,68,42,0.35)" }}>-{disc}%</div>}
         {!physical && !owned && p.previewVideo && <div className="gs-pc-play" style={{ position: "absolute", left: "50%", top: "50%", width: 48, height: 48, margin: "-24px 0 0 -24px", borderRadius: "50%", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}><Play size={20} color="#fff" fill="#fff" style={{ marginLeft: 2 }} /></div>}
         {soldOut && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Manrope',sans-serif", fontWeight: 800, letterSpacing: 2, color: "#fff", fontSize: 14 }}>STOK HABIS</div>}
         {owned && curriculum && (
@@ -1432,7 +1432,7 @@ const LEGAL_PAGES = {
     body: [
       "Gitar Sakti mengumpulkan data yang kamu berikan saat mendaftar dan checkout: nama, email, nomor WhatsApp, alamat pengiriman (khusus barang fisik), serta bukti transfer yang diunggah bila kamu membayar lewat transfer manual BCA.",
       "Data ini digunakan untuk memproses pesanan, memverifikasi pembayaran, memberikan akses ke produk yang kamu beli, dan menghubungi kamu terkait pesanan. Data pribadi kamu tidak kami jual.",
-      "Pembayaran otomatis (QRIS, Virtual Account, dan e-wallet) diproses oleh Midtrans (PT Midtrans), penyedia payment gateway berizin Bank Indonesia. Untuk itu kami mengirim nama, email, nomor WhatsApp, Order ID, daftar produk, dan jumlah tagihan ke Midtrans. Data pembayaran yang kamu masukkan di jendela Midtrans (mis. nomor kartu atau akun e-wallet) diproses langsung oleh Midtrans dan tidak disimpan oleh Gitar Sakti.",
+      "Saat ini pembayaran yang tersedia adalah transfer manual ke rekening BCA Gitar Sakti; metode lain akan menyusul. Bila nanti pembayaran otomatis lewat Midtrans (PT Midtrans, penyedia payment gateway berizin Bank Indonesia) diaktifkan, untuk pembayaran lewat cara itu kami mengirim nama, email, nomor WhatsApp, Order ID, daftar produk, dan jumlah tagihan ke Midtrans. Data pembayaran yang kamu masukkan di jendela Midtrans (mis. nomor kartu atau akun e-wallet) diproses langsung oleh Midtrans dan tidak disimpan oleh Gitar Sakti.",
       "Kami memakai penyedia layanan pihak ketiga (hosting, database, dan pengiriman email) yang memproses data atas nama kami. Kami juga dapat memakai alat pengukur iklan seperti Meta Pixel, yang mengirim data aktivitas di situs (mis. halaman atau produk yang dilihat, dimasukkan ke keranjang, atau checkout) ke penyedia tersebut untuk mengukur dan menyempurnakan iklan. Nama, email, nomor WhatsApp, dan bukti transfer kamu tidak kami bagikan untuk keperluan iklan.",
       "Bukti transfer yang kamu unggah hanya dapat dilihat oleh admin Gitar Sakti untuk keperluan verifikasi pembayaran.",
       "Kamu bisa menghubungi kami kapan saja untuk meminta data pribadimu dihapus dari sistem, selama tidak melanggar kewajiban pencatatan transaksi.",
@@ -1442,8 +1442,8 @@ const LEGAL_PAGES = {
     title: "SYARAT & KETENTUAN",
     body: [
       "Dengan membeli produk di Gitar Sakti, kamu menyetujui bahwa seluruh materi (video, PDF, backing track) adalah untuk penggunaan pribadi dan tidak boleh dibagikan, dijual ulang, atau diunggah ulang ke platform lain.",
-      "Gitar Sakti menyediakan dua cara pembayaran: (1) Pembayaran otomatis lewat Midtrans — QRIS, Virtual Account bank, dan e-wallet (mis. GoPay). Status pembayaran dicek otomatis oleh sistem, dan akses materi terbuka begitu Midtrans mengonfirmasi pembayaran berhasil, biasanya dalam beberapa menit. (2) Transfer manual ke rekening BCA Gitar Sakti yang tertera saat checkout. Untuk cara ini kamu perlu mengunggah bukti transfer, lalu admin memverifikasinya secara manual, biasanya dalam 1x24 jam pada hari kerja.",
-      "Tagihan pembayaran otomatis lewat Midtrans berlaku 24 jam. Jika belum dibayar sampai batas waktu itu, tagihan kedaluwarsa dan kamu bisa membuat pesanan baru kapan saja.",
+      "Saat ini pembayaran dilakukan lewat transfer manual ke rekening BCA Gitar Sakti yang tertera saat checkout. Setelah transfer, kamu perlu mengunggah bukti transfer, lalu admin memverifikasinya secara manual, biasanya dalam 1x24 jam pada hari kerja. Metode pembayaran lain akan menyusul.",
+      "Transfer sesuai total yang tertera di halaman pembayaran. Pesanan yang belum dibayar dapat dibatalkan, dan kamu bisa membuat pesanan baru kapan saja.",
       "Harga yang tertera pada saat checkout adalah harga final yang berlaku untuk transaksi tersebut, termasuk apabila sedang berlaku harga promo/early bird. Seluruh harga dalam Rupiah (IDR).",
       "Gitar Sakti berhak menangguhkan akses akun yang terindikasi melakukan pelanggaran, termasuk pembagian materi tanpa izin.",
       "Hasil belajar setiap orang berbeda dan bergantung pada kemauan serta konsistensi latihan masing-masing. Kami tidak menjamin hasil atau tingkat kemampuan tertentu.",
@@ -1456,7 +1456,7 @@ const LEGAL_PAGES = {
       "Karena produk berupa materi digital yang langsung bisa diakses setelah pembayaran berhasil, pembelian yang sudah selesai secara umum tidak dapat dikembalikan (non-refundable).",
       "Pengecualian berlaku apabila terjadi kesalahan dari pihak Gitar Sakti, misalnya pembayaran sudah berhasil tetapi materi tidak dapat diakses karena kendala teknis dari sistem, atau kamu tertagih dua kali untuk pesanan yang sama.",
       "Untuk kendala seperti itu, silakan hubungi admin lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman dengan menyertakan Order ID dan bukti pembayaran. Pengajuan akan kami tanggapi paling lambat 3 hari kerja.",
-      "Refund yang disetujui dikembalikan sebesar nilai pembayaran: untuk transfer manual BCA dikirim ke rekening atas nama pembeli, sedangkan untuk pembayaran lewat Midtrans dikembalikan melalui metode pembayaran semula atau rekening bank atas nama pembeli, paling lambat 14 hari kerja setelah disetujui.",
+      "Refund yang disetujui dikembalikan sebesar nilai pembayaran: dikirim ke rekening bank atas nama pembeli (untuk metode pembayaran lain yang menyusul nanti: melalui metode pembayaran semula atau rekening bank atas nama pembeli), paling lambat 14 hari kerja setelah disetujui.",
       "Pembatalan pesanan yang belum dibayar tidak dikenai biaya apa pun. Untuk transfer manual BCA, pesanan yang sudah dibayar tetapi belum diverifikasi admin dapat dibatalkan dengan menghubungi admin.",
     ],
   },
@@ -1839,7 +1839,8 @@ function MerchProductPage({ p, go, addToCart, products, testimonials, role, ship
   const [variant, setVariant] = useState(variants.length === 1 ? variants[0].name : (firstAvail && variants.length <= 1 ? firstAvail.name : null));
   const [qty, setQty] = useState(1);
   const isAdmin = role === "admin";
-  const disc = p.oldPrice > p.price ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
+  // Barang "Segera Hadir": tanpa label diskon / harga coret.
+  const disc = p.oldPrice > p.price && !(p.status === "soon" && !isAdmin) ? Math.round((1 - p.price / p.oldPrice) * 100) : 0;
   const stockOf = (v) => (v ? v.stock : p.stock);
   const chosen = variants.find((v) => v.name === variant) || null;
   const avail = variants.length ? (chosen ? stockOf(chosen) : null) : p.stock;
@@ -2642,7 +2643,7 @@ function ProofImage({ path, alt, style }) {
   return <img src={url} alt={alt || "Bukti transfer"} style={style} />;
 }
 
-function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview, onPrepareOnline, onOpenSnap, refreshOrders }) {
+function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paymentMethods, goToCustomerOverview, onPrepareOnline, onOpenSnap, refreshOrders, whatsapp }) {
   const [paying, setPaying] = useState(false);
   const prepRef = useRef(null);
   // Siapkan token Snap + snap.js di latar belakang begitu halaman dibuka, supaya tombol "Bayar Sekarang" langsung responsif.
@@ -2804,6 +2805,19 @@ function PaymentConfirmationPage({ go, order, attachPaymentProof, bankInfo, paym
           </>
         )}
       </Card>
+
+      {!isMidtrans && whatsapp && order.payment === "Pending" && (
+        <Card style={{ padding: 16, marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <a
+            href={waLink(whatsapp, `Halo Gitar Sakti, saya sudah transfer untuk pesanan ${order.id}.\nProduk: ${(order.items || []).join(", ")}\nTotal: ${rp(order.total)}\nMohon dicek ya, terima kasih.`)}
+            target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 16px", borderRadius: 12, border: `1px solid ${C.gold}`, background: C.surface2, color: C.goldLight, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 14, textDecoration: "none" }}
+          >
+            <MessageCircle size={17} color={C.gold} />Konfirmasi cepat via WhatsApp
+          </a>
+          <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: C.mutedDark, margin: 0, lineHeight: 1.5, textAlign: "center" }}>Kirim pesan ke admin berisi nomor pesanan, produk, dan total. Tetap unggah bukti transfer di bawah supaya pesanan cepat diverifikasi.</p>
+        </Card>
+      )}
 
       {!isMidtrans && <Card style={{ padding: 20, marginTop: 16 }}>
         <h3 style={{ fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: 14, color: C.text, margin: "0 0 12px" }}>Unggah Bukti Transfer</h3>
@@ -4284,6 +4298,54 @@ function BookMockup({ item, idx, brand, w = 70, onClick }) {
   );
 }
 
+// Bilah beli melayang di bawah layar HP (≤480 px) untuk landing page: harga yang ditagih + tombol beli
+// (aksi yang sama dengan tombol "Beli Sekarang" di kartu harga). Muncul setelah menggulir sedikit,
+// disembunyikan saat kartu harga sendiri terlihat. Body diberi padding bawah supaya footer tidak tertutup.
+function LpMobileBuyBar({ price, anchorPrice, showAnchor, p, promoActive, onBuy, label = "Beli Sekarang", palette }) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 480px)").matches);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(max-width: 480px)");
+    if (!mq) return undefined;
+    const onMq = () => setIsMobile(mq.matches);
+    mq.addEventListener ? mq.addEventListener("change", onMq) : mq.addListener(onMq);
+    return () => { mq.removeEventListener ? mq.removeEventListener("change", onMq) : mq.removeListener(onMq); };
+  }, []);
+  useEffect(() => {
+    if (!isMobile) { setShow(false); return undefined; }
+    let pricingVisible = false;
+    const upd = () => setShow(window.scrollY > 260 && !pricingVisible);
+    let io = null;
+    const el = document.getElementById("lp-pricing-buy");
+    if (el && "IntersectionObserver" in window) {
+      io = new IntersectionObserver((ents) => { pricingVisible = ents.some((e) => e.isIntersecting); upd(); });
+      io.observe(el);
+    }
+    upd();
+    window.addEventListener("scroll", upd, { passive: true });
+    document.body.classList.add("gs-has-buybar");
+    return () => { window.removeEventListener("scroll", upd); io?.disconnect(); document.body.classList.remove("gs-has-buybar"); };
+  }, [isMobile]);
+  if (!isMobile) return null;
+  const pal = palette || { bg: C.surface, border: C.border, text: C.text, muted: C.mutedDark, price: C.goldLight, btnBg: C.gold, btnText: "#161019" };
+  return (
+    <div className="gs-buybar" aria-hidden={!show} style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 70, background: pal.bg, borderTop: `1px solid ${pal.border}`, boxShadow: "0 -8px 24px rgba(0,0,0,0.25)", padding: "10px 14px calc(10px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 12, transform: show ? "translateY(0)" : "translateY(110%)", transition: "transform .25s ease", pointerEvents: show ? "auto" : "none" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 18, color: pal.price, whiteSpace: "nowrap" }}>{rp(price)}</span>
+          {showAnchor && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: pal.muted, textDecoration: "line-through", whiteSpace: "nowrap" }}>{rp(anchorPrice)}</span>}
+        </div>
+        {promoActive && p?.founder ? (
+          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, fontWeight: 800, color: pal.muted, lineHeight: 1.3 }}>Harga {p.founder.slots} Pembeli Pertama · sisa {p.founder.left} slot</div>
+        ) : (
+          <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: pal.muted }}>Akses selamanya, sekali bayar</div>
+        )}
+      </div>
+      <button onClick={onBuy} tabIndex={show ? 0 : -1} style={{ flexShrink: 0, border: "none", borderRadius: 12, padding: "12px 18px", background: pal.btnBg, color: pal.btnText, fontFamily: "'Manrope',sans-serif", fontWeight: 800, fontSize: 14.5, cursor: "pointer", whiteSpace: "nowrap" }}>{label}</button>
+    </div>
+  );
+}
+
 function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTestimonial, ownedIds, pendingIds, role, lpEditMode, setLpEditMode, onSaveLp, goToAdmin, whatsapp }) {
   const p = products.find((x) => x.id === lp?.productId);
 
@@ -4416,6 +4478,8 @@ function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTes
     tierNoteKey = "promoOffNote";
     tierNote = getExtra("promoOffNote");
   }
+  // Produk "Segera Hadir": jangan pamer harga coret / persen diskon sebelum penjualan dibuka.
+  if (p && p.status === "soon" && role !== "admin") disc = 0;
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
@@ -4889,7 +4953,7 @@ function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTes
               {promoActive && <div style={{ margin: "2px 0 6px" }}><FounderNote p={p} size={13} /></div>}
               <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 12, color: C.muted }}>Akses selamanya, one-time payment</p>
             </div>
-            <div style={{ padding: 20 }}>
+            <div id="lp-pricing-buy" style={{ padding: 20 }}>
               {p.status === "soon" && role !== "admin" ? (
                 <div style={{ textAlign: "center", padding: "14px 10px", fontWeight: 800, fontSize: 16 }}>Segera Hadir</div>
               ) : pending ? (
@@ -4998,6 +5062,9 @@ function LandingPageTemplate({ lp, go, buyFromLp, products, testimonials, addTes
       <div style={{ padding: "20px 20px 40px", textAlign: "center" }}>
         <p style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: C.mutedDark, margin: 0 }}>© 2026 {p.name} × Gitar Sakti. Seluruh hak cipta dilindungi.</p>
       </div>
+      {role !== "admin" && p.status !== "soon" && !owned && !pending && (
+        <LpMobileBuyBar price={currentPrice} anchorPrice={anchorPrice} showAnchor={disc > 0} p={p} promoActive={promoActive} onBuy={buyNow} />
+      )}
     </div>
   );
 }
@@ -5262,6 +5329,8 @@ function LpVioletBody({ lp, p, go, buyFromLp, testimonials, ownedIds, pendingIds
     tierNoteKey = "promoOffNote";
     tierNote = getExtra("promoOffNote");
   }
+  // Produk "Segera Hadir": jangan pamer harga coret / persen diskon sebelum penjualan dibuka.
+  if (p && p.status === "soon" && role !== "admin") disc = 0;
 
   const buyNow = () => {
     supabase.rpc("increment_lp_click", { p_slug: lp.slug }).then(() => {}).catch(() => {});
@@ -5700,7 +5769,7 @@ function LpVioletBody({ lp, p, go, buyFromLp, testimonials, ownedIds, pendingIds
               <p style={{ fontFamily: V_BODY, fontSize: 14, color: V.muted, margin: 0 }}>Akses selamanya, one-time payment</p>
             </div>
 
-            <div style={{ padding: "0 32px 32px" }}>
+            <div id="lp-pricing-buy" style={{ padding: "0 32px 32px" }}>
               {p.status === "soon" && role !== "admin" ? (
                 <div style={{ textAlign: "center", padding: "14px 10px", fontWeight: 800, fontSize: 16 }}>Segera Hadir</div>
               ) : pending ? (
@@ -5804,6 +5873,10 @@ function LpVioletBody({ lp, p, go, buyFromLp, testimonials, ownedIds, pendingIds
       <div style={{ width: "100%", padding: "24px 16px", textAlign: "center" }}>
         <p style={{ fontFamily: V_BODY, fontSize: 12, color: V.muted, margin: 0 }}>© 2026 {p.name} × Gitar Sakti. Seluruh hak cipta dilindungi.</p>
       </div>
+      {role !== "admin" && p.status !== "soon" && !owned && !pending && (
+        <LpMobileBuyBar price={currentPrice} anchorPrice={anchorPrice} showAnchor={disc > 0} p={p} promoActive={promoActive} onBuy={buyNow}
+          palette={{ bg: V.card, border: V.border, text: "#fff", muted: V.muted, price: V.accentLight, btnBg: `linear-gradient(135deg, ${V.accent}, ${V.accentDark})`, btnText: "#fff" }} />
+      )}
     </div>
   );
 }
@@ -6542,7 +6615,11 @@ export default function App() {
       // tapi parameter lain (mis. ?admin=1) tetap.
       const u = new URL(window.location.href);
       if (LEGAL_URL[target]) u.searchParams.set("info", LEGAL_URL[target]); else u.searchParams.delete("info");
-      if (target !== "product") u.searchParams.delete("produk");
+      // Halaman produk punya link sendiri (?produk=<slug>) supaya bisa dibagikan / dipakai iklan.
+      if (target === "product" && newProductSlug) u.searchParams.set("produk", newProductSlug); else u.searchParams.delete("produk");
+      if (target !== "lp") u.searchParams.delete("halaman");
+      // Beranda = alamat bersih (sisa parameter sekali pakai dibuang; ?admin=1 tetap untuk admin)
+      if (target === "home") ["lanjut", "resetpw"].forEach((k) => u.searchParams.delete(k));
       window.history.pushState({ view: target, productSlug: newProductSlug, customPageSlug, lpSlug }, "", u.pathname + u.search + u.hash);
     } catch (e) { /* history API tidak tersedia — abaikan, navigasi tetap jalan lewat state */ }
   };
@@ -6830,7 +6907,8 @@ export default function App() {
     fetchProducts(); // stok terbaru
     sendOrderEmail(data.id, "created");
     // Telegram admin sengaja hanya dikirim saat bukti transfer diupload (bukan saat pesanan dibuat).
-    trackEvent("InitiateCheckout", { value: data.total, currency: "IDR", content_ids: items.map((i) => String(i.id)) });
+    // Biasanya sudah terkirim saat halaman checkout dibuka; ini hanya cadangan (tidak dobel untuk isi yang sama).
+    sendInitiateCheckout(items.map((i) => i.id), data.total);
     return { ok: true, orderId: data.id };
   };
   // Tombol beli di landing page: harga sama dengan halaman lain (server). Slug LP hanya dicatat
@@ -6950,6 +7028,22 @@ export default function App() {
   }).filter(Boolean);
   const cartIds = cart.map((e) => e.id);
   const cartCount = cart.reduce((sum, e) => sum + (e.qty || 1), 0);
+  // Meta Pixel InitiateCheckout: dikirim SEKALI saat pembeli masuk ke halaman checkout (dari tombol
+  // Beli / Beli Sekarang / Checkout). Kunci = isi keranjang; addOrder tidak mengirim lagi untuk isi yang sama.
+  const icSent = useRef({ key: "", at: 0 });
+  const icKeyOf = (ids) => ids.map(String).sort().join(",");
+  const sendInitiateCheckout = (ids, value) => {
+    const key = icKeyOf(ids);
+    if (!key) return;
+    if (icSent.current.key === key && Date.now() - icSent.current.at < 60 * 60 * 1000) return; // sudah terkirim di alur ini
+    icSent.current = { key, at: Date.now() };
+    trackEvent("InitiateCheckout", { content_ids: key.split(","), content_type: "product", num_items: ids.length, value, currency: "IDR" }, { eventID: `ic-${key}-${icSent.current.at}` });
+  };
+  useEffect(() => {
+    if (view !== "checkout" || !cartProducts.length) return;
+    sendInitiateCheckout(cartProducts.map((p) => p.id), cartProducts.reduce((s, p) => s + (p.price || 0) * (p.qty || 1), 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
   const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
   const addProduct = async (data, items = []) => {
@@ -7040,7 +7134,9 @@ export default function App() {
     setMobileOpen(false);
     window.scrollTo?.({ top: 0, behavior: "instant" });
     try {
-      window.history.pushState({ view: "custompage", productSlug, customPageSlug: slug }, "");
+      const u = new URL(window.location.href);
+      ["produk", "halaman", "info"].forEach((k) => u.searchParams.delete(k));
+      window.history.pushState({ view: "custompage", productSlug, customPageSlug: slug }, "", u.pathname + u.search + u.hash);
     } catch (e) {}
   };
   const goToAddPage = () => { setAdminSub("tampilan"); setTampilanSub("halaman"); go("admin"); };
@@ -7220,6 +7316,7 @@ export default function App() {
         .gs-btn-primary:not(:disabled):hover::before { transform: translateX(120%); }
         .gs-btn-primary:not(:disabled):hover { box-shadow: 0 12px 28px rgba(184,137,46,0.42), inset 0 1px 0 rgba(255,255,255,0.5) !important; }
         .gs-btn-ghost:not(:disabled):hover { border-color: ${C.gold} !important; box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 0 0 3px ${C.gold}1F; }
+        @media (max-width: 480px) { body.gs-has-buybar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); } }
         .gs-ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .22; transform: scale(0); animation: gsRipple .6s var(--gs-ease) forwards; z-index: -1; }
         @keyframes gsRipple { to { transform: scale(1); opacity: 0; } }
         .gs-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: gsSpin .7s linear infinite; flex-shrink: 0; }
@@ -7406,7 +7503,7 @@ export default function App() {
           </div>
         )
       )}
-      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPrepareOnline={prepareOnline} onOpenSnap={openSnap} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} />}
+      {view === "paymentconfirm" && <PaymentConfirmationPage go={go} order={orders.find((o) => o.id === pendingOrderId)} attachPaymentProof={attachPaymentProof} onPrepareOnline={prepareOnline} onOpenSnap={openSnap} refreshOrders={fetchOrders} bankInfo={bankInfo} paymentMethods={paymentMethods} goToCustomerOverview={goToCustomerOverview} whatsapp={siteContent.footer?.whatsapp} />}
       {view === "auth" && <AuthPage go={go} onCustomerLogin={onCustomerLogin} onCustomerRegister={onCustomerRegister} onAdminLogin={onAdminLogin} onForgotPassword={forgotPassword} onBack={onBack} onResendVerification={resendVerification} onGoogle={loginWithGoogle} />}
       {view === "resetpassword" && <ResetPasswordPage go={go} onSubmit={resetPasswordConfirm} />}
       {view === "about" && <AboutPage go={go} content={siteContent.about} footerContent={siteContent.footer} role={role} editMode={editMode} updateSiteContent={updateSiteContent} />}
