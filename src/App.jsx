@@ -387,7 +387,7 @@ const SECTION_MARKER = "__section__";
 
 const FAQ_HOME = [
   { q: "Apakah materi bisa diakses selamanya?", a: "Ya. Setelah pembayaran terverifikasi, produk masuk ke akun kamu dan dapat diakses kapan saja tanpa batas waktu." },
-  { q: "Apakah cocok untuk yang belum pernah pegang gitar?", a: "Cocok. Tersedia kategori Beginner Guitar yang disusun dari nol tanpa asumsi kemampuan sebelumnya." },
+  { q: "Apakah cocok untuk yang belum pernah pegang gitar?", a: "Secret Of Shredding cocok kalau kamu sudah bisa memegang gitar walau masih dasar — ada video dasar membaca tablatur & not balok dari nol dan setiap exercise punya versi pelan. Kelas From Zero untuk yang benar-benar mulai dari nol sedang disiapkan (Segera Hadir)." },
   { q: "Metode pembayaran apa saja yang tersedia?", a: "Saat ini pembayaran lewat transfer bank BCA (metode lain akan menyusul). Setelah transfer, unggah bukti pembayaran — materi terbuka di akunmu begitu pembayaran diverifikasi admin, biasanya dalam 1x24 jam pada hari kerja." },
   { q: "Bagaimana jika ada kendala saat belajar?", a: "Kamu dapat menghubungi tim Gitar Sakti lewat kontak WhatsApp atau email yang tertera di bagian bawah halaman." },
 ];
